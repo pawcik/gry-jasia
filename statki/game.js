@@ -838,6 +838,7 @@ function rysujBitwe(ja) {
   el("opisOdNowaBitwa").style.display = mogeOdNowa ? "block" : "none";
   el("nowaGra").style.display = koniec ? "inline-block" : "none";
   el("wyjdzBitwa").style.display = (ja.widz || koniec) ? "inline-block" : "none";
+  rysujStatystyki(koniec);
 
   // Najpierw plansze przeciwników, na końcu moja
   var kolejnosc = [];
@@ -885,6 +886,272 @@ function strzelWGracza(nr) {
   return function (pole) {
     strzel(nr, pole);
   };
+}
+
+// ----- Wyniki na końcu gry -----
+// Nazwy odznak. Można je tu zmienić, serwer i tak sam wybiera, kto je dostał.
+var NAZWY_ODZNAK = {
+  snajper: { ikona: "🎯", nazwa: "Snajper" },
+  pechowiec: { ikona: "💦", nazwa: "Pechowiec" },
+  seria: { ikona: "🔥", nazwa: "Seria" },
+  pogromca: { ikona: "⚓", nazwa: "Pogromca" }
+};
+
+function forma(n, jeden, kilka, wiele) {
+  var m10 = n % 10;
+  var m100 = n % 100;
+  if (n === 1) return jeden;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return kilka;
+  return wiele;
+}
+
+function zlaczenie(czesci) {
+  if (!czesci.length) return "";
+  if (czesci.length === 1) return czesci[0];
+  if (czesci.length === 2) return czesci[0] + " i " + czesci[1];
+  var poczatek = [];
+  for (var i = 0; i < czesci.length - 1; i++) poczatek.push(czesci[i]);
+  return poczatek.join(", ") + " i " + czesci[czesci.length - 1];
+}
+
+function dodajTekst(rodzic, tag, klasa, tekst) {
+  var e = document.createElement(tag);
+  if (klasa) e.className = klasa;
+  e.textContent = tekst;
+  rodzic.appendChild(e);
+  return e;
+}
+
+function opisNagrody(n) {
+  if (n.id === "snajper") return "najlepsza celność: " + n.celnosc + "%";
+  if (n.id === "pechowiec") return "najwięcej pudeł: " + n.pudla;
+  if (n.id === "seria") return n.seria + " " + forma(n.seria, "trafienie", "trafienia", "trafień") + " pod rząd";
+  if (n.id === "pogromca") return "najwięcej zatopionych statków: " + n.zatopionych;
+  return "";
+}
+
+function nazwaMasztow(dlugosc, ile) {
+  var rdzenie = { 1: "jednomasztow", 2: "dwumasztow", 3: "trójmasztow", 4: "czteromasztow" };
+  var rdzen = rdzenie[dlugosc] || (dlugosc + "-masztow");
+  if (ile === 1) return rdzen + "iec";
+  var koncowka = forma(ile, "iec", "ce", "ców");
+  return ile + " " + rdzen + koncowka;
+}
+
+function linieZatopionych(lista) {
+  if (!lista || !lista.length) return [];
+  var grupy = [];
+  for (var i = 0; i < lista.length; i++) {
+    var z = lista[i];
+    var grupa = null;
+    for (var j = 0; j < grupy.length; j++) {
+      if (grupy[j].imie === z.imie) grupa = grupy[j];
+    }
+    if (!grupa) {
+      grupa = { imie: z.imie, awatar: z.awatar || "", dlugosci: [] };
+      grupy.push(grupa);
+    }
+    var wpis = null;
+    for (var k = 0; k < grupa.dlugosci.length; k++) {
+      if (grupa.dlugosci[k].dlugosc === z.dlugosc) wpis = grupa.dlugosci[k];
+    }
+    if (!wpis) {
+      wpis = { dlugosc: z.dlugosc, ile: 0 };
+      grupa.dlugosci.push(wpis);
+    }
+    wpis.ile++;
+  }
+  var czesci = [];
+  for (var a = 0; a < grupy.length; a++) {
+    var nazwy = [];
+    for (var b = 0; b < grupy[a].dlugosci.length; b++) {
+      nazwy.push(nazwaMasztow(grupy[a].dlugosci[b].dlugosc, grupy[a].dlugosci[b].ile));
+    }
+    czesci.push({ imie: grupy[a].imie, awatar: grupy[a].awatar || "", tekst: zlaczenie(nazwy) });
+  }
+  return czesci;
+}
+
+function dopiszZatopione(karta, lista) {
+  var linie = linieZatopionych(lista);
+  if (!linie.length) {
+    dodajTekst(karta, "p", "", "Brak zatopionych statków.");
+    return;
+  }
+  dodajTekst(karta, "p", "", "Zatopione statki:");
+  for (var i = 0; i < linie.length; i++) {
+    var wiersz = document.createElement("p");
+    wiersz.className = "wciecie";
+    dopiszOsobe(wiersz, linie[i], "maly", " — " + linie[i].tekst);
+    karta.appendChild(wiersz);
+  }
+}
+
+function dopiszLudzikow(rodzic, osoby, zPucharem) {
+  if (zPucharem) rodzic.appendChild(document.createTextNode("🏆 "));
+  for (var i = 0; i < osoby.length; i++) {
+    if (i > 0) rodzic.appendChild(document.createTextNode(i === osoby.length - 1 ? " i " : ", "));
+    dopiszOsobe(rodzic, osoby[i], "maly", "");
+  }
+}
+
+function wygralStat(g) {
+  if (stan.sposob === "punkty") {
+    var ranking = stan.ranking || [];
+    for (var i = 0; i < ranking.length; i++) {
+      if (ranking[i].nr === g.nr) return ranking[i].miejsce === 1;
+    }
+    return false;
+  }
+  return g.imie === stan.zwyciezca;
+}
+
+function liniaDoKogo(g, nr) {
+  var wKogo = g.wKogo || [];
+  for (var i = 0; i < wKogo.length; i++) {
+    if (wKogo[i].nr === nr) return wKogo[i];
+  }
+  return null;
+}
+
+function rysujOdznaki(box, nagrody) {
+  if (!nagrody || !nagrody.length) return;
+  var rzad = document.createElement("div");
+  rzad.className = "odznaki";
+  for (var i = 0; i < nagrody.length; i++) {
+    var n = nagrody[i];
+    var opis = NAZWY_ODZNAK[n.id] || { ikona: "🏅", nazwa: n.id };
+    var chip = document.createElement("div");
+    chip.className = "odznaka " + n.id;
+    dodajTekst(chip, "span", "odznakaNazwa", opis.ikona + " " + opis.nazwa);
+    var kto = document.createElement("span");
+    kto.className = "odznakaKto";
+    dopiszLudzikow(kto, n.kto || [], false);
+    chip.appendChild(kto);
+    dodajTekst(chip, "span", "odznakaOpis", opisNagrody(n));
+    rzad.appendChild(chip);
+  }
+  box.appendChild(rzad);
+}
+
+function rysujMacierz(box, gracze) {
+  dodajTekst(box, "h3", "", "Kto do kogo strzelał");
+  dodajTekst(box, "p", "legendaStat", "W kratce: trafienia/strzały. Kreska to własna plansza.");
+  var przewijanie = document.createElement("div");
+  przewijanie.className = "przewijanie";
+  var tabela = document.createElement("table");
+  tabela.className = "macierz";
+  var naglowek = document.createElement("tr");
+  dodajTekst(naglowek, "th", "", "Strzelał");
+  for (var i = 0; i < gracze.length; i++) {
+    var glowa = document.createElement("th");
+    dopiszOsobe(glowa, gracze[i], "maly", "");
+    naglowek.appendChild(glowa);
+  }
+  dodajTekst(naglowek, "th", "", "Razem");
+  var thead = document.createElement("thead");
+  thead.appendChild(naglowek);
+  tabela.appendChild(thead);
+  var tbody = document.createElement("tbody");
+  for (var r = 0; r < gracze.length; r++) {
+    var g = gracze[r];
+    var wygral = wygralStat(g);
+    var wiersz = document.createElement("tr");
+    if (wygral) wiersz.className = "wierszZwyciezcy";
+    var podpis = document.createElement("th");
+    dopiszLudzikow(podpis, [g], wygral);
+    wiersz.appendChild(podpis);
+    for (var c = 0; c < gracze.length; c++) {
+      var cel = gracze[c];
+      var td = document.createElement("td");
+      if (cel.nr === g.nr) {
+        td.textContent = "—";
+        td.className = "siebie";
+      } else {
+        var linia = liniaDoKogo(g, cel.nr);
+        if (!linia) {
+          td.textContent = "·";
+          td.className = "pusto";
+        } else {
+          td.textContent = linia.trafienia + "/" + linia.strzaly;
+          if (linia.strzaly && linia.trafienia * 2 >= linia.strzaly) td.className = "celnie";
+        }
+      }
+      wiersz.appendChild(td);
+    }
+    var razem = document.createElement("td");
+    razem.className = "razem";
+    razem.textContent = g.trafienia + "/" + g.strzaly;
+    wiersz.appendChild(razem);
+    tbody.appendChild(wiersz);
+  }
+  tabela.appendChild(tbody);
+  przewijanie.appendChild(tabela);
+  box.appendChild(przewijanie);
+}
+
+function rysujKartyGraczy(box, gracze) {
+  var lista = document.createElement("div");
+  lista.className = "kartyStat";
+  for (var i = 0; i < gracze.length; i++) {
+    var g = gracze[i];
+    var karta = document.createElement("div");
+    var wygralKarte = wygralStat(g);
+    karta.className = "kartaStat" + (wygralKarte ? " zwyciezca" : "");
+    var tytul = document.createElement("h3");
+    dopiszLudzikow(tytul, [g], wygralKarte);
+    karta.appendChild(tytul);
+    if (!g.strzaly) {
+      dodajTekst(karta, "p", "", "Nie oddał żadnego strzału.");
+    } else {
+      dodajTekst(karta, "p", "", g.strzaly + " " + forma(g.strzaly, "strzał", "strzały", "strzałów")
+        + ", " + g.trafienia + " " + forma(g.trafienia, "trafienie", "trafienia", "trafień")
+        + ", " + g.pudla + " " + forma(g.pudla, "pudło", "pudła", "pudeł"));
+      var oCelnosci = "Celność: " + g.celnosc + "%";
+      if (stan.sposob === "punkty") oCelnosci += " · " + g.punkty + " " + forma(g.punkty, "punkt", "punkty", "punktów");
+      dodajTekst(karta, "p", "", oCelnosci);
+    }
+    if (g.seria > 1) {
+      dodajTekst(karta, "p", "", "Najdłuższa seria: " + g.seria + " " + forma(g.seria, "trafienie", "trafienia", "trafień") + " pod rząd");
+    } else if (g.seria === 1) {
+      dodajTekst(karta, "p", "", "Najdłuższa seria: 1 trafienie");
+    }
+    var wKogo = g.wKogo || [];
+    for (var j = 0; j < wKogo.length; j++) {
+      var linia = wKogo[j];
+      var doKogo = document.createElement("p");
+      doKogo.appendChild(document.createTextNode("→ "));
+      dopiszOsobe(doKogo, linia, "maly", ": " + linia.trafienia + " "
+        + forma(linia.trafienia, "trafienie", "trafienia", "trafień") + " na " + linia.strzaly + " "
+        + forma(linia.strzaly, "strzał", "strzały", "strzałów"));
+      karta.appendChild(doKogo);
+    }
+    dopiszZatopione(karta, g.zatopione);
+    lista.appendChild(karta);
+  }
+  box.appendChild(lista);
+}
+
+function rysujStatystyki(koniec) {
+  var box = el("statystyki");
+  var dane = stan.statystyki;
+  if (!koniec || !dane || !dane.gracze || !dane.gracze.length) {
+    box.innerHTML = "";
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "block";
+  box.innerHTML = "";
+  var tytul = document.createElement("h2");
+  var zakres = document.createElement("span");
+  zakres.className = "zakreslacz";
+  zakres.textContent = "Jak strzelaliśmy";
+  tytul.appendChild(zakres);
+  box.appendChild(tytul);
+  rysujOdznaki(box, dane.nagrody);
+  rysujMacierz(box, dane.gracze);
+  rysujKartyGraczy(box, dane.gracze);
+  dodajTekst(box, "p", "maly uwagaStat", "Pudła dookoła zatopionego statku rysują się same i nie liczą się do strzałów.");
 }
 
 // ----- Guziki -----

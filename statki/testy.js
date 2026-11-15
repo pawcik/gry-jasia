@@ -1,4 +1,5 @@
-// Sprawdza, czy dwie gry na jednym serwerze się nie mieszają.
+// Sprawdza, czy dwie gry na jednym serwerze się nie mieszają
+// i czy statystyki końca zostają w swojej poczekalni.
 // Uruchom: node testy.js   (albo: mise run testy)
 
 var http = require("http");
@@ -168,6 +169,279 @@ async function strzel(kod, sluchacze) {
   }
 }
 
+function statekTest(w, k, dlugosc, poziomo, nr) {
+  return { w: w, k: k, dlugosc: dlugosc, poziomo: poziomo, nr: nr };
+}
+
+// Dwie różne floty szybkiej gry (7×7). Każda poczekalnia dostaje obie.
+var FLOTY_TESTU = [
+  [
+    statekTest(0, 0, 3, true, 0),
+    statekTest(0, 4, 2, true, 1),
+    statekTest(2, 0, 2, true, 2),
+    statekTest(2, 3, 1, true, 3),
+    statekTest(2, 5, 1, true, 4)
+  ],
+  [
+    statekTest(4, 0, 3, true, 0),
+    statekTest(4, 4, 2, true, 1),
+    statekTest(6, 0, 2, true, 2),
+    statekTest(6, 3, 1, true, 3),
+    statekTest(6, 5, 1, true, 4)
+  ]
+];
+
+function znajdzPoleTest(stan, flota, celNr, chcePudlo) {
+  var widok = "";
+  for (var i = 0; i < stan.gracze.length; i++) {
+    if (stan.gracze[i].nr === celNr) widok = stan.gracze[i].pola;
+  }
+  var rozmiar = zasady.TRYBY.szybka.rozmiar;
+  for (var p = 0; p < rozmiar * rozmiar; p++) {
+    if (widok.charAt(p) !== "0") continue;
+    var woda = flota.naPolu[p] === -1;
+    if (chcePudlo === woda) return p;
+  }
+  return -1;
+}
+
+function nastepnyStrzalTest(stan, nr, floty, licznik) {
+  var zywi = [];
+  for (var i = 0; i < stan.gracze.length; i++) {
+    var g = stan.gracze[i];
+    if (!g.widz && !g.odpadl && g.nr !== nr && g.zostalo > 0) zywi.push(g);
+  }
+  if (!zywi.length) return null;
+  var start = licznik % zywi.length;
+  var kolejnosc = zywi.slice(start).concat(zywi.slice(0, start));
+  var proby = [licznik % 4 === 3, licznik % 4 !== 3];
+  for (var a = 0; a < proby.length; a++) {
+    for (var b = 0; b < kolejnosc.length; b++) {
+      var pole = znajdzPoleTest(stan, floty[kolejnosc[b].nr], kolejnosc[b].nr, proby[a]);
+      if (pole !== -1) return { cel: kolejnosc[b].nr, pole: pole };
+    }
+  }
+  return null;
+}
+
+function ocenStrzalTest(trafienia, floty, cel, pole) {
+  var flota = floty[cel];
+  var idx = flota.naPolu[pole];
+  if (idx === -1) return { wynik: "pudlo", dlugosc: 0 };
+  var key = cel + ":" + idx;
+  trafienia[key] = (trafienia[key] || 0) + 1;
+  var dl = flota.statki[idx].pola.length;
+  if (trafienia[key] === dl) return { wynik: "zatopiony", dlugosc: dl };
+  return { wynik: "trafiony", dlugosc: 0 };
+}
+
+function oczekiwaneStaty(strzaly) {
+  var mapa = {};
+  function wez(nr) {
+    if (!mapa[nr]) mapa[nr] = { strzaly: 0, trafienia: 0, pudla: 0, seriaTeraz: 0, seria: 0, zatopione: 0 };
+    return mapa[nr];
+  }
+  for (var i = 0; i < strzaly.length; i++) {
+    var s = strzaly[i];
+    var g = wez(s.kto);
+    g.strzaly++;
+    if (s.wynik === "pudlo") {
+      g.pudla++;
+      g.seriaTeraz = 0;
+    } else {
+      g.trafienia++;
+      g.seriaTeraz++;
+      if (g.seriaTeraz > g.seria) g.seria = g.seriaTeraz;
+      if (s.wynik === "zatopiony") g.zatopione++;
+    }
+  }
+  return mapa;
+}
+
+async function zalozGreDoStatystyk(kod, osoby, naPunkty) {
+  var utworzona = await post({ typ: "noweLobby", kod: kod });
+  sprawdz(utworzona.ok && utworzona.kod === kod, "nowa gra " + kod + ": " + JSON.stringify(utworzona));
+  var sluchacze = [];
+  for (var i = 0; i < osoby.length; i++) {
+    var sl = await sluchaj(osoby[i].id, kod);
+    await czekajAz(sl, function (s) { return s.etap === "poczekalnia" && s.kod === kod; }, "start " + kod);
+    await dolacz(sl, osoby[i].imie, osoby[i].awatar);
+    sluchacze.push(sl);
+  }
+  var tryb = await post({ id: osoby[0].id, kod: kod, typ: "tryb", tryb: "szybka" });
+  sprawdz(!tryb.blad, "tryb " + kod + ": " + tryb.blad);
+  if (naPunkty) {
+    var sposob = await post({ id: osoby[0].id, kod: kod, typ: "sposob", sposob: "punkty" });
+    sprawdz(!sposob.blad, "sposób " + kod + ": " + (sposob.blad || ""));
+    var rundy = await post({ id: osoby[0].id, kod: kod, typ: "rundy", ile: 5 });
+    sprawdz(!rundy.blad, "rundy " + kod + ": " + (rundy.blad || ""));
+  }
+  var start = await post({ id: osoby[0].id, kod: kod, typ: "start" });
+  sprawdz(!start.blad, "start " + kod + ": " + start.blad);
+  await czekajAz(sluchacze[0], function (s) { return s.etap === "ustawianie"; }, "ustawianie " + kod);
+  var floty = {};
+  var imiePoNr = {};
+  var awatarPoNr = {};
+  for (var u = 0; u < sluchacze.length; u++) {
+    var zbudowana = zasady.zbudujFlote(osoby[u].flota, zasady.TRYBY.szybka, true);
+    sprawdz(zbudowana, "zła flota " + osoby[u].imie);
+    var ustaw = await post({ id: osoby[u].id, kod: kod, typ: "ustaw", statki: osoby[u].flota });
+    sprawdz(!ustaw.blad, "ustaw " + osoby[u].imie + ": " + ustaw.blad);
+    await czekajAz(sluchacze[u], function (s) {
+      var ja = null;
+      for (var n = 0; n < s.gracze.length; n++) if (s.gracze[n].nr === s.ja) ja = s.gracze[n];
+      return ja && ja.gotowy;
+    }, "gotowy " + osoby[u].imie);
+    imiePoNr[sluchacze[u].ostatni().ja] = osoby[u].imie;
+    awatarPoNr[sluchacze[u].ostatni().ja] = osoby[u].awatar;
+    floty[sluchacze[u].ostatni().ja] = zbudowana;
+  }
+  await czekajAz(sluchacze[0], function (s) {
+    return s.etap === "bitwa" && s.statystyki === null && (naPunkty ? s.sposob === "punkty" && s.ileRund === 5 : s.sposob !== "punkty");
+  }, "bitwa bez statystyk " + kod);
+  return { kod: kod, sluchacze: sluchacze, floty: floty, imiePoNr: imiePoNr, awatarPoNr: awatarPoNr, strzaly: [], licznik: {}, trafienia: {} };
+}
+
+async function jedenStrzalTest(gra) {
+  var stan = gra.sluchacze[0].ostatni();
+  if (stan.etap === "koniec") return false;
+  sprawdz(stan.etap === "bitwa", gra.kod + " nie jest w bitwie: " + stan.etap);
+  sprawdz(stan.statystyki === null, gra.kod + " pokazuje statystyki przed końcem");
+  var nr = stan.tura;
+  var kto = null;
+  for (var i = 0; i < gra.sluchacze.length; i++) {
+    if (gra.sluchacze[i].ostatni().ja === nr) kto = gra.sluchacze[i];
+  }
+  sprawdz(kto, "brak strzelca w " + gra.kod);
+  var wybor = nastepnyStrzalTest(stan, nr, gra.floty, gra.licznik[nr] || 0);
+  sprawdz(wybor, "brak pola w " + gra.kod);
+  var numer = stan.ostatni ? stan.ostatni.numer : 0;
+  var odp = await post({ id: kto.id, kod: gra.kod, typ: "strzal", cel: wybor.cel, pole: wybor.pole });
+  sprawdz(!odp.blad, gra.kod + " strzał: " + (odp.blad || ""));
+  for (var n = 0; n < gra.sluchacze.length; n++) {
+    await czekajAz(gra.sluchacze[n], function (s) { return s.ostatni && s.ostatni.numer > numer; }, "wynik " + gra.kod);
+  }
+  var ostatni = kto.ostatni().ostatni;
+  var oczek = ocenStrzalTest(gra.trafienia, gra.floty, wybor.cel, wybor.pole);
+  sprawdz(ostatni.wynik === oczek.wynik, gra.kod + " wynik " + ostatni.wynik + " zamiast " + oczek.wynik);
+  gra.strzaly.push({ kto: nr, cel: wybor.cel, wynik: oczek.wynik, dlugosc: oczek.dlugosc });
+  gra.licznik[nr] = (gra.licznik[nr] || 0) + 1;
+  return true;
+}
+
+function sprawdzKoncoweStatystyki(gra) {
+  var stan = gra.sluchacze[0].ostatni();
+  sprawdz(stan.etap === "koniec" && stan.statystyki, gra.kod + " nie ma statystyk na końcu");
+  var mapa = oczekiwaneStaty(gra.strzaly);
+  var suma = 0;
+  var imionaGry = [];
+  for (var nr in gra.imiePoNr) imionaGry.push(gra.imiePoNr[nr]);
+  for (var i = 0; i < stan.statystyki.gracze.length; i++) {
+    var g = stan.statystyki.gracze[i];
+    sprawdz(imionaGry.indexOf(g.imie) !== -1, gra.kod + " ma obcego gracza " + g.imie);
+    sprawdz(g.awatar === gra.awatarPoNr[g.nr], gra.kod + " " + g.imie + " ma cudzy ludzik " + g.awatar);
+    var o = mapa[g.nr] || { strzaly: 0, trafienia: 0, pudla: 0, seria: 0, zatopione: 0 };
+    suma += g.strzaly;
+    sprawdz(g.strzaly === o.strzaly && g.trafienia === o.trafienia && g.pudla === o.pudla, gra.kod + " " + g.imie + " ma złe liczby");
+    sprawdz(g.strzaly === g.trafienia + g.pudla, gra.kod + " " + g.imie + " strzały się nie sumują");
+    sprawdz(g.seria === o.seria, gra.kod + " " + g.imie + " seria");
+    sprawdz(g.zatopionych === o.zatopione, gra.kod + " " + g.imie + " zatopione");
+    var linie = 0;
+    for (var w = 0; w < g.wKogo.length; w++) {
+      sprawdz(imionaGry.indexOf(g.wKogo[w].imie) !== -1, gra.kod + " strzela do obcego " + g.wKogo[w].imie);
+      linie += g.wKogo[w].strzaly;
+    }
+    sprawdz(linie === g.strzaly, gra.kod + " kto-do-kogo nie sumuje się");
+  }
+  sprawdz(suma === gra.strzaly.length, gra.kod + " suma strzałów " + suma + " != " + gra.strzaly.length);
+  var pudla = 0;
+  var zatopione = 0;
+  for (var s = 0; s < gra.strzaly.length; s++) {
+    if (gra.strzaly[s].wynik === "pudlo") pudla++;
+    if (gra.strzaly[s].wynik === "zatopiony") zatopione++;
+  }
+  var pudlaStat = 0;
+  var zatopioneStat = 0;
+  for (var p = 0; p < stan.statystyki.gracze.length; p++) {
+    pudlaStat += stan.statystyki.gracze[p].pudla;
+    zatopioneStat += stan.statystyki.gracze[p].zatopionych;
+  }
+  sprawdz(pudlaStat === pudla, gra.kod + " liczy wodę dookoła statku jako pudło");
+  sprawdz(zatopioneStat === zatopione, gra.kod + " liczba zatopionych");
+  var naPunkty = stan.sposob === "punkty";
+  var pkt = {};
+  for (var q = 0; q < gra.strzaly.length; q++) {
+    var sh = gra.strzaly[q];
+    if (!pkt[sh.kto]) pkt[sh.kto] = 0;
+    if (naPunkty) pkt[sh.kto] += zasady.punktyZaStrzal(sh.wynik, sh.dlugosc);
+  }
+  var ktosMaPunkty = false;
+  for (var u = 0; u < stan.statystyki.gracze.length; u++) {
+    var gs = stan.statystyki.gracze[u];
+    var oczekPkt = naPunkty ? (pkt[gs.nr] || 0) : 0;
+    var zPlanszy = -1;
+    for (var h = 0; h < stan.gracze.length; h++) {
+      if (stan.gracze[h].nr === gs.nr) zPlanszy = stan.gracze[h].punkty;
+    }
+    sprawdz(gs.punkty === oczekPkt && zPlanszy === oczekPkt, gra.kod + " punkty " + gs.imie + ": " + gs.punkty + " != " + oczekPkt);
+    if (gs.punkty > 0) ktosMaPunkty = true;
+  }
+  if (naPunkty) sprawdz(ktosMaPunkty, gra.kod + " nikt nie dostał punktu");
+}
+
+async function sprawdzGreNaPunkty() {
+  var gra = await zalozGreDoStatystyk("pkt1", [
+    { id: "pia", imie: "Pia", flota: FLOTY_TESTU[0], awatar: "pirat" },
+    { id: "kaj", imie: "Kaj", flota: FLOTY_TESTU[1], awatar: "kucharz" }
+  ], true);
+  var guard = 0;
+  while (guard++ < 800 && await jedenStrzalTest(gra)) {}
+  await czekajAz(gra.sluchacze[0], function (s) { return s.etap === "koniec" && s.sposob === "punkty"; }, "koniec na punkty");
+  await czekajAz(gra.sluchacze[1], function (s) {
+    return s.etap === "koniec" && JSON.stringify(s.statystyki) === JSON.stringify(gra.sluchacze[0].ostatni().statystyki);
+  }, "Pia i Kaj widzą to samo");
+  sprawdzKoncoweStatystyki(gra);
+  sprawdz(JSON.stringify(gra.sluchacze[0].ostatni().statystyki).indexOf("spioch") === -1, "gra na punkty ma ludzika z innej gry");
+}
+
+async function sprawdzDwieGryDoKonca() {
+  var gra1 = await zalozGreDoStatystyk("qxw1", [
+    { id: "iga", imie: "Iga", flota: FLOTY_TESTU[0], awatar: "spioch" },
+    { id: "ewa", imie: "Ewa", flota: FLOTY_TESTU[1], awatar: "lasuch" }
+  ]);
+  var gra2 = await zalozGreDoStatystyk("qxw2", [
+    { id: "leo", imie: "Leo", flota: FLOTY_TESTU[1], awatar: "kapitan" },
+    { id: "ula", imie: "Ula", flota: FLOTY_TESTU[0], awatar: "malarz" }
+  ]);
+  var guard = 0;
+  var trwa = true;
+  while (trwa && guard++ < 800) {
+    var ruch1 = await jedenStrzalTest(gra1);
+    var zamroz = gra2.sluchacze[0].ostatni().etap === "koniec" ? JSON.stringify(gra2.sluchacze[0].ostatni().statystyki) : "";
+    var ruch2 = await jedenStrzalTest(gra2);
+    if (zamroz) sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki) === zamroz, "strzał w qxw1 zmienił statystyki qxw2");
+    trwa = ruch1 || ruch2;
+  }
+  await czekajAz(gra1.sluchacze[0], function (s) { return s.etap === "koniec"; }, "koniec qxw1");
+  await czekajAz(gra1.sluchacze[1], function (s) { return s.etap === "koniec" && JSON.stringify(s.statystyki) === JSON.stringify(gra1.sluchacze[0].ostatni().statystyki); }, "Iga i Ewa widzą to samo");
+  await czekajAz(gra2.sluchacze[0], function (s) { return s.etap === "koniec"; }, "koniec qxw2");
+  sprawdzKoncoweStatystyki(gra1);
+  sprawdzKoncoweStatystyki(gra2);
+  sprawdz(JSON.stringify(gra1.sluchacze[0].ostatni().statystyki).indexOf("Leo") === -1, "qxw1 zna Leo");
+  sprawdz(JSON.stringify(gra1.sluchacze[0].ostatni().statystyki).indexOf("kapitan") === -1, "qxw1 ma ludzika z qxw2");
+  sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki).indexOf("Iga") === -1, "qxw2 zna Igę");
+  sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki).indexOf("spioch") === -1, "qxw2 ma ludzika z qxw1");
+  var zostawione = JSON.stringify(gra2.sluchacze[0].ostatni().statystyki);
+  var nowa = await post({ id: "iga", kod: "qxw1", typ: "nowaGra" });
+  sprawdz(!nowa.blad, "nowa gra qxw1: " + (nowa.blad || ""));
+  await czekajAz(gra1.sluchacze[0], function (s) { return s.etap === "poczekalnia" && s.statystyki === null; }, "qxw1 wyzerowane");
+  sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki) === zostawione, "nowa gra w qxw1 skasowała qxw2");
+  var odNowa = await post({ id: "leo", kod: "qxw2", typ: "odNowa" });
+  sprawdz(!odNowa.blad, "od nowa qxw2: " + (odNowa.blad || ""));
+  await czekajAz(gra2.sluchacze[0], function (s) { return s.trzebaPotwierdzic && s.statystyki === null && s.gracze.length === 0; }, "qxw2 po od nowa");
+  sprawdz(gra1.sluchacze[0].ostatni().etap === "poczekalnia" && gra1.sluchacze[0].ostatni().statystyki === null, "od nowa w qxw2 ruszyło qxw1");
+}
+
 function uruchom() {
   dziecko = child_process.spawn(process.execPath, ["serwer.js"], {
     cwd: __dirname,
@@ -328,6 +602,9 @@ async function main() {
   await czekajAz(a1, function (s) { return s.ja !== 0 && !s.trzebaPotwierdzic && imiona(s).join(",") === "Ala"; }, "Ala wróciła");
   sprawdz(a1.ostatni().gracze[0].awatar === "spioch", "Ala wróciła bez ludzika");
   sprawdz(b1.ostatni().etap === "bitwa", "powrót Ali przerwał grę B");
+
+  await sprawdzDwieGryDoKonca();
+  await sprawdzGreNaPunkty();
 
   var puste = ["", "ab", "!!", "a", "abcdefghi"];
   var kawalki = ["Wpisz kod", "3 do 8", "Wpisz kod", "3 do 8", "3 do 8"];
