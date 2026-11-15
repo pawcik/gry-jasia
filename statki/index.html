@@ -90,6 +90,12 @@
     <div id="oczekujacy" class="oczekujacy"></div>
     <p>Jaką grę gramy?</p>
     <div id="tryby"></div>
+    <p>Kto wygrywa?</p>
+    <div id="sposoby"></div>
+    <div id="wyborRund">
+      <p>Ile rund? Runda to jedna kolejka każdego gracza.</p>
+      <div id="rundy"></div>
+    </div>
     <button id="start" class="duzy">Start gry 🚀</button>
     <p class="maly">Ktoś dołączył, ale nie gra? Zacznij od nowa. Każdy znów klika Gram!.</p>
     <button id="odNowaPoczekalnia">Zacznij od nowa 🔁</button>
@@ -102,7 +108,8 @@
         <li>🎯 Strzelacie po kolei. W swojej kolejce wybierasz planszę dowolnego przeciwnika i jedno pole.</li>
         <li>💥 Trafiony? Strzelasz jeszcze raz! 💧 Pudło? Strzela następny gracz.</li>
         <li>🔥 Gdy statek jest zatopiony, woda dookoła sama się zaznacza.</li>
-        <li>🏆 Kto straci wszystkie statki, odpada. Wygrywa ostatni gracz, który ma statki.</li>
+        <li>🏆 Klasycznie: kto straci wszystkie statki, odpada. Wygrywa ostatni, który ma statki.</li>
+        <li>⭐ Na punkty: trafione pole to 1 punkt, a zatopienie daje jeszcze tyle punktów, ile masztów. Gramy 5, 10 albo 15 rund. Wygrywa ten, kto ma najwięcej punktów, nawet bez statków. Przy remisie liczy się, kto trafiał częściej.</li>
       </ul>
     </div>
   </section>
@@ -122,6 +129,7 @@
           </div>
           <button id="gotowe" class="duzy">Gotowe ✔</button>
         </div>
+        <p id="infoSposobu" class="maly"></p>
         <p id="czekamNaInnych"></p>
         <ul id="gotowiGracze"></ul>
         <div id="oczekujacyUstawianie" class="oczekujacy"></div>
@@ -133,7 +141,8 @@
   </section>
 
   <section class="ekran" id="ekranBitwa">
-    <div id="tura"></div>
+    <div id="tura"><div id="turaNapis"></div><div id="tablica"></div></div>
+    <ol id="ranking"></ol>
     <div id="plansze"></div>
     <button id="odNowaBitwa">Zacznij od nowa 🔁</button>
     <p class="maly" id="opisOdNowaBitwa">Ktoś nie gra? Każdy znów klika Gram!.</p>
