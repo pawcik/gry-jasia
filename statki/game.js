@@ -538,6 +538,40 @@ function rysujPoczekalnie() {
   }
   var adresy = stan.adresy && stan.adresy.length ? " Strona: " + stan.adresy.join(" albo ") : "";
   el("adresy").textContent = "Inni otwierają grę i stukają „Dołącz kodem”." + adresy;
+
+  // Kto wygrywa w TEJ grze. Druga poczekalnia ma swój wybór.
+  rysujWybor(el("sposoby"), SPOSOBY, stan.sposob || "klasyczny", function (wybrany) {
+    wyslij("sposob", { sposob: wybrany });
+  });
+  var naPunkty = stan.sposob === "punkty";
+  el("wyborRund").style.display = naPunkty ? "block" : "none";
+  if (naPunkty) rysujRundy();
+}
+
+function rysujWybor(miejsce, slownik, wybrany, poKliknieciu) {
+  miejsce.innerHTML = "";
+  for (var nazwa in slownik) {
+    var guzik = document.createElement("button");
+    guzik.className = "trybGuzik" + (nazwa === wybrany ? " wybrany" : "");
+    guzik.textContent = slownik[nazwa].nazwa + ": " + slownik[nazwa].opis;
+    dodajKlik(guzik, poKliknieciu, nazwa);
+    miejsce.appendChild(guzik);
+  }
+}
+
+function rysujRundy() {
+  var miejsce = el("rundy");
+  miejsce.innerHTML = "";
+  for (var i = 0; i < RUNDY_DO_WYBORU.length; i++) {
+    var ile = RUNDY_DO_WYBORU[i];
+    var guzik = document.createElement("button");
+    guzik.className = "trybGuzik" + (ile === stan.ileRund ? " wybrany" : "");
+    guzik.textContent = ile + " rund";
+    dodajKlik(guzik, function (wybrane) {
+      wyslij("rundy", { ile: wybrane });
+    }, ile);
+    miejsce.appendChild(guzik);
+  }
 }
 
 // ----- Ustawianie statków -----
@@ -666,6 +700,15 @@ function rysujUstawianie(ja) {
     el("gotowe").disabled = ustawianie.statki.length !== tryb().statki.length;
   }
 
+  var info = el("infoSposobu");
+  if (stan.sposob === "punkty") {
+    info.style.display = "block";
+    info.textContent = "⭐ Na punkty, " + stan.ileRund + " rund. Trafione pole to 1 punkt, zatopienie dokłada maszty.";
+  } else {
+    info.style.display = "none";
+    info.textContent = "";
+  }
+
   var lista = el("gotowiGracze");
   lista.innerHTML = "";
   var inni = grajacy();
@@ -683,6 +726,78 @@ function rysujUstawianie(ja) {
 }
 
 // ----- Bitwa (i koniec gry) -----
+function awatarGracza(nr) {
+  var g = gracz(nr);
+  return g ? g.awatar : "";
+}
+
+function napiszZwyciezcowNaPunkty(pasek) {
+  var pierwsi = [];
+  var miejsca = stan.ranking || [];
+  for (var i = 0; i < miejsca.length; i++) {
+    if (miejsca[i].miejsce === 1) pierwsi.push(miejsca[i]);
+  }
+  if (!pierwsi.length) {
+    pasek.textContent = "🏆 Wygrywa " + (stan.zwyciezca || "") + "!";
+    return;
+  }
+  var kawalki = [pierwsi.length > 1 ? "🤝 Remis: " : "🏆 Wygrywa "];
+  for (var j = 0; j < pierwsi.length; j++) {
+    if (j) kawalki.push(" i ");
+    kawalki.push({ osoba: { imie: pierwsi[j].imie, awatar: awatarGracza(pierwsi[j].nr) }, klasa: "maly" });
+  }
+  kawalki.push("!");
+  napiszZLudzikami(pasek, kawalki);
+}
+
+function rysujTablice() {
+  var tablica = el("tablica");
+  var ranking = el("ranking");
+  var naPunkty = stan.sposob === "punkty";
+  if (naPunkty && stan.etap === "bitwa") {
+    tablica.style.display = "flex";
+    tablica.innerHTML = "";
+    var runda = document.createElement("span");
+    runda.className = "rundaLicznik";
+    runda.textContent = "Runda " + stan.runda + " z " + stan.ileRund;
+    tablica.appendChild(runda);
+    var miejsca = stan.ranking || [];
+    var ktosNizej = false;
+    for (var n = 0; n < miejsca.length; n++) if (miejsca[n].miejsce > 1) ktosNizej = true;
+    for (var i = 0; i < miejsca.length; i++) {
+      var chip = document.createElement("span");
+      chip.className = "wynikGracza" + (miejsca[i].miejsce === 1 && ktosNizej ? " lider" : "");
+      wstawAwatar(chip, awatarGracza(miejsca[i].nr), "maly");
+      var napisChip = document.createElement("span");
+      napisChip.textContent = miejsca[i].miejsce + ". " + miejsca[i].imie + " " + miejsca[i].punkty + " pkt";
+      chip.appendChild(napisChip);
+      tablica.appendChild(chip);
+    }
+  } else {
+    tablica.style.display = "none";
+    tablica.innerHTML = "";
+  }
+
+  if (naPunkty && stan.etap === "koniec") {
+    ranking.style.display = "block";
+    ranking.innerHTML = "";
+    var koniec = stan.ranking || [];
+    for (var j = 0; j < koniec.length; j++) {
+      var wiersz = document.createElement("li");
+      var m = koniec[j];
+      if (m.miejsce === 1) wiersz.className = "lider";
+      wstawAwatar(wiersz, awatarGracza(m.nr), "maly");
+      var napisMiejsca = document.createElement("span");
+      napisMiejsca.textContent = m.miejsce + ". " + m.imie + " — " + m.punkty + " pkt, trafienia " + m.trafienia + " z " + m.oddane;
+      wiersz.appendChild(napisMiejsca);
+      ranking.appendChild(wiersz);
+    }
+  } else {
+    ranking.style.display = "none";
+    ranking.innerHTML = "";
+  }
+}
+
 function strzel(cel, pole) {
   var g = gracz(cel);
   if (czekamNaSerwer || !g || g.pola.charAt(pole) !== "0") return;
@@ -696,8 +811,9 @@ function rysujBitwe(ja) {
   var mojaKolej = stan.etap === "bitwa" && stan.tura === stan.ja && !ja.widz;
   var naTurze = gracz(stan.tura);
 
-  var pasek = el("tura");
-  if (stan.etap === "koniec") {
+  var pasek = el("turaNapis");
+  if (stan.etap === "koniec" && stan.sposob === "punkty") napiszZwyciezcowNaPunkty(pasek);
+  else if (stan.etap === "koniec") {
     var wygral = null;
     var zywi = grajacy();
     for (var z = 0; z < zywi.length; z++) {
@@ -708,11 +824,14 @@ function rysujBitwe(ja) {
   } else if (stan.etap === "ustawianie") pasek.textContent = "🚢 Gracze ustawiają statki. Zagrasz w następnej grze.";
   else if (ja.widz) pasek.textContent = "👀 Oglądasz. Zagrasz w następnej grze.";
   else if (ja.odpadl) pasek.textContent = "💀 Twoje statki zatonęły. Oglądaj dalej!";
+  else if (stan.sposob === "punkty" && ja.zostalo === 0 && mojaKolej) napiszZLudzikami(pasek, [{ awatar: ja.awatar, klasa: "maly" }, " 🎯 Twoja kolej! Twoje statki zatonęły, ale strzelasz dalej"]);
+  else if (stan.sposob === "punkty" && ja.zostalo === 0 && naTurze) napiszZLudzikami(pasek, ["💀 Twoje statki zatonęły. Strzela ", { osoba: naTurze, klasa: "maly" }, " — twoja kolejka wróci"]);
   else if (mojaKolej) napiszZLudzikami(pasek, [{ awatar: ja.awatar, klasa: "maly" }, " 🎯 Twoja kolej! Strzel w planszę przeciwnika"]);
   else if (naTurze) napiszZLudzikami(pasek, ["⏳ Strzela ", { osoba: naTurze, klasa: "maly", dodatki: naTurze.online ? "" : " (nie ma połączenia 📵)" }]);
   else pasek.textContent = "";
   if (stan.etap === "koniec") el("tura").className = "koniecGry";
   else el("tura").className = mojaKolej ? "mojaTura" : "";
+  rysujTablice();
   var koniec = stan.etap === "koniec";
   var mogeOdNowa = !koniec && !ja.widz;
   el("odNowaBitwa").style.display = mogeOdNowa ? "inline-block" : "none";
@@ -735,13 +854,15 @@ function rysujBitwe(ja) {
   miejsce.innerHTML = "";
   for (var n = 0; n < kolejnosc.length; n++) {
     var g = kolejnosc[n];
-    var moznaStrzelac = mojaKolej && g.nr !== stan.ja && !g.odpadl;
+    var flotaPadla = stan.sposob === "punkty" && g.zostalo === 0;
+    var moznaStrzelac = mojaKolej && g.nr !== stan.ja && !g.odpadl && !flotaPadla;
     var karta = document.createElement("div");
     karta.className = "karta" + (g.nr === stan.tura && stan.etap === "bitwa" ? " naTurze" : "") + (moznaStrzelac ? " cel" : "") + (g.odpadl ? " odpadl" : "");
     var tytul = document.createElement("h3");
     wstawAwatar(tytul, g.awatar, "");
     var napisPlanszy = document.createElement("span");
-    napisPlanszy.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + "  🚢 " + g.zostalo + (g.odpadl ? " 💀" : "") + (g.online ? "" : " 📵");
+    var punktyNapis = stan.sposob === "punkty" ? " · " + g.punkty + " pkt" : "";
+    napisPlanszy.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + punktyNapis + "  🚢 " + g.zostalo + (g.odpadl || flotaPadla ? " 💀" : "") + (g.online ? "" : " 📵");
     tytul.appendChild(napisPlanszy);
     dodajUsun(tytul, g);
     karta.appendChild(tytul);
@@ -874,6 +995,17 @@ function dopiszLudzikow(rodzic, osoby, zPucharem) {
   }
 }
 
+function wygralStat(g) {
+  if (stan.sposob === "punkty") {
+    var ranking = stan.ranking || [];
+    for (var i = 0; i < ranking.length; i++) {
+      if (ranking[i].nr === g.nr) return ranking[i].miejsce === 1;
+    }
+    return false;
+  }
+  return g.imie === stan.zwyciezca;
+}
+
 function liniaDoKogo(g, nr) {
   var wKogo = g.wKogo || [];
   for (var i = 0; i < wKogo.length; i++) {
@@ -923,7 +1055,7 @@ function rysujMacierz(box, gracze) {
   var tbody = document.createElement("tbody");
   for (var r = 0; r < gracze.length; r++) {
     var g = gracze[r];
-    var wygral = g.imie === stan.zwyciezca;
+    var wygral = wygralStat(g);
     var wiersz = document.createElement("tr");
     if (wygral) wiersz.className = "wierszZwyciezcy";
     var podpis = document.createElement("th");
@@ -964,9 +1096,10 @@ function rysujKartyGraczy(box, gracze) {
   for (var i = 0; i < gracze.length; i++) {
     var g = gracze[i];
     var karta = document.createElement("div");
-    karta.className = "kartaStat" + (g.imie === stan.zwyciezca ? " zwyciezca" : "");
+    var wygralKarte = wygralStat(g);
+    karta.className = "kartaStat" + (wygralKarte ? " zwyciezca" : "");
     var tytul = document.createElement("h3");
-    dopiszLudzikow(tytul, [g], g.imie === stan.zwyciezca);
+    dopiszLudzikow(tytul, [g], wygralKarte);
     karta.appendChild(tytul);
     if (!g.strzaly) {
       dodajTekst(karta, "p", "", "Nie oddał żadnego strzału.");
@@ -974,7 +1107,9 @@ function rysujKartyGraczy(box, gracze) {
       dodajTekst(karta, "p", "", g.strzaly + " " + forma(g.strzaly, "strzał", "strzały", "strzałów")
         + ", " + g.trafienia + " " + forma(g.trafienia, "trafienie", "trafienia", "trafień")
         + ", " + g.pudla + " " + forma(g.pudla, "pudło", "pudła", "pudeł"));
-      dodajTekst(karta, "p", "", "Celność: " + g.celnosc + "%");
+      var oCelnosci = "Celność: " + g.celnosc + "%";
+      if (stan.sposob === "punkty") oCelnosci += " · " + g.punkty + " " + forma(g.punkty, "punkt", "punkty", "punktów");
+      dodajTekst(karta, "p", "", oCelnosci);
     }
     if (g.seria > 1) {
       dodajTekst(karta, "p", "", "Najdłuższa seria: " + g.seria + " " + forma(g.seria, "trafienie", "trafienia", "trafień") + " pod rząd");

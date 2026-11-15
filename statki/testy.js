@@ -258,7 +258,7 @@ function oczekiwaneStaty(strzaly) {
   return mapa;
 }
 
-async function zalozGreDoStatystyk(kod, osoby) {
+async function zalozGreDoStatystyk(kod, osoby, naPunkty) {
   var utworzona = await post({ typ: "noweLobby", kod: kod });
   sprawdz(utworzona.ok && utworzona.kod === kod, "nowa gra " + kod + ": " + JSON.stringify(utworzona));
   var sluchacze = [];
@@ -270,6 +270,12 @@ async function zalozGreDoStatystyk(kod, osoby) {
   }
   var tryb = await post({ id: osoby[0].id, kod: kod, typ: "tryb", tryb: "szybka" });
   sprawdz(!tryb.blad, "tryb " + kod + ": " + tryb.blad);
+  if (naPunkty) {
+    var sposob = await post({ id: osoby[0].id, kod: kod, typ: "sposob", sposob: "punkty" });
+    sprawdz(!sposob.blad, "sposób " + kod + ": " + (sposob.blad || ""));
+    var rundy = await post({ id: osoby[0].id, kod: kod, typ: "rundy", ile: 5 });
+    sprawdz(!rundy.blad, "rundy " + kod + ": " + (rundy.blad || ""));
+  }
   var start = await post({ id: osoby[0].id, kod: kod, typ: "start" });
   sprawdz(!start.blad, "start " + kod + ": " + start.blad);
   await czekajAz(sluchacze[0], function (s) { return s.etap === "ustawianie"; }, "ustawianie " + kod);
@@ -290,7 +296,9 @@ async function zalozGreDoStatystyk(kod, osoby) {
     awatarPoNr[sluchacze[u].ostatni().ja] = osoby[u].awatar;
     floty[sluchacze[u].ostatni().ja] = zbudowana;
   }
-  await czekajAz(sluchacze[0], function (s) { return s.etap === "bitwa" && s.statystyki === null; }, "bitwa bez statystyk " + kod);
+  await czekajAz(sluchacze[0], function (s) {
+    return s.etap === "bitwa" && s.statystyki === null && (naPunkty ? s.sposob === "punkty" && s.ileRund === 5 : s.sposob !== "punkty");
+  }, "bitwa bez statystyk " + kod);
   return { kod: kod, sluchacze: sluchacze, floty: floty, imiePoNr: imiePoNr, awatarPoNr: awatarPoNr, strzaly: [], licznik: {}, trafienia: {} };
 }
 
@@ -360,6 +368,40 @@ function sprawdzKoncoweStatystyki(gra) {
   }
   sprawdz(pudlaStat === pudla, gra.kod + " liczy wodę dookoła statku jako pudło");
   sprawdz(zatopioneStat === zatopione, gra.kod + " liczba zatopionych");
+  var naPunkty = stan.sposob === "punkty";
+  var pkt = {};
+  for (var q = 0; q < gra.strzaly.length; q++) {
+    var sh = gra.strzaly[q];
+    if (!pkt[sh.kto]) pkt[sh.kto] = 0;
+    if (naPunkty) pkt[sh.kto] += zasady.punktyZaStrzal(sh.wynik, sh.dlugosc);
+  }
+  var ktosMaPunkty = false;
+  for (var u = 0; u < stan.statystyki.gracze.length; u++) {
+    var gs = stan.statystyki.gracze[u];
+    var oczekPkt = naPunkty ? (pkt[gs.nr] || 0) : 0;
+    var zPlanszy = -1;
+    for (var h = 0; h < stan.gracze.length; h++) {
+      if (stan.gracze[h].nr === gs.nr) zPlanszy = stan.gracze[h].punkty;
+    }
+    sprawdz(gs.punkty === oczekPkt && zPlanszy === oczekPkt, gra.kod + " punkty " + gs.imie + ": " + gs.punkty + " != " + oczekPkt);
+    if (gs.punkty > 0) ktosMaPunkty = true;
+  }
+  if (naPunkty) sprawdz(ktosMaPunkty, gra.kod + " nikt nie dostał punktu");
+}
+
+async function sprawdzGreNaPunkty() {
+  var gra = await zalozGreDoStatystyk("pkt1", [
+    { id: "pia", imie: "Pia", flota: FLOTY_TESTU[0], awatar: "pirat" },
+    { id: "kaj", imie: "Kaj", flota: FLOTY_TESTU[1], awatar: "kucharz" }
+  ], true);
+  var guard = 0;
+  while (guard++ < 800 && await jedenStrzalTest(gra)) {}
+  await czekajAz(gra.sluchacze[0], function (s) { return s.etap === "koniec" && s.sposob === "punkty"; }, "koniec na punkty");
+  await czekajAz(gra.sluchacze[1], function (s) {
+    return s.etap === "koniec" && JSON.stringify(s.statystyki) === JSON.stringify(gra.sluchacze[0].ostatni().statystyki);
+  }, "Pia i Kaj widzą to samo");
+  sprawdzKoncoweStatystyki(gra);
+  sprawdz(JSON.stringify(gra.sluchacze[0].ostatni().statystyki).indexOf("spioch") === -1, "gra na punkty ma ludzika z innej gry");
 }
 
 async function sprawdzDwieGryDoKonca() {
@@ -562,6 +604,7 @@ async function main() {
   sprawdz(b1.ostatni().etap === "bitwa", "powrót Ali przerwał grę B");
 
   await sprawdzDwieGryDoKonca();
+  await sprawdzGreNaPunkty();
 
   var puste = ["", "ab", "!!", "a", "abcdefghi"];
   var kawalki = ["Wpisz kod", "3 do 8", "Wpisz kod", "3 do 8", "3 do 8"];
