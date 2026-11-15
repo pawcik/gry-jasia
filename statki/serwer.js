@@ -1,6 +1,7 @@
 // ===== Serwer gry w statki =====
 // Pokazuje grę przeglądarkom (też telefonom w tym samym Wi-Fi), pilnuje zasad
 // i mówi każdemu graczowi, co widzi na planszach.
+// Na jednym serwerze może iść wiele gier naraz. Każda ma swój kod.
 // Uruchom: mise run serwer
 
 var http = require("http");
@@ -14,6 +15,14 @@ var PORT = Number(process.env.PORT) || 8081;
 var PUBLICZNY_ADRES = process.env.PUBLICZNY_ADRES || "";
 var FOLDER = __dirname;
 var SEKUNDY_DO_USUNIECIA = 10;  // po tylu sekundach bez połączenia można usunąć gracza
+// Pusta gra (nikt nie patrzy) znika, żeby mały komputer nie trzymał starych gier.
+var SEKUNDY_PUSTEJ_GRY = Number(process.env.SEKUNDY_PUSTEGO_LOBBY);
+if (!SEKUNDY_PUSTEJ_GRY || SEKUNDY_PUSTEJ_GRY < 1) SEKUNDY_PUSTEJ_GRY = 15 * 60;
+var CZAS_PUSTEJ_GRY = SEKUNDY_PUSTEJ_GRY * 1000;
+var CO_ILE_SPRZATAMY = Math.min(30000, Math.max(1000, Math.floor(CZAS_PUSTEJ_GRY / 2)));
+var MAX_GIER = 40;
+// Takie kody da się wylosować, ale lepiej ich nie czytać przy obiedzie.
+var KODY_NIE = { KUPA: 1, PUPA: 1, DUPA: 1, KAKA: 1 };
 var RODZAJE_PLIKOW = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -27,12 +36,10 @@ var RODZAJE_PLIKOW = {
   ".woff2": "font/woff2"
 };
 
-// ----- Stan gry -----
-// etap: "poczekalnia" -> "ustawianie" -> "bitwa" -> "koniec"
-// oczekujacy: kto był w grze, ale po "od nowa" jeszcze nie nacisnął Gram!
-var gra = { etap: "poczekalnia", tryb: "klasyczna", gracze: [], oczekujacy: [], tura: 0, zwyciezca: "", dziennik: [], ostatni: null, numerStrzalu: 0 };
-var nastepnyNumer = 1;
-var sluchacze = {};  // id gracza -> otwarte połączenie do jego przeglądarki
+// Wszystkie gry. Klucz to kod (np. KUNA). Pusta mapa, żeby dziwny kod niczego nie zepsuł.
+var lobby = Object.create(null);
+// Przeglądarki na stronie startu (bez gry) — dostają tylko „odśwież stronę”.
+var goscie = [];
 
 // Adresy, pod którymi inni w tym Wi-Fi znajdą grę
 var ADRESY = PUBLICZNY_ADRES ? [PUBLICZNY_ADRES] : [];
@@ -44,30 +51,56 @@ for (var nazwaSieci in sieci) {
   }
 }
 
+// ----- Jedna gra -----
+// Cały stan jednej rozgrywki siedzi w tym obiekcie. Druga gra to drugi obiekt.
+// Nowe rzeczy (punkty, obrazek gracza, statystyki) dopisuj tutaj albo w funkcjach
+// poniżej, które dostają `gra`. Nie trzymaj ich obok, na całym serwerze.
+function pustaGra(kod) {
+  return {
+    kod: kod,
+    etap: "poczekalnia",
+    tryb: "klasyczna",
+    gracze: [],
+    oczekujacy: [],
+    tura: 0,
+    zwyciezca: "",
+    dziennik: [],
+    ostatni: null,
+    numerStrzalu: 0,
+    nastepnyNumer: 1,
+    sluchacze: Object.create(null),
+    ostatnio: Date.now()
+  };
+}
+
+function idDobre(id) {
+  return /^[a-z0-9]+$/i.test(id) && id.length <= 40;
+}
+
 // Zasady wybranego rodzaju gry (rozmiar planszy i statki)
-function tryb() {
+function tryb(gra) {
   return zasady.TRYBY[gra.tryb];
 }
 
-function ilePol() {
-  return tryb().rozmiar * tryb().rozmiar;
+function ilePol(gra) {
+  return tryb(gra).rozmiar * tryb(gra).rozmiar;
 }
 
-function pustaPlansza(wartosc) {
+function pustaPlansza(gra, wartosc) {
   var plansza = [];
-  for (var i = 0; i < ilePol(); i++) plansza.push(wartosc);
+  for (var i = 0; i < ilePol(gra); i++) plansza.push(wartosc);
   return plansza;
 }
 
-function wyczyscPlansze(g) {
+function wyczyscPlansze(gra, g) {
   g.gotowy = false;
   g.odpadl = false;
   g.statki = [];
-  g.naPolu = pustaPlansza(-1);   // który statek stoi na polu
-  g.strzaly = pustaPlansza(0);   // 0 nikt nie strzelał, 1 pudło, 2 trafiony, 3 zatopiony
+  g.naPolu = pustaPlansza(gra, -1);   // który statek stoi na polu
+  g.strzaly = pustaPlansza(gra, 0);   // 0 nikt nie strzelał, 1 pudło, 2 trafiony, 3 zatopiony
 }
 
-function znajdz(id) {
+function znajdz(gra, id) {
   for (var i = 0; i < gra.gracze.length; i++) {
     if (gra.gracze[i].id === id) return gra.gracze[i];
   }
@@ -75,14 +108,14 @@ function znajdz(id) {
 }
 
 // Czy ta osoba jeszcze musi nacisnąć Gram!
-function oczekuje(id) {
+function oczekuje(gra, id) {
   for (var i = 0; i < gra.oczekujacy.length; i++) {
     if (gra.oczekujacy[i].id === id) return true;
   }
   return false;
 }
 
-function zabierzOczekujacego(id) {
+function zabierzOczekujacego(gra, id) {
   for (var i = 0; i < gra.oczekujacy.length; i++) {
     if (gra.oczekujacy[i].id === id) {
       gra.oczekujacy.splice(i, 1);
@@ -91,7 +124,7 @@ function zabierzOczekujacego(id) {
   }
 }
 
-function gracz(nr) {
+function gracz(gra, nr) {
   for (var i = 0; i < gra.gracze.length; i++) {
     if (gra.gracze[i].nr === nr) return gra.gracze[i];
   }
@@ -99,7 +132,7 @@ function gracz(nr) {
 }
 
 // Gracze, którzy jeszcze grają (nie oglądają i mają statki)
-function wGrze() {
+function wGrze(gra) {
   var lista = [];
   for (var i = 0; i < gra.gracze.length; i++) {
     var g = gra.gracze[i];
@@ -116,7 +149,7 @@ function zostaloStatkow(g) {
   return ile;
 }
 
-function tylkoPolaczeni() {
+function tylkoPolaczeni(gra) {
   var lista = [];
   for (var i = 0; i < gra.gracze.length; i++) {
     if (gra.gracze[i].online) lista.push(gra.gracze[i]);
@@ -124,89 +157,103 @@ function tylkoPolaczeni() {
   gra.gracze = lista;
 }
 
-function zapiszWDzienniku(tekst) {
+function zapiszWDzienniku(gra, tekst) {
   gra.dziennik.push(tekst);
   if (gra.dziennik.length > 30) gra.dziennik.shift();
-  console.log(tekst);
+  console.log("[" + gra.kod + "] " + tekst);
 }
 
-// ----- Ruchy graczy -----
-function wykonaj(id, akcja) {
-  if (!id) return "Nie wiem, kim jesteś";
-  if (akcja.typ === "dolacz") return dolacz(id, akcja.imie);
-  if (akcja.typ === "odNowa") return odNowa(id);
-  var ja = znajdz(id);
+function ktoSlucha(gra) {
+  var ile = 0;
+  for (var id in gra.sluchacze) ile++;
+  return ile;
+}
+
+// ----- Ruchy graczy (zawsze w jednej, wskazanej grze) -----
+function wykonaj(gra, id, akcja) {
+  if (!idDobre(id)) return "Nie wiem, kim jesteś";
+  if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie);
+  if (akcja.typ === "odNowa") return odNowa(gra, id);
+  if (akcja.typ === "wyjdz") return wyjdz(gra, id);
+  var ja = znajdz(gra, id);
   if (!ja) return "Najpierw dołącz do gry";
-  if (akcja.typ === "start") return start();
-  if (akcja.typ === "tryb") return zmienTryb(String(akcja.tryb));
-  if (akcja.typ === "ustaw") return ustaw(ja, akcja.statki);
-  if (akcja.typ === "strzal") return strzal(ja, Number(akcja.cel), Number(akcja.pole));
-  if (akcja.typ === "usun") return usun(ja, Number(akcja.nr));
-  if (akcja.typ === "nowaGra") return nowaGra();
+  if (akcja.typ === "start") return start(gra);
+  if (akcja.typ === "tryb") return zmienTryb(gra, String(akcja.tryb));
+  if (akcja.typ === "ustaw") return ustaw(gra, ja, akcja.statki);
+  if (akcja.typ === "strzal") return strzal(gra, ja, Number(akcja.cel), Number(akcja.pole));
+  if (akcja.typ === "usun") return usun(gra, ja, Number(akcja.nr));
+  if (akcja.typ === "nowaGra") return nowaGra(gra);
   return "Nie znam takiego ruchu";
 }
 
-function dolacz(id, imie) {
+function dolacz(gra, id, imie) {
   imie = String(imie || "").trim().slice(0, 12);
   if (!imie) return "Wpisz imię";
-  zabierzOczekujacego(id);
-  var ja = znajdz(id);
+  zabierzOczekujacego(gra, id);
+  var ja = znajdz(gra, id);
   if (ja) {
     ja.imie = imie;
     return "";
   }
-  ja = { id: id, nr: nastepnyNumer++, imie: imie, online: !!sluchacze[id], offlineOd: Date.now(), widz: gra.etap !== "poczekalnia" };
-  wyczyscPlansze(ja);
+  ja = {
+    id: id,
+    nr: gra.nastepnyNumer++,
+    imie: imie,
+    online: !!gra.sluchacze[id],
+    offlineOd: Date.now(),
+    widz: gra.etap !== "poczekalnia"
+  };
+  wyczyscPlansze(gra, ja);
   gra.gracze.push(ja);
-  zapiszWDzienniku("👋 " + imie + (ja.widz ? " ogląda grę" : " dołącza do gry"));
+  zapiszWDzienniku(gra, "👋 " + imie + (ja.widz ? " ogląda grę" : " dołącza do gry"));
   return "";
 }
 
 // W poczekalni każdy może wybrać, czy gramy klasycznie, czy szybko
-function zmienTryb(nowy) {
+function zmienTryb(gra, nowy) {
   if (gra.etap !== "poczekalnia") return "Rodzaj gry wybiera się w poczekalni";
   if (!zasady.TRYBY.hasOwnProperty(nowy)) return "Nie ma takiego rodzaju gry";
   if (gra.tryb === nowy) return "";
   gra.tryb = nowy;
-  for (var i = 0; i < gra.gracze.length; i++) wyczyscPlansze(gra.gracze[i]);
-  zapiszWDzienniku("⚙️ Gramy w wersję: " + tryb().nazwa + " (" + tryb().opis + ")");
+  for (var i = 0; i < gra.gracze.length; i++) wyczyscPlansze(gra, gra.gracze[i]);
+  zapiszWDzienniku(gra, "⚙️ Gramy w wersję: " + tryb(gra).nazwa + " (" + tryb(gra).opis + ")");
   return "";
 }
 
-function start() {
+function start(gra) {
   if (gra.etap !== "poczekalnia") return "Gra już trwa";
-  tylkoPolaczeni();
+  tylkoPolaczeni(gra);
   if (gra.gracze.length < 2) return "Potrzeba co najmniej dwóch graczy";
   for (var i = 0; i < gra.gracze.length; i++) {
     gra.gracze[i].widz = false;
-    wyczyscPlansze(gra.gracze[i]);
+    wyczyscPlansze(gra, gra.gracze[i]);
   }
   gra.etap = "ustawianie";
   gra.dziennik = [];
   gra.ostatni = null;
   gra.zwyciezca = "";
-  zapiszWDzienniku("🚢 Ustawiamy statki!");
+  zapiszWDzienniku(gra, "🚢 Ustawiamy statki!");
   return "";
 }
 
-function ustaw(ja, lista) {
+function ustaw(gra, ja, lista) {
   if (gra.etap !== "ustawianie" || ja.widz) return "Teraz nie można ustawiać statków";
   if (ja.gotowy) return "";
-  var flota = zasady.zbudujFlote(lista, tryb(), true);
+  var flota = zasady.zbudujFlote(lista, tryb(gra), true);
   if (!flota) return "Statki są źle ustawione";
   ja.statki = flota.statki;
   ja.naPolu = flota.naPolu;
   ja.gotowy = true;
-  zapiszWDzienniku("✔ " + ja.imie + " ma gotowe statki");
-  sprawdzCzyWszyscyGotowi();
+  zapiszWDzienniku(gra, "✔ " + ja.imie + " ma gotowe statki");
+  sprawdzCzyWszyscyGotowi(gra);
   return "";
 }
 
-function sprawdzCzyWszyscyGotowi() {
-  var grajacy = wGrze();
+function sprawdzCzyWszyscyGotowi(gra) {
+  var grajacy = wGrze(gra);
   if (grajacy.length < 2) {
     gra.etap = "poczekalnia";
-    zapiszWDzienniku("😕 Za mało graczy, wracamy do poczekalni");
+    zapiszWDzienniku(gra, "😕 Za mało graczy, wracamy do poczekalni");
     return;
   }
   for (var i = 0; i < grajacy.length; i++) {
@@ -215,15 +262,15 @@ function sprawdzCzyWszyscyGotowi() {
   gra.etap = "bitwa";
   var pierwszy = grajacy[Math.floor(Math.random() * grajacy.length)];
   gra.tura = pierwszy.nr;
-  zapiszWDzienniku("⚓ Bitwa! Zaczyna " + pierwszy.imie);
+  zapiszWDzienniku(gra, "⚓ Bitwa! Zaczyna " + pierwszy.imie);
 }
 
-function strzal(ja, celNr, pole) {
+function strzal(gra, ja, celNr, pole) {
   if (gra.etap !== "bitwa") return "Bitwa jeszcze się nie zaczęła";
   if (gra.tura !== ja.nr) return "Poczekaj na swoją kolej";
-  var cel = gracz(celNr);
+  var cel = gracz(gra, celNr);
   if (!cel || cel === ja || cel.widz || cel.odpadl) return "W tę planszę nie można strzelać";
-  if (!Number.isInteger(pole) || pole < 0 || pole >= ilePol()) return "Nie ma takiego pola";
+  if (!Number.isInteger(pole) || pole < 0 || pole >= ilePol(gra)) return "Nie ma takiego pola";
   if (cel.strzaly[pole] !== 0) return "Tu już ktoś strzelał";
 
   var numerStatku = cel.naPolu[pole];
@@ -240,7 +287,7 @@ function strzal(ja, celNr, pole) {
       // Zatopiony statek: całe zaznaczamy, a wodę dookoła oznaczamy jako pudła
       for (var i = 0; i < statek.pola.length; i++) {
         cel.strzaly[statek.pola[i]] = 3;
-        var obok = zasady.sasiedzi(statek.pola[i], tryb().rozmiar);
+        var obok = zasady.sasiedzi(statek.pola[i], tryb(gra).rozmiar);
         for (var j = 0; j < obok.length; j++) {
           if (cel.strzaly[obok[j]] === 0) cel.strzaly[obok[j]] = 1;
         }
@@ -249,31 +296,31 @@ function strzal(ja, celNr, pole) {
   }
 
   var slowa = { pudlo: "pudło 💧", trafiony: "trafiony! 💥", zatopiony: "zatopiony! 🔥" };
-  var tekst = ja.imie + " → " + cel.imie + ", " + zasady.nazwaPola(pole, tryb().rozmiar) + ": " + slowa[wynik];
+  var tekst = ja.imie + " → " + cel.imie + ", " + zasady.nazwaPola(pole, tryb(gra).rozmiar) + ": " + slowa[wynik];
   gra.numerStrzalu++;
   gra.ostatni = { numer: gra.numerStrzalu, kto: ja.nr, cel: cel.nr, pole: pole, wynik: wynik, tekst: tekst };
-  zapiszWDzienniku(tekst);
+  zapiszWDzienniku(gra, tekst);
 
   if (zostaloStatkow(cel) === 0) {
     cel.odpadl = true;
-    zapiszWDzienniku("💀 " + cel.imie + " nie ma już statków");
+    zapiszWDzienniku(gra, "💀 " + cel.imie + " nie ma już statków");
   }
-  if (sprawdzKoniec()) return "";
-  if (wynik === "pudlo") nastepnaTura();  // trafienie = strzelasz jeszcze raz
+  if (sprawdzKoniec(gra)) return "";
+  if (wynik === "pudlo") nastepnaTura(gra);  // trafienie = strzelasz jeszcze raz
   return "";
 }
 
-function sprawdzKoniec() {
-  var zywi = wGrze();
+function sprawdzKoniec(gra) {
+  var zywi = wGrze(gra);
   if (zywi.length > 1) return false;
   gra.etap = "koniec";
   gra.zwyciezca = zywi.length ? zywi[0].imie : "";
-  zapiszWDzienniku("🏆 Wygrywa " + gra.zwyciezca + "!");
+  zapiszWDzienniku(gra, "🏆 Wygrywa " + gra.zwyciezca + "!");
   return true;
 }
 
 // Kolej następnego gracza, który jeszcze ma statki
-function nastepnaTura() {
+function nastepnaTura(gra) {
   var ile = gra.gracze.length;
   var teraz = 0;
   for (var i = 0; i < ile; i++) {
@@ -289,40 +336,40 @@ function nastepnaTura() {
 }
 
 // Usuwamy gracza, który od dawna nie ma połączenia (np. zgasł mu telefon)
-function usun(ja, nr) {
-  var g = gracz(nr);
+function usun(gra, ja, nr) {
+  var g = gracz(gra, nr);
   if (!g || g === ja) return "";
   if (g.online || Date.now() - g.offlineOd < SEKUNDY_DO_USUNIECIA * 1000) return "Ten gracz jest jeszcze połączony";
-  zapiszWDzienniku("🚪 " + g.imie + " wypada z gry");
+  zapiszWDzienniku(gra, "🚪 " + g.imie + " wypada z gry");
   if (gra.etap === "bitwa") {
     var bylaJegoKolej = gra.tura === g.nr;
     g.odpadl = true;
-    if (!sprawdzKoniec() && bylaJegoKolej) nastepnaTura();
+    if (!sprawdzKoniec(gra) && bylaJegoKolej) nastepnaTura(gra);
   } else {
     gra.gracze.splice(gra.gracze.indexOf(g), 1);
-    if (gra.etap === "ustawianie") sprawdzCzyWszyscyGotowi();
+    if (gra.etap === "ustawianie") sprawdzCzyWszyscyGotowi(gra);
   }
   return "";
 }
 
-function nowaGra() {
+function nowaGra(gra) {
   if (gra.etap !== "koniec") return "Gra jeszcze trwa";
-  tylkoPolaczeni();
+  tylkoPolaczeni(gra);
   for (var i = 0; i < gra.gracze.length; i++) {
     gra.gracze[i].widz = false;
-    wyczyscPlansze(gra.gracze[i]);
+    wyczyscPlansze(gra, gra.gracze[i]);
   }
   gra.etap = "poczekalnia";
   gra.ostatni = null;
-  zapiszWDzienniku("🔄 Nowa gra! Czekamy na start");
+  zapiszWDzienniku(gra, "🔄 Nowa gra! Czekamy na start");
   return "";
 }
 
 // Wszyscy wypadają z rundy i muszą sami nacisnąć Gram!. Kto nie naciśnie, nie gra.
-function odNowa(id) {
-  var ja = znajdz(id);
+function odNowa(gra, id) {
+  var ja = znajdz(gra, id);
   if (!ja) {
-    if (oczekuje(id)) return "";
+    if (oczekuje(gra, id)) return "";
     return "Najpierw dołącz do gry";
   }
   if (ja.widz) return "Teraz tylko gracze mogą zacząć od nowa";
@@ -346,32 +393,46 @@ function odNowa(id) {
   gra.zwyciezca = "";
   gra.dziennik = [];
   gra.ostatni = null;
-  zapiszWDzienniku("🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
+  zapiszWDzienniku(gra, "🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
+  return "";
+}
+
+// Wracamy na stronę startu. W trakcie bitwy zostajemy — jest do tego „Zacznij od nowa”.
+function wyjdz(gra, id) {
+  if (!znajdz(gra, id)) {
+    zabierzOczekujacego(gra, id);
+    return "";
+  }
+  var ja = znajdz(gra, id);
+  if (gra.etap === "bitwa" && !ja.widz) return "W trakcie bitwy stuknij „Zacznij od nowa”";
+  gra.gracze.splice(gra.gracze.indexOf(ja), 1);
+  zapiszWDzienniku(gra, "👋 " + ja.imie + " wychodzi");
+  if (gra.etap === "ustawianie") sprawdzCzyWszyscyGotowi(gra);
   return "";
 }
 
 // Imiona osób, które jeszcze nie nacisnęły Gram! (bez tajnych numerów)
-function widokOczekujacych(bezId) {
+function widokOczekujacych(gra, bezId) {
   var lista = [];
   for (var i = 0; i < gra.oczekujacy.length; i++) {
     var o = gra.oczekujacy[i];
     if (o.id === bezId) continue;
-    lista.push({ imie: o.imie, online: !!sluchacze[o.id] });
+    lista.push({ imie: o.imie, online: !!gra.sluchacze[o.id] });
   }
   return lista;
 }
 
 // ----- Co widzi gracz -----
-// Plansza to 100 znaków: 0 woda, 1 pudło, 2 trafiony, 3 zatopiony, 4 cały statek (tylko swój albo na koniec gry)
-function widokDla(id) {
-  var ja = znajdz(id);
+// Plansza to ciąg znaków: 0 woda, 1 pudło, 2 trafiony, 3 zatopiony, 4 cały statek (tylko swój albo na koniec gry)
+function widokDla(gra, id) {
+  var ja = znajdz(gra, id);
   var odkryj = gra.etap === "koniec";
   var teraz = Date.now();
   var gracze = [];
   for (var i = 0; i < gra.gracze.length; i++) {
     var g = gra.gracze[i];
     var pola = "";
-    for (var p = 0; p < ilePol(); p++) {
+    for (var p = 0; p < ilePol(gra); p++) {
       if (g.strzaly[p] === 0 && g.naPolu[p] !== -1 && (g === ja || odkryj)) pola += "4";
       else pola += g.strzaly[p];
     }
@@ -388,10 +449,11 @@ function widokDla(id) {
     });
   }
   return {
+    kod: gra.kod,
     etap: gra.etap,
     tryb: gra.tryb,
-    trzebaPotwierdzic: oczekuje(id),
-    oczekujacy: widokOczekujacych(id),
+    trzebaPotwierdzic: oczekuje(gra, id),
+    oczekujacy: widokOczekujacych(gra, id),
     ja: ja ? ja.nr : 0,
     tura: gra.tura,
     zwyciezca: gra.zwyciezca,
@@ -403,11 +465,101 @@ function widokDla(id) {
   };
 }
 
-// Każdy dostaje swój widok
-function rozeslij() {
-  for (var id in sluchacze) {
-    sluchacze[id].write("event: stan\ndata: " + JSON.stringify(widokDla(id)) + "\n\n");
+// Każdy w TEJ grze dostaje swój widok. Inne gry milczą.
+function rozeslij(gra) {
+  for (var id in gra.sluchacze) {
+    pisz(gra.sluchacze[id], "event: stan\ndata: " + JSON.stringify(widokDla(gra, id)) + "\n\n");
   }
+}
+
+// ----- Wiele gier: kod, dołączanie, sprzątanie -----
+function losujKod() {
+  var spol = zasady.KOD_SPOLGLASKI;
+  var samo = zasady.KOD_SAMOGLOSKI;
+  var kod = "";
+  kod += spol.charAt(Math.floor(Math.random() * spol.length));
+  kod += samo.charAt(Math.floor(Math.random() * samo.length));
+  kod += spol.charAt(Math.floor(Math.random() * spol.length));
+  kod += samo.charAt(Math.floor(Math.random() * samo.length));
+  return kod;
+}
+
+function ileGier() {
+  var ile = 0;
+  for (var kod in lobby) ile++;
+  return ile;
+}
+
+// Tekst, gdy kodu nie ma albo wygląda źle. Pusty napis = kod jest dobry i gra istnieje.
+function komunikatKodu(surowy) {
+  var kod = zasady.oczyscKod(surowy);
+  if (!kod) return "Wpisz kod. To cztery litery, na przykład KUNA.";
+  if (!zasady.kodWygladaDobrze(kod)) return "Ten kod wygląda inaczej. Poproś, żeby przeczytać go jeszcze raz.";
+  if (!lobby[kod]) return "Nie ma gry o kodzie " + kod + ". Sprawdź litery albo załóż nową grę.";
+  return "";
+}
+
+function sprawdzKod(surowy) {
+  var kod = zasady.oczyscKod(surowy);
+  var tekst = komunikatKodu(surowy);
+  if (tekst) return { blad: tekst };
+  return { ok: true, kod: kod };
+}
+
+function zalozLobby() {
+  posprzataj();
+  if (ileGier() >= MAX_GIER) return { blad: "Jest już dużo gier. Poczekaj chwilę i spróbuj jeszcze raz." };
+  for (var proba = 0; proba < 50; proba++) {
+    var kod = losujKod();
+    if (KODY_NIE[kod] || lobby[kod]) continue;
+    lobby[kod] = pustaGra(kod);
+    console.log("🆕 Nowa gra " + kod);
+    return { ok: true, kod: kod };
+  }
+  return { blad: "Nie udało się założyć gry. Spróbuj jeszcze raz." };
+}
+
+function posprzataj() {
+  var teraz = Date.now();
+  var doUsuniecia = [];
+  for (var kod in lobby) {
+    var gra = lobby[kod];
+    if (ktoSlucha(gra) > 0) continue;
+    if (teraz - gra.ostatnio >= CZAS_PUSTEJ_GRY) doUsuniecia.push(kod);
+  }
+  for (var i = 0; i < doUsuniecia.length; i++) {
+    console.log("🧹 Gra " + doUsuniecia[i] + " była pusta, usuwam ją");
+    delete lobby[doUsuniecia[i]];
+  }
+}
+
+function obsluz(akcja) {
+  var typ = String(akcja.typ || "");
+  if (typ === "noweLobby") return zalozLobby();
+  if (typ === "sprawdzKod") return sprawdzKod(akcja.kod);
+  var kod = zasady.oczyscKod(akcja.kod);
+  var gra = lobby[kod];
+  if (!gra) return { blad: komunikatKodu(akcja.kod) };
+  gra.ostatnio = Date.now();
+  var blad = wykonaj(gra, String(akcja.id || ""), akcja);
+  if (blad) return { blad: blad };
+  if (lobby[kod] === gra) rozeslij(gra);
+  return { ok: true, kod: kod };
+}
+
+// Jak telefon już śpi, zapis nie wywraca serwera.
+function pisz(odpowiedz, tresc) {
+  try {
+    odpowiedz.write(tresc);
+  } catch (e) {}
+}
+
+function piszDoPolaczen(tresc) {
+  for (var kod in lobby) {
+    var sl = lobby[kod].sluchacze;
+    for (var id in sl) pisz(sl[id], tresc);
+  }
+  for (var i = 0; i < goscie.length; i++) pisz(goscie[i], tresc);
 }
 
 // ----- Serwer -----
@@ -420,26 +572,46 @@ var serwer = http.createServer(function (zadanie, odpowiedz) {
 
 // Przeglądarka otwiera stałe połączenie i czeka na wiadomości
 function polaczGracza(adresStrony, zadanie, odpowiedz) {
-  var id = adresStrony.searchParams.get("id");
-  if (!id) {
+  var id = String(adresStrony.searchParams.get("id") || "");
+  if (!idDobre(id)) {
     odpowiedz.writeHead(400);
     return odpowiedz.end();
   }
-  odpowiedz.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-store", "Connection": "keep-alive" });
+  var kod = zasady.oczyscKod(adresStrony.searchParams.get("kod") || "");
+  odpowiedz.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-store",
+    "Connection": "keep-alive"
+  });
   odpowiedz.write("retry: 1000\n\n");
-  sluchacze[id] = odpowiedz;
-  var ja = znajdz(id);
+
+  var gra = kod ? lobby[kod] : null;
+  if (!gra) {
+    var wiadomosc = kod ? { brakGry: true, kod: kod, tekst: komunikatKodu(kod) } : { ekran: "start" };
+    pisz(odpowiedz, "event: stan\ndata: " + JSON.stringify(wiadomosc) + "\n\n");
+    goscie.push(odpowiedz);
+    zadanie.on("close", function () {
+      var gdzie = goscie.indexOf(odpowiedz);
+      if (gdzie !== -1) goscie.splice(gdzie, 1);
+    });
+    return;
+  }
+
+  gra.sluchacze[id] = odpowiedz;
+  var ja = znajdz(gra, id);
   if (ja) ja.online = true;
-  rozeslij();
+  gra.ostatnio = Date.now();
+  rozeslij(gra);
   zadanie.on("close", function () {
-    if (sluchacze[id] !== odpowiedz) return;  // ten gracz ma już nowsze połączenie
-    delete sluchacze[id];
-    var g = znajdz(id);
+    if (gra.sluchacze[id] !== odpowiedz) return;  // ten gracz ma już nowsze połączenie
+    delete gra.sluchacze[id];
+    var g = znajdz(gra, id);
     if (g) {
       g.online = false;
       g.offlineOd = Date.now();
     }
-    rozeslij();
+    gra.ostatnio = Date.now();
+    if (lobby[gra.kod] === gra) rozeslij(gra);
   });
 }
 
@@ -450,16 +622,14 @@ function odbierzAkcje(zadanie, odpowiedz) {
     if (tresc.length > 5000) zadanie.destroy();
   });
   zadanie.on("end", function () {
-    var blad = "";
+    var wynik = { blad: "Zepsuta wiadomość" };
     try {
-      var akcja = JSON.parse(tresc);
-      blad = wykonaj(String(akcja.id || ""), akcja);
+      wynik = obsluz(JSON.parse(tresc));
     } catch (e) {
-      blad = "Zepsuta wiadomość";
+      wynik = { blad: "Zepsuta wiadomość" };
     }
-    if (!blad) rozeslij();
     odpowiedz.writeHead(200, { "Content-Type": "application/json" });
-    odpowiedz.end(JSON.stringify(blad ? { blad: blad } : { ok: true }));
+    odpowiedz.end(JSON.stringify(wynik));
   });
 }
 
@@ -493,24 +663,33 @@ function nieMa(odpowiedz) {
 
 // Ktoś bez połączenia: co kilka sekund odświeżamy licznik, żeby pojawił się guzik "Usuń"
 setInterval(function () {
-  for (var i = 0; i < gra.gracze.length; i++) {
-    if (!gra.gracze[i].online) return rozeslij();
+  for (var kod in lobby) {
+    var gra = lobby[kod];
+    for (var i = 0; i < gra.gracze.length; i++) {
+      if (!gra.gracze[i].online) {
+        rozeslij(gra);
+        break;
+      }
+    }
   }
 }, 5000);
 
 // Co jakiś czas pukamy, żeby połączenie nie zasnęło
 setInterval(function () {
-  for (var id in sluchacze) sluchacze[id].write(": puk\n\n");
+  piszDoPolaczen(": puk\n\n");
 }, 15000);
 
-// Zmieniony plik gry: wszyscy odświeżają stronę (gra na serwerze trwa dalej)
+// Puste gry znikają same
+setInterval(posprzataj, CO_ILE_SPRZATAMY);
+
+// Zmieniony plik gry: wszyscy odświeżają stronę (gry na serwerze trwają dalej)
 var czekamNaKoniecZmian = null;
 fs.watch(FOLDER, { recursive: true }, function (zdarzenie, nazwa) {
   if (!nazwa || nazwa.charAt(0) === "." || nazwa === "serwer.js") return;
   clearTimeout(czekamNaKoniecZmian);
   czekamNaKoniecZmian = setTimeout(function () {
     console.log("🔄 Zmiana w " + nazwa + ", odświeżam");
-    for (var id in sluchacze) sluchacze[id].write("event: odswiez\ndata: {}\n\n");
+    piszDoPolaczen("event: odswiez\ndata: {}\n\n");
   }, 150);
 });
 
