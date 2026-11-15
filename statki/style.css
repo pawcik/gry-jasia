@@ -1002,3 +1002,110 @@ html.morze .karta.cel {
 html.morze #dziennik {
   opacity: 0.85;
 }
+
+/* Na punkty: licznik rund, żywa tablica i końcowy ranking */
+#sposoby,
+#rundy {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#sposoby .trybGuzik,
+#rundy .trybGuzik {
+  min-height: 44px;
+}
+
+#wyborRund {
+  display: none;
+}
+
+#infoSposobu {
+  display: none;
+}
+
+#tablica {
+  display: none;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 17px;
+}
+
+.rundaLicznik {
+  padding: 2px 8px;
+  font-size: 18px;
+}
+
+.wynikGracza {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  min-height: 32px;
+}
+
+#ranking {
+  display: none;
+  width: min(92vw, 440px);
+  margin: 8px auto 12px;
+  padding: 8px 14px;
+  list-style: none;
+  text-align: left;
+  font-size: 18px;
+}
+
+#ranking li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  padding: 3px 8px;
+}
+
+html:not(.morze) .rundaLicznik {
+  color: #8a4b12;
+}
+
+html:not(.morze) .wynikGracza {
+  border: 1.5px solid #1c3352;
+  border-radius: 999px;
+  background: #fffdf8;
+}
+
+html:not(.morze) .wynikGracza.lider,
+html:not(.morze) #ranking li.lider {
+  background: #ffe566;
+}
+
+html:not(.morze) #ranking {
+  border: 1.5px dashed #7eafd4;
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.9);
+}
+
+html:not(.morze) #ranking li.lider {
+  border-radius: 4px;
+}
+
+html.morze .wynikGracza {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+html.morze .wynikGracza.lider,
+html.morze #ranking li.lider {
+  background: #ffb300;
+  color: #3e2700;
+}
+
+html.morze #ranking {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+html.morze #ranking li.lider {
+  border-radius: 8px;
+}

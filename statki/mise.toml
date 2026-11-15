@@ -5,6 +5,10 @@ node = "24"
 description = "Uruchom statki dla całej rodziny w tym Wi-Fi"
 run = "node serwer.js --otworz"
 
+[tasks.test]
+description = "Sprawdź zasady, klasyczną grę i tryb na punkty"
+run = "node --check zasady.js && node --check serwer.js && node --check game.js && node --test test.js"
+
 [tasks.testy]
 description = "Sprawdź, czy dwie gry naraz się nie mieszają"
 run = "node testy.js"

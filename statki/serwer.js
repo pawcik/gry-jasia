@@ -61,6 +61,10 @@ function pustaGra(kod) {
     kod: kod,
     etap: "poczekalnia",
     tryb: "klasyczna",
+    sposob: "klasyczny",
+    ileRund: zasady.RUNDY_DOMYSLNIE,
+    runda: 1,
+    kolejka: [],
     gracze: [],
     oczekujacy: [],
     tura: 0,
@@ -99,6 +103,9 @@ function wyczyscPlansze(gra, g) {
   g.statki = [];
   g.naPolu = pustaPlansza(gra, -1);   // który statek stoi na polu
   g.strzaly = pustaPlansza(gra, 0);   // 0 nikt nie strzelał, 1 pudło, 2 trafiony, 3 zatopiony
+  g.punkty = 0;                       // Na punkty: suma punktów
+  g.trafienia = 0;                    // ile pól ze statkiem sam trafił
+  g.oddane = 0;                       // ile sam strzelił (woda wokół zatopionego się nie liczy)
 }
 
 function znajdz(gra, id) {
@@ -180,6 +187,8 @@ function wykonaj(gra, id, akcja) {
   if (!ja) return "Najpierw dołącz do gry";
   if (akcja.typ === "start") return start(gra);
   if (akcja.typ === "tryb") return zmienTryb(gra, String(akcja.tryb));
+  if (akcja.typ === "sposob") return zmienSposob(gra, String(akcja.sposob));
+  if (akcja.typ === "rundy") return zmienRundy(gra, Number(akcja.ile));
   if (akcja.typ === "ustaw") return ustaw(gra, ja, akcja.statki);
   if (akcja.typ === "strzal") return strzal(gra, ja, Number(akcja.cel), Number(akcja.pole));
   if (akcja.typ === "usun") return usun(gra, ja, Number(akcja.nr));
@@ -231,6 +240,29 @@ function zmienTryb(gra, nowy) {
   return "";
 }
 
+function naPunkty(gra) {
+  return gra.sposob === "punkty";
+}
+
+// W tej poczekalni każdy widzi i może zmienić, kto wygrywa. Inna gra ma swój wybór.
+function zmienSposob(gra, nowy) {
+  if (gra.etap !== "poczekalnia") return "Sposób gry wybiera się w poczekalni";
+  if (!zasady.SPOSOBY.hasOwnProperty(nowy)) return "Nie ma takiego sposobu gry";
+  if (gra.sposob === nowy) return "";
+  gra.sposob = nowy;
+  zapiszWDzienniku(gra, "⭐ Wygrywamy tak: " + zasady.SPOSOBY[nowy].nazwa);
+  return "";
+}
+
+function zmienRundy(gra, ile) {
+  if (gra.etap !== "poczekalnia") return "Liczbę rund wybiera się w poczekalni";
+  if (zasady.RUNDY_DO_WYBORU.indexOf(ile) === -1) return "Wybierz 5, 10 albo 15 rund";
+  if (gra.ileRund === ile) return "";
+  gra.ileRund = ile;
+  zapiszWDzienniku(gra, "🔢 Gramy rund: " + ile);
+  return "";
+}
+
 function start(gra) {
   if (gra.etap !== "poczekalnia") return "Gra już trwa";
   tylkoPolaczeni(gra);
@@ -243,6 +275,8 @@ function start(gra) {
   gra.dziennik = [];
   gra.ostatni = null;
   gra.zwyciezca = "";
+  gra.runda = 1;
+  gra.kolejka = [];
   zapiszWDzienniku(gra, "🚢 Ustawiamy statki!");
   return "";
 }
@@ -273,7 +307,13 @@ function sprawdzCzyWszyscyGotowi(gra) {
   gra.etap = "bitwa";
   var pierwszy = grajacy[Math.floor(Math.random() * grajacy.length)];
   gra.tura = pierwszy.nr;
-  zapiszWDzienniku(gra, "⚓ Bitwa! Zaczyna " + pierwszy.imie);
+  if (naPunkty(gra)) {
+    gra.runda = 1;
+    gra.kolejka = kolejkaOd(gra, pierwszy.nr);
+    zapiszWDzienniku(gra, "⚓ Bitwa na punkty! Runda 1 z " + gra.ileRund + ". Zaczyna " + pierwszy.imie);
+  } else {
+    zapiszWDzienniku(gra, "⚓ Bitwa! Zaczyna " + pierwszy.imie);
+  }
 }
 
 function strzal(gra, ja, celNr, pole) {
@@ -281,6 +321,8 @@ function strzal(gra, ja, celNr, pole) {
   if (gra.tura !== ja.nr) return "Poczekaj na swoją kolej";
   var cel = gracz(gra, celNr);
   if (!cel || cel === ja || cel.widz || cel.odpadl) return "W tę planszę nie można strzelać";
+  // Na punkty pusta flota nie jest celem, ale jej gracz dalej sam strzela
+  if (naPunkty(gra) && zostaloStatkow(cel) === 0) return "Ta flota już zatonęła";
   if (!Number.isInteger(pole) || pole < 0 || pole >= ilePol(gra)) return "Nie ma takiego pola";
   if (cel.strzaly[pole] !== 0) return "Tu już ktoś strzelał";
 
@@ -308,17 +350,36 @@ function strzal(gra, ja, celNr, pole) {
 
   var slowa = { pudlo: "pudło 💧", trafiony: "trafiony! 💥", zatopiony: "zatopiony! 🔥" };
   var tekst = ja.imie + " → " + cel.imie + ", " + zasady.nazwaPola(pole, tryb(gra).rozmiar) + ": " + slowa[wynik];
+  if (naPunkty(gra)) tekst += dopiszPunkty(ja, wynik, numerStatku === -1 ? 0 : cel.statki[numerStatku].pola.length);
   gra.numerStrzalu++;
   gra.ostatni = { numer: gra.numerStrzalu, kto: ja.nr, cel: cel.nr, pole: pole, wynik: wynik, tekst: tekst };
   zapiszWDzienniku(gra, tekst);
 
-  if (zostaloStatkow(cel) === 0) {
+  if (naPunkty(gra)) {
+    if (zostaloStatkow(cel) === 0 && ileFlot(gra) > 1) {
+      zapiszWDzienniku(gra, "💀 " + cel.imie + " nie ma statków, ale strzela dalej");
+    }
+    if (ileFlot(gra) <= 1) {
+      zakonczNaPunkty(gra, "została jedna flota");
+      return "";
+    }
+  } else if (zostaloStatkow(cel) === 0) {
     cel.odpadl = true;
     zapiszWDzienniku(gra, "💀 " + cel.imie + " nie ma już statków");
   }
-  if (sprawdzKoniec(gra)) return "";
+  if (!naPunkty(gra) && sprawdzKoniec(gra)) return "";
   if (wynik === "pudlo") nastepnaTura(gra);  // trafienie = strzelasz jeszcze raz
   return "";
+}
+
+// Dopisuje punkty za ten jeden strzał. Woda wokół statku nie wchodzi do rachunku.
+function dopiszPunkty(ja, wynik, dlugosc) {
+  ja.oddane++;
+  if (wynik === "pudlo") return "";
+  ja.trafienia++;
+  var pkt = zasady.punktyZaStrzal(wynik, dlugosc);
+  ja.punkty += pkt;
+  return " +" + pkt;
 }
 
 function sprawdzKoniec(gra) {
@@ -332,6 +393,10 @@ function sprawdzKoniec(gra) {
 
 // Kolej następnego gracza, który jeszcze ma statki
 function nastepnaTura(gra) {
+  if (naPunkty(gra)) {
+    nastepnaTuraNaPunkty(gra);
+    return;
+  }
   var ile = gra.gracze.length;
   var teraz = 0;
   for (var i = 0; i < ile; i++) {
@@ -346,6 +411,94 @@ function nastepnaTura(gra) {
   }
 }
 
+// Ile flot jeszcze pływa w TEJ grze (gracz wyrzucony z gry się nie liczy)
+function ileFlot(gra) {
+  var ile = 0;
+  for (var i = 0; i < gra.gracze.length; i++) {
+    var g = gra.gracze[i];
+    if (!g.widz && !g.odpadl && zostaloStatkow(g) > 0) ile++;
+  }
+  return ile;
+}
+
+function aktywniNr(gra) {
+  var lista = [];
+  for (var i = 0; i < gra.gracze.length; i++) {
+    var g = gra.gracze[i];
+    if (!g.widz && !g.odpadl) lista.push(g.nr);
+  }
+  return lista;
+}
+
+// Kolejka rundy zaczyna się od podanego gracza i obchodzi wszystkich w tej grze
+function kolejkaOd(gra, nr) {
+  var lista = aktywniNr(gra);
+  var od = lista.indexOf(nr);
+  if (od < 0) od = 0;
+  var kolejka = [];
+  for (var i = 0; i < lista.length; i++) kolejka.push(lista[(od + i) % lista.length]);
+  return kolejka;
+}
+
+function nastepnyAktywnyNr(gra, nr) {
+  var od = 0;
+  for (var i = 0; i < gra.gracze.length; i++) {
+    if (gra.gracze[i].nr === nr) od = i;
+  }
+  for (var krok = 1; krok <= gra.gracze.length; krok++) {
+    var g = gra.gracze[(od + krok) % gra.gracze.length];
+    if (!g.widz && !g.odpadl) return g.nr;
+  }
+  return 0;
+}
+
+// Runda = jedna kolejka każdego. Pudło oddaje kolejkę dalej, trafienie zostawia ją.
+function nastepnaTuraNaPunkty(gra) {
+  var zostaw = [];
+  for (var i = 0; i < gra.kolejka.length; i++) {
+    var g = gracz(gra, gra.kolejka[i]);
+    if (g && !g.widz && !g.odpadl && gra.kolejka[i] !== gra.tura) zostaw.push(gra.kolejka[i]);
+  }
+  gra.kolejka = zostaw;
+  if (gra.kolejka.length === 0) {
+    if (gra.runda >= gra.ileRund) {
+      zakonczNaPunkty(gra, "minęło " + gra.ileRund + " rund");
+      return;
+    }
+    gra.runda++;
+    gra.kolejka = kolejkaOd(gra, nastepnyAktywnyNr(gra, gra.tura));
+    if (!gra.kolejka.length) {
+      zakonczNaPunkty(gra, "nie ma już graczy");
+      return;
+    }
+    zapiszWDzienniku(gra, "🔔 Runda " + gra.runda + " z " + gra.ileRund);
+  }
+  gra.tura = gra.kolejka[0];
+}
+
+function rankingGraczy(gra) {
+  var lista = [];
+  for (var i = 0; i < gra.gracze.length; i++) {
+    var g = gra.gracze[i];
+    if (g.widz) continue;
+    lista.push({ nr: g.nr, imie: g.imie, punkty: g.punkty || 0, trafienia: g.trafienia || 0, oddane: g.oddane || 0 });
+  }
+  return zasady.ranking(lista);
+}
+
+function zakonczNaPunkty(gra, powod) {
+  if (gra.etap === "koniec") return;
+  gra.etap = "koniec";
+  var miejsca = rankingGraczy(gra);
+  var wygrani = [];
+  for (var i = 0; i < miejsca.length; i++) {
+    if (miejsca[i].miejsce === 1) wygrani.push(miejsca[i].imie);
+  }
+  gra.zwyciezca = wygrani.join(" i ");
+  if (wygrani.length > 1) zapiszWDzienniku(gra, "🤝 Remis: " + gra.zwyciezca + "! (" + powod + ")");
+  else zapiszWDzienniku(gra, "🏆 Wygrywa " + gra.zwyciezca + "! (" + powod + ")");
+}
+
 // Usuwamy gracza, który od dawna nie ma połączenia (np. zgasł mu telefon)
 function usun(gra, ja, nr) {
   var g = gracz(gra, nr);
@@ -355,7 +508,10 @@ function usun(gra, ja, nr) {
   if (gra.etap === "bitwa") {
     var bylaJegoKolej = gra.tura === g.nr;
     g.odpadl = true;
-    if (!sprawdzKoniec(gra) && bylaJegoKolej) nastepnaTura(gra);
+    if (naPunkty(gra)) {
+      if (ileFlot(gra) <= 1 || aktywniNr(gra).length === 0) zakonczNaPunkty(gra, "została jedna flota");
+      else if (bylaJegoKolej) nastepnaTura(gra);
+    } else if (!sprawdzKoniec(gra) && bylaJegoKolej) nastepnaTura(gra);
   } else {
     gra.gracze.splice(gra.gracze.indexOf(g), 1);
     if (gra.etap === "ustawianie") sprawdzCzyWszyscyGotowi(gra);
@@ -372,6 +528,8 @@ function nowaGra(gra) {
   }
   gra.etap = "poczekalnia";
   gra.ostatni = null;
+  gra.runda = 1;
+  gra.kolejka = [];
   zapiszWDzienniku(gra, "🔄 Nowa gra! Czekamy na start");
   return "";
 }
@@ -404,6 +562,8 @@ function odNowa(gra, id) {
   gra.zwyciezca = "";
   gra.dziennik = [];
   gra.ostatni = null;
+  gra.runda = 1;
+  gra.kolejka = [];
   zapiszWDzienniku(gra, "🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
   return "";
 }
@@ -457,6 +617,9 @@ function widokDla(gra, id) {
       gotowy: g.gotowy,
       odpadl: g.odpadl,
       zostalo: zostaloStatkow(g),
+      punkty: g.punkty || 0,
+      trafienia: g.trafienia || 0,
+      oddane: g.oddane || 0,
       pola: pola
     });
   }
@@ -464,6 +627,10 @@ function widokDla(gra, id) {
     kod: gra.kod,
     etap: gra.etap,
     tryb: gra.tryb,
+    sposob: gra.sposob,
+    runda: gra.runda,
+    ileRund: gra.ileRund,
+    ranking: naPunkty(gra) ? rankingGraczy(gra) : [],
     trzebaPotwierdzic: oczekuje(gra, id),
     oczekujacy: widokOczekujacych(gra, id),
     ja: ja ? ja.nr : 0,
