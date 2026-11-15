@@ -48,6 +48,17 @@ if (!mojeId) {
   zapisz("id", mojeId);
 }
 
+// Kod gry z adresu (?kod=jas1). Każde okno może być w innej grze. Wielkość liter nie ma znaczenia.
+var kodGry = "";
+try {
+  kodGry = oczyscKod(new URLSearchParams(location.search).get("kod") || "");
+} catch (e) {
+  kodGry = "";
+}
+if (kodGry && location.search.indexOf("kod=" + kodGry) === -1 && location.protocol !== "file:") {
+  history.replaceState(null, "", location.pathname + "?kod=" + kodGry);
+}
+
 var stan = null;             // to, co ostatnio powiedział serwer
 var poprzedniEtap = "";
 var ostatniStrzal = -1;      // numer ostatniego strzału, który już pokazaliśmy
@@ -67,7 +78,9 @@ function nowePlanowanie() {
 
 // ----- Połączenie z serwerem -----
 function polacz() {
-  var zrodlo = new EventSource("/wydarzenia?id=" + mojeId);
+  var adres = "/wydarzenia?id=" + encodeURIComponent(mojeId);
+  if (kodGry) adres += "&kod=" + encodeURIComponent(kodGry);
+  var zrodlo = new EventSource(adres);
   zrodlo.onopen = function () {
     el("polaczenie").style.display = "none";
   };
@@ -87,10 +100,11 @@ function polacz() {
   });
 }
 
-function wyslij(typ, dane) {
+function wyslij(typ, dane, potem) {
   dane = dane || {};
   dane.id = mojeId;
   dane.typ = typ;
+  if (kodGry && dane.kod === undefined) dane.kod = kodGry;
   fetch("/akcja", { method: "POST", body: JSON.stringify(dane) })
     .then(function (odpowiedz) {
       return odpowiedz.json();
@@ -98,13 +112,17 @@ function wyslij(typ, dane) {
     .then(function (wynik) {
       if (wynik.blad) {
         czekamNaSerwer = false;
-        pokazDymek(wynik.blad);
+        if (typ === "dolacz") wyslalemDolacz = false;
+        if (typ === "sprawdzKod" || typ === "noweLobby") el("bladKodu").textContent = wynik.blad;
+        else pokazDymek(wynik.blad);
       }
+      if (potem) potem(wynik);
     })
     .catch(function () {
       czekamNaSerwer = false;
       if (typ === "dolacz") wyslalemDolacz = false;
       pokazDymek("📡 Brak połączenia z serwerem");
+      if (potem) potem(null);
     });
 }
 
@@ -170,6 +188,8 @@ function dodajUsun(element, g) {
 
 // ----- Co się zmieniło: dźwięki i dymki -----
 function reaguj() {
+  // Strona startu albo zły kod: tu nie ma jeszcze planszy.
+  if (!stan || stan.brakGry || stan.ekran === "start") return;
   // Nie ma mnie w grze (np. serwer wystartował od nowa): dołączam pod zapisanym imieniem.
   // Po "zacznij od nowa" nie dołączam sam — trzeba nacisnąć Gram!, żeby wiszący telefon nie blokował gry.
   if (stan.ja === 0) {
@@ -209,8 +229,53 @@ function reaguj() {
 }
 
 // ----- Rysowanie -----
+function rysujKodWNaglowku() {
+  var miejsce = el("kodWNaglowku");
+  if (!stan || !stan.kod || stan.brakGry || stan.ekran === "start") {
+    miejsce.textContent = "";
+    miejsce.style.display = "none";
+    return;
+  }
+  miejsce.style.display = "inline";
+  miejsce.textContent = stan.kod;
+}
+
+function linkDoGry() {
+  var baza = stan.adresy && stan.adresy.length ? stan.adresy[0] : location.origin;
+  if (baza.charAt(baza.length - 1) === "/") baza = baza.slice(0, -1);
+  return baza + "/?kod=" + stan.kod;
+}
+
+function uzupelnijWroc() {
+  var zapisany = oczyscKod(wczytaj("kod") || "");
+  var guzik = el("wrocDoGry");
+  if (!zapisany || zapisany === kodGry || !kodWygladaDobrze(zapisany)) {
+    guzik.style.display = "none";
+    return;
+  }
+  guzik.style.display = "inline-block";
+  guzik.textContent = "Wróć do gry " + zapisany;
+}
+
+function pokazStart(tekst) {
+  pokazTylko("ekranStart");
+  el("bladKodu").textContent = tekst || "";
+  uzupelnijWroc();
+}
+
 function rysuj() {
   if (!stan) return;
+  rysujKodWNaglowku();
+  if (stan.brakGry) {
+    if (wczytaj("kod") === stan.kod) zapisz("kod", "");
+    pokazStart(stan.tekst || "Nie ma takiej gry. Sprawdź kod albo załóż nową.");
+    return;
+  }
+  if (stan.ekran === "start") {
+    pokazStart("");
+    return;
+  }
+  if (stan.kod) zapisz("kod", stan.kod);
   var ja = mnie();
   var zapisaneImie = wczytaj("imie");
   el("mojeImie").textContent = ja ? "🙂 " + ja.imie : (zapisaneImie ? "🙂 " + zapisaneImie : "");
@@ -339,6 +404,10 @@ function rysujPoczekalnie() {
   }
   napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!: ");
   el("start").disabled = polaczonych < 2;
+  el("kodDuzy").textContent = stan.kod || "";
+  el("kodDuzy").style.fontSize = stan.kod && stan.kod.length > 5 ? "min(11vw, 54px)" : "min(16vw, 72px)";
+  el("kodLiterki").textContent = stan.kod ? stan.kod.toUpperCase().split("").join(" · ") : "";
+  el("linkGry").textContent = stan.kod ? "Link: " + linkDoGry() : "";
 
   // Guziki: klasyczna albo szybka gra
   var miejsceTrybow = el("tryby");
@@ -352,7 +421,8 @@ function rysujPoczekalnie() {
     }, nazwa);
     miejsceTrybow.appendChild(guzik);
   }
-  el("adresy").textContent = stan.adresy.length ? "Inni dołączają na telefonie albo komputerze: " + stan.adresy.join(" albo ") : "";
+  var adresy = stan.adresy && stan.adresy.length ? " Strona: " + stan.adresy.join(" albo ") : "";
+  el("adresy").textContent = "Inni otwierają grę i stukają „Dołącz kodem”." + adresy;
 }
 
 // ----- Ustawianie statków -----
@@ -523,6 +593,7 @@ function rysujBitwe(ja) {
   el("odNowaBitwa").style.display = mogeOdNowa ? "inline-block" : "none";
   el("opisOdNowaBitwa").style.display = mogeOdNowa ? "block" : "none";
   el("nowaGra").style.display = koniec ? "inline-block" : "none";
+  el("wyjdzBitwa").style.display = (ja.widz || koniec) ? "inline-block" : "none";
 
   // Najpierw plansze przeciwników, na końcu moja
   var kolejnosc = [];
@@ -662,6 +733,57 @@ el("odNowaNie").addEventListener("click", function () {
   schowajPytanie();
 });
 
+function idzDoKodu(kod) {
+  location.assign(location.pathname + "?kod=" + kod);
+}
+
+function wyjdzDoStartu() {
+  dzwiekKlik();
+  wyslij("wyjdz", {}, function (wynik) {
+    if (!wynik || wynik.blad) return;
+    location.assign(location.pathname);
+  });
+}
+
+var zakladamGre = false;
+el("nowaGraStart").addEventListener("click", function () {
+  if (zakladamGre) return;
+  zakladamGre = true;
+  el("nowaGraStart").disabled = true;
+  el("bladKodu").textContent = "";
+  dzwiekKlik();
+  wyslij("noweLobby", { kod: el("poleNowegoKodu").value }, function (wynik) {
+    zakladamGre = false;
+    el("nowaGraStart").disabled = false;
+    if (wynik && wynik.kod) idzDoKodu(wynik.kod);
+  });
+});
+
+el("poleNowegoKodu").addEventListener("keydown", function (zdarzenie) {
+  if (zdarzenie.key === "Enter") el("nowaGraStart").click();
+});
+
+function dolaczWpisanymKodem() {
+  el("bladKodu").textContent = "";
+  dzwiekKlik();
+  wyslij("sprawdzKod", { kod: oczyscKod(el("poleKodu").value) }, function (wynik) {
+    if (wynik && wynik.kod) idzDoKodu(wynik.kod);
+  });
+}
+
+el("dolaczKodem").addEventListener("click", dolaczWpisanymKodem);
+el("poleKodu").addEventListener("keydown", function (zdarzenie) {
+  if (zdarzenie.key === "Enter") dolaczWpisanymKodem();
+});
+el("wrocDoGry").addEventListener("click", function () {
+  var zapisany = wczytaj("kod");
+  if (zapisany) idzDoKodu(zapisany);
+});
+el("wyjdzPoczekalnia").addEventListener("click", wyjdzDoStartu);
+el("wyjdzUstawianie").addEventListener("click", wyjdzDoStartu);
+el("wyjdzGram").addEventListener("click", wyjdzDoStartu);
+el("wyjdzBitwa").addEventListener("click", wyjdzDoStartu);
+
 el("gram").addEventListener("click", function () {
   var imie = wczytaj("imie");
   if (!imie) {
@@ -684,7 +806,11 @@ document.addEventListener("keydown", function (zdarzenie) {
 // ----- Start -----
 if (location.protocol === "file:") {
   pokazTylko("ekranPlik");
+} else if (!kodGry) {
+  pokazStart("");
+  polacz();
 } else {
   pokazTylko("ekranLaczenie");
+  el("tekstLaczenia").textContent = "📡 Dołączam do gry " + kodGry + "...";
   polacz();
 }
