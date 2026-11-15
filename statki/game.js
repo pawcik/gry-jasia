@@ -369,10 +369,36 @@ function kliknijUstawianie(pole) {
   rysuj();
 }
 
+// Zielone albo czerwone pola podglądu: numer pola -> klasa.
+function klasyPodgladu() {
+  var podglad = {};
+  var flota = zbudujFlote(ustawianie.statki, tryb(), false);
+  if (!flota) return podglad;
+  if (ustawianie.podglad < 0 || ustawianie.wybrany < 0) return podglad;
+  if (flota.naPolu[ustawianie.podglad] !== -1) return podglad;
+  var kandydat = kandydatNa(ustawianie.podglad);
+  var dobrze = !!zbudujFlote(ustawianie.statki.concat([kandydat]), tryb(), false);
+  for (var j = 0; j < kandydat.dlugosc; j++) {
+    var w = kandydat.poziomo ? kandydat.w : kandydat.w + j;
+    var k = kandydat.poziomo ? kandydat.k + j : kandydat.k;
+    if (w < tryb().rozmiar && k < tryb().rozmiar) podglad[w * tryb().rozmiar + k] = dobrze ? "podglad" : "zlyPodglad";
+  }
+  return podglad;
+}
+
 function najedzUstawianie(pole) {
   if (ustawianie.podglad === pole) return;
   ustawianie.podglad = pole;
-  rysuj();
+  // Nie budujemy planszy od nowa. Na iPhonie stuknięcie najpierw udaje najazd,
+  // a nowa plansza pod palcem sprawia, że Safari nie stawia statku.
+  var kratki = el("planszaUstawiania").querySelectorAll(".kratka");
+  if (kratki.length !== tryb().rozmiar * tryb().rozmiar) return;
+  var podglad = klasyPodgladu();
+  for (var i = 0; i < kratki.length; i++) {
+    kratki[i].classList.remove("podglad");
+    kratki[i].classList.remove("zlyPodglad");
+    if (podglad[i]) kratki[i].classList.add(podglad[i]);
+  }
 }
 
 function rysujListeStatkow() {
@@ -418,17 +444,7 @@ function rysujUstawianie(ja) {
     for (var p = 0; p < tryb().rozmiar * tryb().rozmiar; p++) pola += flota.naPolu[p] !== -1 ? "4" : "0";
 
     // Podgląd statku pod myszką: zielony = można postawić, czerwony = nie
-    var podglad = {};
-    if (ustawianie.podglad >= 0 && ustawianie.wybrany >= 0 && flota.naPolu[ustawianie.podglad] === -1) {
-      var kandydat = kandydatNa(ustawianie.podglad);
-      var dobrze = !!zbudujFlote(ustawianie.statki.concat([kandydat]), tryb(), false);
-      for (var j = 0; j < kandydat.dlugosc; j++) {
-        var w = kandydat.poziomo ? kandydat.w : kandydat.w + j;
-        var k = kandydat.poziomo ? kandydat.k + j : kandydat.k;
-        if (w < tryb().rozmiar && k < tryb().rozmiar) podglad[w * tryb().rozmiar + k] = dobrze ? "podglad" : "zlyPodglad";
-      }
-    }
-    miejsce.appendChild(zrobPlansze(pola, { aktywna: true, klik: kliknijUstawianie, najazd: najedzUstawianie, podglad: podglad }));
+    miejsce.appendChild(zrobPlansze(pola, { aktywna: true, klik: kliknijUstawianie, najazd: najedzUstawianie, podglad: klasyPodgladu() }));
     el("gotowe").disabled = ustawianie.statki.length !== tryb().statki.length;
   }
 
