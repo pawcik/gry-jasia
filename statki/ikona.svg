@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Kartka w kratkę i statek narysowany długopisem. -->
+  <rect width="64" height="64" fill="#f4efe4"/>
+  <g stroke="#b7d4ea" stroke-width="1.4">
+    <path d="M0 16h64M0 32h64M0 48h64"/>
+    <path d="M16 0v64M32 0v64M48 0v64"/>
+  </g>
+  <rect width="7" height="64" fill="#e14b46"/>
+  <path d="M16 40h36l-6 11c-6 3-18 3-24 0z" fill="#245888" stroke="#1c3352" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M32 40V15" stroke="#1c3352" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M30 20c-12 4-14 16 0 18z" fill="#e7eef6" stroke="#1c3352" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M34 16c14 4 16 18 0 22z" fill="#fffdf8" stroke="#1c3352" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M32 15l12 4-12 4z" fill="#e14b46" stroke="#1c3352" stroke-width="1.6" stroke-linejoin="round"/>
+  <path d="M12 57q8-5 16 0t16 0 16 0" fill="none" stroke="#1a4b86" stroke-width="2.3" stroke-linecap="round"/>
+</svg>

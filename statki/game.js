@@ -41,6 +41,56 @@ function zapisz(klucz, wartosc) {
   }
 }
 
+// Gdy nic nie wybrano, losujemy raz i trzymamy ten sam numer do końca wizyty.
+var wylosowanyAwatar = "";
+
+function mojAwatar() {
+  var zapisany = wczytaj("awatar");
+  if (awatarPoId(zapisany)) return zapisany;
+  if (!awatarPoId(wylosowanyAwatar)) {
+    wylosowanyAwatar = AWATARY[Math.floor(Math.random() * AWATARY.length)].id;
+    zapisz("awatar", wylosowanyAwatar);
+  }
+  return wylosowanyAwatar;
+}
+
+function wybierzAwatar(id) {
+  if (!awatarPoId(id)) return;
+  wylosowanyAwatar = id;
+  zapisz("awatar", id);
+}
+
+function wstawAwatar(rodzic, id, klasa) {
+  var a = awatarPoId(id);
+  var pudelko = document.createElement("span");
+  pudelko.className = "awatar" + (klasa ? " " + klasa : "");
+  if (a) {
+    pudelko.title = a.imie;
+    pudelko.innerHTML = a.svg;
+  }
+  rodzic.appendChild(pudelko);
+}
+
+function dopiszOsobe(rodzic, osoba, klasa, dodatki) {
+  var kawalek = document.createElement("span");
+  kawalek.className = "osoba";
+  wstawAwatar(kawalek, osoba.awatar, klasa);
+  var napis = document.createElement("span");
+  napis.textContent = (osoba.imie || "") + (dodatki || "");
+  kawalek.appendChild(napis);
+  rodzic.appendChild(kawalek);
+}
+
+function napiszZLudzikami(element, kawalki) {
+  element.textContent = "";
+  for (var i = 0; i < kawalki.length; i++) {
+    var k = kawalki[i];
+    if (typeof k === "string") element.appendChild(document.createTextNode(k));
+    else if (k.osoba) dopiszOsobe(element, k.osoba, k.klasa || "maly", k.dodatki || "");
+    else wstawAwatar(element, k.awatar, k.klasa || "maly");
+  }
+}
+
 // Mój tajny numer: dzięki niemu po zgaszeniu telefonu wracam do tej samej gry
 var mojeId = wczytaj("id");
 if (!mojeId) {
@@ -196,7 +246,7 @@ function reaguj() {
     var imie = wczytaj("imie");
     if (imie && !stan.trzebaPotwierdzic && !wyslalemDolacz && !zmieniamImie) {
       wyslalemDolacz = true;
-      wyslij("dolacz", { imie: imie });
+      wyslij("dolacz", { imie: imie, awatar: mojAwatar() });
     }
   } else {
     wyslalemDolacz = false;
@@ -278,8 +328,13 @@ function rysuj() {
   if (stan.kod) zapisz("kod", stan.kod);
   var ja = mnie();
   var zapisaneImie = wczytaj("imie");
-  el("mojeImie").textContent = ja ? "🙂 " + ja.imie : (zapisaneImie ? "🙂 " + zapisaneImie : "");
+  var poleImienia = el("mojeImie");
+  poleImienia.textContent = "";
+  if (ja) dopiszOsobe(poleImienia, ja, "maly", "");
+  else if (zapisaneImie) dopiszOsobe(poleImienia, { imie: zapisaneImie, awatar: mojAwatar() }, "maly", "");
   if (zmieniamImie || (!ja && !zapisaneImie)) {
+    rysujWyborAwatara();
+    el("dolacz").textContent = zmieniamImie ? "Gotowe ✔" : "Dołącz ▶️";
     pokazTylko("ekranImie");
     return;
   }
@@ -296,33 +351,90 @@ function rysuj() {
   else rysujBitwe(ja);
 }
 
-// Imiona z listy graczy. Przy zgaszonym telefonie doklejamy znaczek.
-function imiona(lista, znaczek) {
-  var nazwy = [];
-  for (var i = 0; i < lista.length; i++) {
-    nazwy.push(lista[i].imie + (znaczek && !lista[i].online ? " 📵" : ""));
-  }
-  return nazwy;
-}
-
 // Kto jeszcze nie nacisnął Gram!
 function napiszOczekujacych(element, przedrostek) {
   var oczek = stan.oczekujacy || [];
+  element.textContent = "";
   if (!oczek.length) {
     element.style.display = "none";
-    element.textContent = "";
     return;
   }
   element.style.display = "block";
-  element.textContent = przedrostek + imiona(oczek, true).join(", ");
+  var tytul = document.createElement("div");
+  tytul.textContent = przedrostek;
+  element.appendChild(tytul);
+  var rzad = document.createElement("div");
+  rzad.className = "rzadOsob";
+  for (var i = 0; i < oczek.length; i++) {
+    dopiszOsobe(rzad, oczek[i], "maly", oczek[i].online ? "" : " 📵");
+  }
+  element.appendChild(rzad);
+}
+
+function rysujRzadOsob(element, przedrostek, lista) {
+  element.textContent = "";
+  var tytul = document.createElement("div");
+  tytul.textContent = przedrostek;
+  element.appendChild(tytul);
+  var rzad = document.createElement("div");
+  rzad.className = "rzadOsob";
+  for (var i = 0; i < lista.length; i++) {
+    dopiszOsobe(rzad, lista[i], "", lista[i].online ? "" : " 📵");
+  }
+  element.appendChild(rzad);
 }
 
 function rysujGram() {
   pokazTylko("ekranGram");
-  el("gramImie").textContent = "Cześć, " + (wczytaj("imie") || "") + "!";
-  var wSrodku = imiona(stan.gracze, true);
-  el("gramCzekaja").textContent = wSrodku.length ? "Już w poczekalni: " + wSrodku.join(", ") : "W poczekalni nie ma jeszcze nikogo.";
-  napiszOczekujacych(el("gramJeszcze"), "Jeszcze nie: ");
+  var powitanie = el("gramImie");
+  powitanie.textContent = "";
+  powitanie.appendChild(document.createTextNode("Cześć, "));
+  dopiszOsobe(powitanie, { imie: wczytaj("imie") || "", awatar: mojAwatar() }, "duzy", "");
+  powitanie.appendChild(document.createTextNode("!"));
+  if (stan.gracze.length) rysujRzadOsob(el("gramCzekaja"), "Już w poczekalni:", stan.gracze);
+  else el("gramCzekaja").textContent = "W poczekalni nie ma jeszcze nikogo.";
+  napiszOczekujacych(el("gramJeszcze"), "Jeszcze nie:");
+}
+
+function rysujWyborAwatara() {
+  var wybrany = mojAwatar();
+  var miejsce = el("awatary");
+  if (miejsce.getAttribute("data-gotowe") !== "1") {
+    miejsce.textContent = "";
+    for (var i = 0; i < AWATARY.length; i++) {
+      var a = AWATARY[i];
+      var guzik = document.createElement("button");
+      guzik.type = "button";
+      guzik.className = "awatarGuzik";
+      guzik.setAttribute("data-id", a.id);
+      wstawAwatar(guzik, a.id, "wielki");
+      var podpis = document.createElement("span");
+      podpis.textContent = a.imie;
+      guzik.appendChild(podpis);
+      dodajKlik(guzik, function (id) {
+        wybierzAwatar(id);
+        dzwiekKlik();
+        rysujWyborAwatara();
+        var imieTeraz = (stan && mnie()) ? mnie().imie : (wczytaj("imie") || "");
+        if (imieTeraz) {
+          var pole = el("mojeImie");
+          pole.textContent = "";
+          dopiszOsobe(pole, { imie: imieTeraz, awatar: id }, "maly", "");
+        }
+      }, a.id);
+      miejsce.appendChild(guzik);
+    }
+    miejsce.setAttribute("data-gotowe", "1");
+  }
+  var guziki = miejsce.querySelectorAll("button");
+  for (var j = 0; j < guziki.length; j++) {
+    var wlaczony = guziki[j].getAttribute("data-id") === wybrany;
+    if (wlaczony) guziki[j].classList.add("wybrany");
+    else guziki[j].classList.remove("wybrany");
+    guziki[j].setAttribute("aria-pressed", wlaczony ? "true" : "false");
+  }
+  var opis = awatarPoId(wybrany);
+  el("wybranyAwatar").textContent = opis ? "Twój ludzik: " + opis.imie : "";
 }
 
 // Pole ze statkiem (cały, trafiony albo zatopiony) — do wspólnej ramki długopisem.
@@ -399,10 +511,13 @@ function rysujPoczekalnie() {
     var g = stan.gracze[i];
     if (g.online) polaczonych++;
     var wiersz = document.createElement("li");
-    wiersz.textContent = (g.online ? "🟢 " : "⚪ ") + g.imie + (g.nr === stan.ja ? " (ty)" : "");
+    var kropka = document.createElement("span");
+    kropka.textContent = g.online ? "🟢" : "⚪";
+    wiersz.appendChild(kropka);
+    dopiszOsobe(wiersz, g, "duzy", g.nr === stan.ja ? " (ty)" : "");
     lista.appendChild(wiersz);
   }
-  napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!: ");
+  napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!");
   el("start").disabled = polaczonych < 2;
   el("kodDuzy").textContent = stan.kod || "";
   el("kodDuzy").style.fontSize = stan.kod && stan.kod.length > 5 ? "min(11vw, 54px)" : "min(16vw, 72px)";
@@ -557,11 +672,14 @@ function rysujUstawianie(ja) {
   for (var i = 0; i < inni.length; i++) {
     var g = inni[i];
     var wiersz = document.createElement("li");
-    wiersz.textContent = (g.gotowy ? "✔ " : "⏳ ") + g.imie + (g.online ? "" : " 📵");
+    var znaczek = document.createElement("span");
+    znaczek.textContent = g.gotowy ? "✔" : "⏳";
+    wiersz.appendChild(znaczek);
+    dopiszOsobe(wiersz, g, "", g.online ? "" : " 📵");
     dodajUsun(wiersz, g);
     lista.appendChild(wiersz);
   }
-  napiszOczekujacych(el("oczekujacyUstawianie"), "Czekamy na Gram!: ");
+  napiszOczekujacych(el("oczekujacyUstawianie"), "Czekamy na Gram!");
 }
 
 // ----- Bitwa (i koniec gry) -----
@@ -578,14 +696,21 @@ function rysujBitwe(ja) {
   var mojaKolej = stan.etap === "bitwa" && stan.tura === stan.ja && !ja.widz;
   var naTurze = gracz(stan.tura);
 
-  var napis = "";
-  if (stan.etap === "koniec") napis = "🏆 Wygrywa " + stan.zwyciezca + "!";
-  else if (stan.etap === "ustawianie") napis = "🚢 Gracze ustawiają statki. Zagrasz w następnej grze.";
-  else if (ja.widz) napis = "👀 Oglądasz. Zagrasz w następnej grze.";
-  else if (ja.odpadl) napis = "💀 Twoje statki zatonęły. Oglądaj dalej!";
-  else if (mojaKolej) napis = "🎯 Twoja kolej! Strzel w planszę przeciwnika";
-  else if (naTurze) napis = "⏳ Strzela " + naTurze.imie + (naTurze.online ? "" : " (nie ma połączenia 📵)");
-  el("tura").textContent = napis;
+  var pasek = el("tura");
+  if (stan.etap === "koniec") {
+    var wygral = null;
+    var zywi = grajacy();
+    for (var z = 0; z < zywi.length; z++) {
+      if (!zywi[z].odpadl) wygral = zywi[z];
+    }
+    if (wygral) napiszZLudzikami(pasek, ["🏆 Wygrywa ", { osoba: wygral, klasa: "maly" }, "!"]);
+    else pasek.textContent = "🏆 Wygrywa " + stan.zwyciezca + "!";
+  } else if (stan.etap === "ustawianie") pasek.textContent = "🚢 Gracze ustawiają statki. Zagrasz w następnej grze.";
+  else if (ja.widz) pasek.textContent = "👀 Oglądasz. Zagrasz w następnej grze.";
+  else if (ja.odpadl) pasek.textContent = "💀 Twoje statki zatonęły. Oglądaj dalej!";
+  else if (mojaKolej) napiszZLudzikami(pasek, [{ awatar: ja.awatar, klasa: "maly" }, " 🎯 Twoja kolej! Strzel w planszę przeciwnika"]);
+  else if (naTurze) napiszZLudzikami(pasek, ["⏳ Strzela ", { osoba: naTurze, klasa: "maly", dodatki: naTurze.online ? "" : " (nie ma połączenia 📵)" }]);
+  else pasek.textContent = "";
   if (stan.etap === "koniec") el("tura").className = "koniecGry";
   else el("tura").className = mojaKolej ? "mojaTura" : "";
   var koniec = stan.etap === "koniec";
@@ -614,7 +739,10 @@ function rysujBitwe(ja) {
     var karta = document.createElement("div");
     karta.className = "karta" + (g.nr === stan.tura && stan.etap === "bitwa" ? " naTurze" : "") + (moznaStrzelac ? " cel" : "") + (g.odpadl ? " odpadl" : "");
     var tytul = document.createElement("h3");
-    tytul.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + "  🚢 " + g.zostalo + (g.odpadl ? " 💀" : "") + (g.online ? "" : " 📵");
+    wstawAwatar(tytul, g.awatar, "");
+    var napisPlanszy = document.createElement("span");
+    napisPlanszy.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + "  🚢 " + g.zostalo + (g.odpadl ? " 💀" : "") + (g.online ? "" : " 📵");
+    tytul.appendChild(napisPlanszy);
     dodajUsun(tytul, g);
     karta.appendChild(tytul);
     var opcje = { aktywna: moznaStrzelac };
@@ -699,7 +827,7 @@ function linieZatopionych(lista) {
       if (grupy[j].imie === z.imie) grupa = grupy[j];
     }
     if (!grupa) {
-      grupa = { imie: z.imie, dlugosci: [] };
+      grupa = { imie: z.imie, awatar: z.awatar || "", dlugosci: [] };
       grupy.push(grupa);
     }
     var wpis = null;
@@ -718,7 +846,7 @@ function linieZatopionych(lista) {
     for (var b = 0; b < grupy[a].dlugosci.length; b++) {
       nazwy.push(nazwaMasztow(grupy[a].dlugosci[b].dlugosc, grupy[a].dlugosci[b].ile));
     }
-    czesci.push(grupy[a].imie + " — " + zlaczenie(nazwy));
+    czesci.push({ imie: grupy[a].imie, awatar: grupy[a].awatar || "", tekst: zlaczenie(nazwy) });
   }
   return czesci;
 }
@@ -730,7 +858,20 @@ function dopiszZatopione(karta, lista) {
     return;
   }
   dodajTekst(karta, "p", "", "Zatopione statki:");
-  for (var i = 0; i < linie.length; i++) dodajTekst(karta, "p", "wciecie", linie[i]);
+  for (var i = 0; i < linie.length; i++) {
+    var wiersz = document.createElement("p");
+    wiersz.className = "wciecie";
+    dopiszOsobe(wiersz, linie[i], "maly", " — " + linie[i].tekst);
+    karta.appendChild(wiersz);
+  }
+}
+
+function dopiszLudzikow(rodzic, osoby, zPucharem) {
+  if (zPucharem) rodzic.appendChild(document.createTextNode("🏆 "));
+  for (var i = 0; i < osoby.length; i++) {
+    if (i > 0) rodzic.appendChild(document.createTextNode(i === osoby.length - 1 ? " i " : ", "));
+    dopiszOsobe(rodzic, osoby[i], "maly", "");
+  }
 }
 
 function liniaDoKogo(g, nr) {
@@ -751,7 +892,10 @@ function rysujOdznaki(box, nagrody) {
     var chip = document.createElement("div");
     chip.className = "odznaka " + n.id;
     dodajTekst(chip, "span", "odznakaNazwa", opis.ikona + " " + opis.nazwa);
-    dodajTekst(chip, "span", "odznakaKto", zlaczenie(n.kto || []));
+    var kto = document.createElement("span");
+    kto.className = "odznakaKto";
+    dopiszLudzikow(kto, n.kto || [], false);
+    chip.appendChild(kto);
     dodajTekst(chip, "span", "odznakaOpis", opisNagrody(n));
     rzad.appendChild(chip);
   }
@@ -767,7 +911,11 @@ function rysujMacierz(box, gracze) {
   tabela.className = "macierz";
   var naglowek = document.createElement("tr");
   dodajTekst(naglowek, "th", "", "Strzelał");
-  for (var i = 0; i < gracze.length; i++) dodajTekst(naglowek, "th", "", gracze[i].imie);
+  for (var i = 0; i < gracze.length; i++) {
+    var glowa = document.createElement("th");
+    dopiszOsobe(glowa, gracze[i], "maly", "");
+    naglowek.appendChild(glowa);
+  }
   dodajTekst(naglowek, "th", "", "Razem");
   var thead = document.createElement("thead");
   thead.appendChild(naglowek);
@@ -778,7 +926,9 @@ function rysujMacierz(box, gracze) {
     var wygral = g.imie === stan.zwyciezca;
     var wiersz = document.createElement("tr");
     if (wygral) wiersz.className = "wierszZwyciezcy";
-    dodajTekst(wiersz, "th", "", (wygral ? "🏆 " : "") + g.imie);
+    var podpis = document.createElement("th");
+    dopiszLudzikow(podpis, [g], wygral);
+    wiersz.appendChild(podpis);
     for (var c = 0; c < gracze.length; c++) {
       var cel = gracze[c];
       var td = document.createElement("td");
@@ -815,7 +965,9 @@ function rysujKartyGraczy(box, gracze) {
     var g = gracze[i];
     var karta = document.createElement("div");
     karta.className = "kartaStat" + (g.imie === stan.zwyciezca ? " zwyciezca" : "");
-    dodajTekst(karta, "h3", "", (g.imie === stan.zwyciezca ? "🏆 " : "") + g.imie);
+    var tytul = document.createElement("h3");
+    dopiszLudzikow(tytul, [g], g.imie === stan.zwyciezca);
+    karta.appendChild(tytul);
     if (!g.strzaly) {
       dodajTekst(karta, "p", "", "Nie oddał żadnego strzału.");
     } else {
@@ -832,9 +984,12 @@ function rysujKartyGraczy(box, gracze) {
     var wKogo = g.wKogo || [];
     for (var j = 0; j < wKogo.length; j++) {
       var linia = wKogo[j];
-      dodajTekst(karta, "p", "", "→ " + linia.imie + ": " + linia.trafienia + " "
+      var doKogo = document.createElement("p");
+      doKogo.appendChild(document.createTextNode("→ "));
+      dopiszOsobe(doKogo, linia, "maly", ": " + linia.trafienia + " "
         + forma(linia.trafienia, "trafienie", "trafienia", "trafień") + " na " + linia.strzaly + " "
         + forma(linia.strzaly, "strzał", "strzały", "strzałów"));
+      karta.appendChild(doKogo);
     }
     dopiszZatopione(karta, g.zatopione);
     lista.appendChild(karta);
@@ -883,7 +1038,7 @@ el("dolacz").addEventListener("click", function () {
   el("imie").blur();
   zmieniamImie = false;
   wyslalemDolacz = true;
-  wyslij("dolacz", { imie: imie });
+  wyslij("dolacz", { imie: imie, awatar: mojAwatar() });
   pokazTylko("ekranLaczenie");
 });
 
@@ -894,6 +1049,8 @@ el("imie").addEventListener("keydown", function (zdarzenie) {
 el("zmienImie").addEventListener("click", function () {
   el("imie").value = wczytaj("imie") || "";
   zmieniamImie = true;
+  rysujWyborAwatara();
+  el("dolacz").textContent = "Gotowe ✔";
   pokazTylko("ekranImie");
 });
 
@@ -1014,12 +1171,13 @@ el("gram").addEventListener("click", function () {
   var imie = wczytaj("imie");
   if (!imie) {
     zmieniamImie = true;
+    rysujWyborAwatara();
     pokazTylko("ekranImie");
     return;
   }
   dzwiekKlik();
   wyslalemDolacz = true;
-  wyslij("dolacz", { imie: imie });
+  wyslij("dolacz", { imie: imie, awatar: mojAwatar() });
   pokazTylko("ekranLaczenie");
 });
 

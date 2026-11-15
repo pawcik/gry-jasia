@@ -102,12 +102,116 @@ ul {
 }
 
 #listaGraczy li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin: 6px;
   font-size: 22px;
 }
 
 #gramImie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 28px;
+}
+
+#mojeImie {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#awatary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  max-width: 440px;
+  margin: 8px auto 4px;
+}
+
+.awatarGuzik {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  width: 76px;
+  min-height: 96px;
+  margin: 0;
+  padding: 4px 2px 6px;
+  font-size: 15px;
+  line-height: 1.1;
+  touch-action: manipulation;
+}
+
+.awatarGuzik .awatar {
+  width: 52px;
+  height: 52px;
+}
+
+.awatar {
+  display: inline-block;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  line-height: 0;
+  vertical-align: middle;
+}
+
+.awatar svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.awatar.duzy {
+  width: 44px;
+  height: 44px;
+}
+
+.awatar.maly {
+  width: 28px;
+  height: 28px;
+}
+
+.osoba {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+
+.rzadOsob {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 6px;
+}
+
+#wybranyAwatar {
+  margin: 2px 0 8px;
+  font-size: 22px;
+}
+
+@media (max-width: 420px) {
+  .awatarGuzik {
+    width: 68px;
+    min-height: 88px;
+    font-size: 14px;
+  }
+
+  .awatarGuzik .awatar {
+    width: 46px;
+    height: 46px;
+  }
 }
 
 #wrocDoGry,
@@ -339,6 +443,11 @@ ul {
 }
 
 #gotowiGracze li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   margin: 4px;
   font-size: 18px;
 }
@@ -348,6 +457,11 @@ ul {
   position: sticky;
   top: env(safe-area-inset-top);
   z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 8px;
   margin: -12px -12px 12px;
   margin-left: calc(-12px - env(safe-area-inset-left));
   margin-right: calc(-12px - env(safe-area-inset-right));
@@ -367,6 +481,11 @@ ul {
 }
 
 .karta h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 6px;
   margin: 2px 0 8px;
   font-size: 18px;
 }
@@ -630,7 +749,8 @@ html:not(.morze) .plansza.aktywna .kratka.woda:hover {
 }
 
 html:not(.morze) .trybGuzik.wybrany,
-html:not(.morze) .statekGuzik.wybrany {
+html:not(.morze) .statekGuzik.wybrany,
+html:not(.morze) .awatarGuzik.wybrany {
   background: #ffe566;
   color: #1c3352;
   box-shadow: 2px 2px 0 rgba(28, 51, 82, 0.2);
@@ -836,7 +956,8 @@ html.morze .plansza.aktywna .kratka.woda:hover {
   background: #d4f1ff;
 }
 
-html.morze .trybGuzik.wybrany {
+html.morze .trybGuzik.wybrany,
+html.morze .awatarGuzik.wybrany {
   background: #ffb300;
   color: #3e2700;
   font-weight: bold;
@@ -918,7 +1039,6 @@ html.morze #dziennik {
 }
 
 .odznakaNazwa,
-.odznakaKto,
 .odznakaOpis {
   display: block;
 }
@@ -928,6 +1048,11 @@ html.morze #dziennik {
 }
 
 .odznakaKto {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 8px;
   font-size: 20px;
 }
 

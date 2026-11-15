@@ -120,8 +120,25 @@ function imiona(stan) {
   return lista;
 }
 
-async function dolacz(sl, imie) {
-  var wynik = await post({ id: sl.id, kod: sl.kod, typ: "dolacz", imie: imie });
+function ludziki(stan) {
+  var lista = [];
+  for (var i = 0; i < stan.gracze.length; i++) lista.push(stan.gracze[i].awatar);
+  return lista;
+}
+
+function pobierz(sciezka) {
+  return new Promise(function (resolve, reject) {
+    http.get({ host: "127.0.0.1", port: PORT, path: sciezka }, function (res) {
+      res.resume();
+      resolve({ kod: res.statusCode, typ: res.headers["content-type"] });
+    }).on("error", reject);
+  });
+}
+
+async function dolacz(sl, imie, awatar) {
+  var dane = { id: sl.id, kod: sl.kod, typ: "dolacz", imie: imie };
+  if (awatar) dane.awatar = awatar;
+  var wynik = await post(dane);
   sprawdz(!wynik.blad, "dolacz " + imie + ": " + wynik.blad);
   await czekajAz(sl, function (s) { return s.ja !== 0 && s.kod === sl.kod; }, "widok po dołączeniu " + imie);
 }
@@ -248,7 +265,7 @@ async function zalozGreDoStatystyk(kod, osoby) {
   for (var i = 0; i < osoby.length; i++) {
     var sl = await sluchaj(osoby[i].id, kod);
     await czekajAz(sl, function (s) { return s.etap === "poczekalnia" && s.kod === kod; }, "start " + kod);
-    await dolacz(sl, osoby[i].imie);
+    await dolacz(sl, osoby[i].imie, osoby[i].awatar);
     sluchacze.push(sl);
   }
   var tryb = await post({ id: osoby[0].id, kod: kod, typ: "tryb", tryb: "szybka" });
@@ -258,6 +275,7 @@ async function zalozGreDoStatystyk(kod, osoby) {
   await czekajAz(sluchacze[0], function (s) { return s.etap === "ustawianie"; }, "ustawianie " + kod);
   var floty = {};
   var imiePoNr = {};
+  var awatarPoNr = {};
   for (var u = 0; u < sluchacze.length; u++) {
     var zbudowana = zasady.zbudujFlote(osoby[u].flota, zasady.TRYBY.szybka, true);
     sprawdz(zbudowana, "zła flota " + osoby[u].imie);
@@ -269,10 +287,11 @@ async function zalozGreDoStatystyk(kod, osoby) {
       return ja && ja.gotowy;
     }, "gotowy " + osoby[u].imie);
     imiePoNr[sluchacze[u].ostatni().ja] = osoby[u].imie;
+    awatarPoNr[sluchacze[u].ostatni().ja] = osoby[u].awatar;
     floty[sluchacze[u].ostatni().ja] = zbudowana;
   }
   await czekajAz(sluchacze[0], function (s) { return s.etap === "bitwa" && s.statystyki === null; }, "bitwa bez statystyk " + kod);
-  return { kod: kod, sluchacze: sluchacze, floty: floty, imiePoNr: imiePoNr, strzaly: [], licznik: {}, trafienia: {} };
+  return { kod: kod, sluchacze: sluchacze, floty: floty, imiePoNr: imiePoNr, awatarPoNr: awatarPoNr, strzaly: [], licznik: {}, trafienia: {} };
 }
 
 async function jedenStrzalTest(gra) {
@@ -312,6 +331,7 @@ function sprawdzKoncoweStatystyki(gra) {
   for (var i = 0; i < stan.statystyki.gracze.length; i++) {
     var g = stan.statystyki.gracze[i];
     sprawdz(imionaGry.indexOf(g.imie) !== -1, gra.kod + " ma obcego gracza " + g.imie);
+    sprawdz(g.awatar === gra.awatarPoNr[g.nr], gra.kod + " " + g.imie + " ma cudzy ludzik " + g.awatar);
     var o = mapa[g.nr] || { strzaly: 0, trafienia: 0, pudla: 0, seria: 0, zatopione: 0 };
     suma += g.strzaly;
     sprawdz(g.strzaly === o.strzaly && g.trafienia === o.trafienia && g.pudla === o.pudla, gra.kod + " " + g.imie + " ma złe liczby");
@@ -344,12 +364,12 @@ function sprawdzKoncoweStatystyki(gra) {
 
 async function sprawdzDwieGryDoKonca() {
   var gra1 = await zalozGreDoStatystyk("qxw1", [
-    { id: "iga", imie: "Iga", flota: FLOTY_TESTU[0] },
-    { id: "ewa", imie: "Ewa", flota: FLOTY_TESTU[1] }
+    { id: "iga", imie: "Iga", flota: FLOTY_TESTU[0], awatar: "spioch" },
+    { id: "ewa", imie: "Ewa", flota: FLOTY_TESTU[1], awatar: "lasuch" }
   ]);
   var gra2 = await zalozGreDoStatystyk("qxw2", [
-    { id: "leo", imie: "Leo", flota: FLOTY_TESTU[1] },
-    { id: "ula", imie: "Ula", flota: FLOTY_TESTU[0] }
+    { id: "leo", imie: "Leo", flota: FLOTY_TESTU[1], awatar: "kapitan" },
+    { id: "ula", imie: "Ula", flota: FLOTY_TESTU[0], awatar: "malarz" }
   ]);
   var guard = 0;
   var trwa = true;
@@ -366,7 +386,9 @@ async function sprawdzDwieGryDoKonca() {
   sprawdzKoncoweStatystyki(gra1);
   sprawdzKoncoweStatystyki(gra2);
   sprawdz(JSON.stringify(gra1.sluchacze[0].ostatni().statystyki).indexOf("Leo") === -1, "qxw1 zna Leo");
+  sprawdz(JSON.stringify(gra1.sluchacze[0].ostatni().statystyki).indexOf("kapitan") === -1, "qxw1 ma ludzika z qxw2");
   sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki).indexOf("Iga") === -1, "qxw2 zna Igę");
+  sprawdz(JSON.stringify(gra2.sluchacze[0].ostatni().statystyki).indexOf("spioch") === -1, "qxw2 ma ludzika z qxw1");
   var zostawione = JSON.stringify(gra2.sluchacze[0].ostatni().statystyki);
   var nowa = await post({ id: "iga", kod: "qxw1", typ: "nowaGra" });
   sprawdz(!nowa.blad, "nowa gra qxw1: " + (nowa.blad || ""));
@@ -421,6 +443,15 @@ function zatrzymaj() {
 async function main() {
   await uruchom();
 
+  var ikonaSvg = await pobierz("/ikona.svg");
+  var ikonaPng = await pobierz("/ikona-32.png");
+  var ikonaDuza = await pobierz("/ikona-180.png");
+  var ikonaIco = await pobierz("/favicon.ico");
+  sprawdz(ikonaSvg.kod === 200 && ikonaSvg.typ === "image/svg+xml", "ikonka svg: " + ikonaSvg.typ);
+  sprawdz(ikonaPng.kod === 200 && ikonaPng.typ === "image/png", "ikonka png: " + ikonaPng.typ);
+  sprawdz(ikonaDuza.kod === 200 && ikonaDuza.typ === "image/png", "ikonka 180: " + ikonaDuza.typ);
+  sprawdz(ikonaIco.kod === 200 && ikonaIco.typ === "image/x-icon", "ikonka ico: " + ikonaIco.typ);
+
   function kodZeSlowa(kod) {
     if (!/^[a-z]{3,6}[1-9]$/.test(kod)) return false;
     return zasady.SLOWA_KODOW.indexOf(kod.slice(0, -1)) !== -1;
@@ -455,10 +486,10 @@ async function main() {
   await czekajAz(a1, function (s) { return s.etap === "poczekalnia" && s.kod === kodA; }, "początek A");
   await czekajAz(b1, function (s) { return s.etap === "poczekalnia" && s.kod === kodB; }, "początek B");
 
-  await dolacz(a1, "Ala");
-  await dolacz(a2, "Ola");
-  await dolacz(b1, "Ela");
-  await dolacz(b3, "Jan");
+  await dolacz(a1, "Ala", "spioch");
+  await dolacz(a2, "Ola", "lasuch");
+  await dolacz(b1, "Ela", "kapitan");
+  await dolacz(b3, "Jan", "malarz");
   await czekajAz(a1, function (s) { return imiona(s).join(",") === "Ala,Ola"; }, "skład A u Ali");
   await czekajAz(b1, function (s) { return imiona(s).join(",") === "Ela,Jan"; }, "skład B u Eli");
 
@@ -468,6 +499,9 @@ async function main() {
   sprawdz(imiona(b3.ostatni()).join(",") === "Ela,Jan", "skład B: " + imiona(b3.ostatni()));
   sprawdz(a1.ostatni().ja !== b1.ostatni().ja || a1.ostatni().kod !== b1.ostatni().kod, "to samo okno ma być w dwóch grach");
   sprawdz(b1.ostatni().gracze[0].imie === "Ela", "to samo id ma inne imię w drugiej grze");
+  sprawdz(ludziki(a1.ostatni()).join(",") === "spioch,lasuch", "ludziki A: " + ludziki(a1.ostatni()));
+  sprawdz(ludziki(b1.ostatni()).join(",") === "kapitan,malarz", "ludziki B: " + ludziki(b1.ostatni()));
+  sprawdz(ludziki(a2.ostatni()).indexOf("kapitan") === -1, "ludzik z gry B widać w grze A");
 
   var szybka = await post({ id: "okno1", kod: kodB, typ: "tryb", tryb: "szybka" });
   sprawdz(!szybka.blad, "tryb B: " + szybka.blad);
@@ -518,10 +552,13 @@ async function main() {
   }, "Gram! po od nowa");
   await czekajAz(a2, function (s) { return s.trzebaPotwierdzic && s.gracze.length === 0; }, "Ola też czeka na Gram!");
   sprawdz(b1.ostatni().etap === "bitwa" && imiona(b1.ostatni()).join(",") === "Ela,Jan", "od nowa w A ruszyło grę B");
+  sprawdz(a2.ostatni().oczekujacy.length === 1 && a2.ostatni().oczekujacy[0].awatar === "spioch", "na liście Gram! nie ma ludzika Ali");
+  sprawdz(b1.ostatni().gracze[0].awatar === "kapitan", "od nowa w A zmieniło ludzika w B");
 
-  var gram = await post({ id: "okno1", kod: kodA, typ: "dolacz", imie: "Ala" });
+  var gram = await post({ id: "okno1", kod: kodA, typ: "dolacz", imie: "Ala", awatar: "spioch" });
   sprawdz(!gram.blad, "Gram!: " + gram.blad);
   await czekajAz(a1, function (s) { return s.ja !== 0 && !s.trzebaPotwierdzic && imiona(s).join(",") === "Ala"; }, "Ala wróciła");
+  sprawdz(a1.ostatni().gracze[0].awatar === "spioch", "Ala wróciła bez ludzika");
   sprawdz(b1.ostatni().etap === "bitwa", "powrót Ali przerwał grę B");
 
   await sprawdzDwieGryDoKonca();
