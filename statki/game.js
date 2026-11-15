@@ -353,6 +353,42 @@ function rysujPoczekalnie() {
     miejsceTrybow.appendChild(guzik);
   }
   el("adresy").textContent = stan.adresy.length ? "Inni dołączają na telefonie albo komputerze: " + stan.adresy.join(" albo ") : "";
+
+  // Kto wygrywa: klasycznie albo na punkty. Wszyscy widzą ten sam wybór.
+  rysujWybor(el("sposoby"), SPOSOBY, stan.sposob || "klasyczny", function (wybrany) {
+    wyslij("sposob", { sposob: wybrany });
+  });
+  var naPunkty = stan.sposob === "punkty";
+  el("wyborRund").style.display = naPunkty ? "block" : "none";
+  if (naPunkty) {
+    rysujRundy();
+  }
+}
+
+function rysujWybor(miejsce, slownik, wybrany, poKliknieciu) {
+  miejsce.innerHTML = "";
+  for (var nazwa in slownik) {
+    var guzik = document.createElement("button");
+    guzik.className = "trybGuzik" + (nazwa === wybrany ? " wybrany" : "");
+    guzik.textContent = slownik[nazwa].nazwa + ": " + slownik[nazwa].opis;
+    dodajKlik(guzik, poKliknieciu, nazwa);
+    miejsce.appendChild(guzik);
+  }
+}
+
+function rysujRundy() {
+  var miejsce = el("rundy");
+  miejsce.innerHTML = "";
+  for (var i = 0; i < RUNDY_DO_WYBORU.length; i++) {
+    var ile = RUNDY_DO_WYBORU[i];
+    var guzik = document.createElement("button");
+    guzik.className = "trybGuzik" + (ile === stan.ileRund ? " wybrany" : "");
+    guzik.textContent = ile + " rund";
+    dodajKlik(guzik, function (wybrane) {
+      wyslij("rundy", { ile: wybrane });
+    }, ile);
+    miejsce.appendChild(guzik);
+  }
 }
 
 // ----- Ustawianie statków -----
@@ -481,6 +517,15 @@ function rysujUstawianie(ja) {
     el("gotowe").disabled = ustawianie.statki.length !== tryb().statki.length;
   }
 
+  var info = el("infoSposobu");
+  if (stan.sposob === "punkty") {
+    info.style.display = "block";
+    info.textContent = "⭐ Na punkty, " + stan.ileRund + " rund. Trafione pole to 1 punkt, zatopienie dokłada maszty.";
+  } else {
+    info.style.display = "none";
+    info.textContent = "";
+  }
+
   var lista = el("gotowiGracze");
   lista.innerHTML = "";
   var inni = grajacy();
@@ -495,6 +540,58 @@ function rysujUstawianie(ja) {
 }
 
 // ----- Bitwa (i koniec gry) -----
+function napisZwyciezcyNaPunkty() {
+  var pierwsi = [];
+  var miejsca = stan.ranking || [];
+  for (var i = 0; i < miejsca.length; i++) {
+    if (miejsca[i].miejsce === 1) pierwsi.push(miejsca[i].imie);
+  }
+  if (pierwsi.length > 1) return "🤝 Remis: " + pierwsi.join(" i ") + "!";
+  return "🏆 Wygrywa " + (pierwsi[0] || stan.zwyciezca) + "!";
+}
+
+function rysujTablice() {
+  var tablica = el("tablica");
+  var ranking = el("ranking");
+  var naPunkty = stan.sposob === "punkty";
+  if (naPunkty && stan.etap === "bitwa") {
+    tablica.style.display = "flex";
+    tablica.innerHTML = "";
+    var runda = document.createElement("span");
+    runda.className = "rundaLicznik";
+    runda.textContent = "Runda " + stan.runda + " z " + stan.ileRund;
+    tablica.appendChild(runda);
+    var miejsca = stan.ranking || [];
+    var ktosNizej = false;
+    for (var n = 0; n < miejsca.length; n++) if (miejsca[n].miejsce > 1) ktosNizej = true;
+    for (var i = 0; i < miejsca.length; i++) {
+      var chip = document.createElement("span");
+      chip.className = "wynikGracza" + (miejsca[i].miejsce === 1 && ktosNizej ? " lider" : "");
+      chip.textContent = miejsca[i].miejsce + ". " + miejsca[i].imie + " " + miejsca[i].punkty + " pkt";
+      tablica.appendChild(chip);
+    }
+  } else {
+    tablica.style.display = "none";
+    tablica.innerHTML = "";
+  }
+
+  if (naPunkty && stan.etap === "koniec") {
+    ranking.style.display = "block";
+    ranking.innerHTML = "";
+    var koniec = stan.ranking || [];
+    for (var j = 0; j < koniec.length; j++) {
+      var wiersz = document.createElement("li");
+      var m = koniec[j];
+      if (m.miejsce === 1) wiersz.className = "lider";
+      wiersz.textContent = m.miejsce + ". " + m.imie + " — " + m.punkty + " pkt, trafienia " + m.trafienia + " z " + m.oddane;
+      ranking.appendChild(wiersz);
+    }
+  } else {
+    ranking.style.display = "none";
+    ranking.innerHTML = "";
+  }
+}
+
 function strzel(cel, pole) {
   var g = gracz(cel);
   if (czekamNaSerwer || !g || g.pola.charAt(pole) !== "0") return;
@@ -509,15 +606,19 @@ function rysujBitwe(ja) {
   var naTurze = gracz(stan.tura);
 
   var napis = "";
-  if (stan.etap === "koniec") napis = "🏆 Wygrywa " + stan.zwyciezca + "!";
+  if (stan.etap === "koniec" && stan.sposob === "punkty") napis = napisZwyciezcyNaPunkty();
+  else if (stan.etap === "koniec") napis = "🏆 Wygrywa " + stan.zwyciezca + "!";
   else if (stan.etap === "ustawianie") napis = "🚢 Gracze ustawiają statki. Zagrasz w następnej grze.";
   else if (ja.widz) napis = "👀 Oglądasz. Zagrasz w następnej grze.";
   else if (ja.odpadl) napis = "💀 Twoje statki zatonęły. Oglądaj dalej!";
+  else if (stan.sposob === "punkty" && ja.zostalo === 0 && mojaKolej) napis = "🎯 Twoja kolej! Twoje statki zatonęły, ale strzelasz dalej";
+  else if (stan.sposob === "punkty" && ja.zostalo === 0 && naTurze) napis = "💀 Twoje statki zatonęły. Strzela " + naTurze.imie + " — twoja kolejka wróci";
   else if (mojaKolej) napis = "🎯 Twoja kolej! Strzel w planszę przeciwnika";
   else if (naTurze) napis = "⏳ Strzela " + naTurze.imie + (naTurze.online ? "" : " (nie ma połączenia 📵)");
-  el("tura").textContent = napis;
+  el("turaNapis").textContent = napis;
   if (stan.etap === "koniec") el("tura").className = "koniecGry";
   else el("tura").className = mojaKolej ? "mojaTura" : "";
+  rysujTablice();
   var koniec = stan.etap === "koniec";
   var mogeOdNowa = !koniec && !ja.widz;
   el("odNowaBitwa").style.display = mogeOdNowa ? "inline-block" : "none";
@@ -538,11 +639,13 @@ function rysujBitwe(ja) {
   miejsce.innerHTML = "";
   for (var n = 0; n < kolejnosc.length; n++) {
     var g = kolejnosc[n];
-    var moznaStrzelac = mojaKolej && g.nr !== stan.ja && !g.odpadl;
+    var flotaPadla = stan.sposob === "punkty" && g.zostalo === 0;
+    var moznaStrzelac = mojaKolej && g.nr !== stan.ja && !g.odpadl && !flotaPadla;
     var karta = document.createElement("div");
     karta.className = "karta" + (g.nr === stan.tura && stan.etap === "bitwa" ? " naTurze" : "") + (moznaStrzelac ? " cel" : "") + (g.odpadl ? " odpadl" : "");
     var tytul = document.createElement("h3");
-    tytul.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + "  🚢 " + g.zostalo + (g.odpadl ? " 💀" : "") + (g.online ? "" : " 📵");
+    var punktyNapis = stan.sposob === "punkty" ? " · " + g.punkty + " pkt" : "";
+    tytul.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + punktyNapis + "  🚢 " + g.zostalo + (g.odpadl || flotaPadla ? " 💀" : "") + (g.online ? "" : " 📵");
     dodajUsun(tytul, g);
     karta.appendChild(tytul);
     var opcje = { aktywna: moznaStrzelac };
