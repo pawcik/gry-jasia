@@ -107,6 +107,25 @@ function losujFlote(tryb) {
   return [];
 }
 
+// Kod gry: cztery litery, które da się powiedzieć i wpisać na telefonie.
+// Spółgłoska, samogłoska, spółgłoska, samogłoska — brzmi jak krótkie słowo (KUNA).
+// Bez 0/O, 1/I/L, żeby się nie myliły, gdy ktoś czyta kod na głos.
+var KOD_SPOLGLASKI = "BCDFGHJKMNPRSTWZ";
+var KOD_SAMOGLOSKI = "AEUY";
+
+function oczyscKod(tekst) {
+  return String(tekst || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function kodWygladaDobrze(kod) {
+  if (!kod || kod.length !== 4) return false;
+  for (var i = 0; i < 4; i++) {
+    var zestaw = i % 2 === 0 ? KOD_SPOLGLASKI : KOD_SAMOGLOSKI;
+    if (zestaw.indexOf(kod.charAt(i)) === -1) return false;
+  }
+  return true;
+}
+
 // Serwer (Node) bierze zasady stąd
 if (typeof module !== "undefined") {
   module.exports = {
@@ -114,6 +133,10 @@ if (typeof module !== "undefined") {
     nazwaPola: nazwaPola,
     sasiedzi: sasiedzi,
     zbudujFlote: zbudujFlote,
-    losujFlote: losujFlote
+    losujFlote: losujFlote,
+    KOD_SPOLGLASKI: KOD_SPOLGLASKI,
+    KOD_SAMOGLOSKI: KOD_SAMOGLOSKI,
+    oczyscKod: oczyscKod,
+    kodWygladaDobrze: kodWygladaDobrze
   };
 }
