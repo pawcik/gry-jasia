@@ -1,0 +1,11 @@
+[tools]
+node = "24"
+"npm:live-server" = "1.2.2"
+
+[tasks.graj]
+description = "Otwórz grę w przeglądarce"
+run = "open index.html"
+
+[tasks.serwer]
+description = "Uruchom grę z automatycznym odświeżaniem po każdej zmianie"
+run = "live-server --port=8080 --open=index.html"

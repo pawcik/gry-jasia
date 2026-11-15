@@ -1,0 +1,43 @@
+/* Gra zajmuje cały ekran */
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  color: white;
+  font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+  text-align: center;
+}
+
+canvas {
+  display: block;
+}
+
+/* Napisy leżą na grze, na górze i na dole ekranu */
+h1, #punkty, #pauza, .podpowiedz {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-shadow: 2px 2px 4px black;
+  pointer-events: none; /* klik przechodzi do gry */
+}
+
+h1 {
+  top: 10px;
+}
+
+#punkty {
+  top: 60px;
+  font-size: 28px;
+}
+
+/* Napis pauzy jest schowany, dopóki gra działa */
+#pauza {
+  display: none;
+  top: 40%;
+  font-size: 48px;
+}
+
+.podpowiedz {
+  bottom: 10px;
+}

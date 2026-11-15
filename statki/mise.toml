@@ -1,0 +1,45 @@
+[tools]
+node = "24"
+
+[tasks.serwer]
+description = "Uruchom statki dla całej rodziny w tym Wi-Fi"
+run = "node serwer.js --otworz"
+
+# Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config), DOMENA i PORT_PUBLICZNY
+# są w mise.local.toml, który nie trafia do gita.
+[tasks.wdroz]
+description = "Wyślij grę na domowy serwer (https)"
+run = """
+set -e
+if [ -z "$SERWER" ] || [ -z "$DOMENA" ] || [ -z "$PORT_PUBLICZNY" ]; then
+  echo "❌ Brak SERWER, DOMENA albo PORT_PUBLICZNY w mise.local.toml"
+  exit 1
+fi
+ADRES="https://$DOMENA:$PORT_PUBLICZNY"
+
+# 1. Pliki gry
+STARE=$(ssh "$SERWER" 'cat /srv/statki/serwer.js /srv/statki/zasady.js 2>/dev/null | md5sum')
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/statki && tar -xzf - -C /srv/statki'
+NOWE=$(ssh "$SERWER" 'cat /srv/statki/serwer.js /srv/statki/zasady.js | md5sum')
+
+# 2. Ustawienia Caddy i wspólna sieć dla gier i Caddy
+ssh "$SERWER" 'mkdir -p /srv/caddy && cat > /srv/caddy/Caddyfile' < wdrozenie/Caddyfile
+ssh "$SERWER" 'docker network inspect gry >/dev/null 2>&1 || docker network create gry >/dev/null'
+
+# 3. Serwer gry (bez własnego portu: ruch przychodzi przez Caddy)
+if [ "$STARE" != "$NOWE" ] || ! ssh "$SERWER" "docker inspect statki 2>/dev/null | grep -q PUBLICZNY_ADRES=$ADRES" || ! ssh "$SERWER" 'docker ps -q -f name=^statki$ -f status=running | grep -q .'; then
+  echo "🔄 Uruchamiam serwer gry od nowa (trwająca gra się kończy)"
+  ssh "$SERWER" "docker rm -f statki >/dev/null 2>&1; docker run -d --name statki --network gry --restart unless-stopped -e PORT=8081 -e PUBLICZNY_ADRES=$ADRES -v /srv/statki:/app:ro -w /app node:22-alpine node serwer.js >/dev/null"
+else
+  echo "✨ Zmieniły się tylko pliki gry: przeglądarki same się odświeżą, gra trwa dalej"
+fi
+
+# 4. Caddy: uruchom (albo od nowa, gdy zmienił się adres), inaczej tylko wczytaj ustawienia
+if ssh "$SERWER" "docker inspect caddy 2>/dev/null | grep -q DOMENA=$DOMENA" && ssh "$SERWER" 'docker ps -q -f name=^caddy$ -f status=running | grep -q .'; then
+  ssh "$SERWER" 'docker exec caddy caddy reload --config /etc/caddy/Caddyfile'
+else
+  ssh "$SERWER" "docker rm -f caddy >/dev/null 2>&1; docker run -d --name caddy --network gry --restart unless-stopped -p 80:80 -p $PORT_PUBLICZNY:$PORT_PUBLICZNY -e DOMENA=$DOMENA -e PORT_PUBLICZNY=$PORT_PUBLICZNY -v /srv/caddy/Caddyfile:/etc/caddy/Caddyfile:ro -v caddy_data:/data -v caddy_config:/config caddy:2-alpine >/dev/null"
+fi
+
+echo "⚓ Statki: $ADRES"
+"""

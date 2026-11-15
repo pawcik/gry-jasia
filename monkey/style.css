@@ -1,0 +1,86 @@
+/* Gra zajmuje cały ekran */
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #1b5e20;
+  color: white;
+  font-family: "Comic Sans MS", "Trebuchet MS", sans-serif;
+  text-align: center;
+}
+
+canvas {
+  display: block;
+}
+
+/* Napisy leżą na grze, na górze i na dole ekranu */
+h1, #punkty, #zycia, #poziom, #komunikat, #powietrze, #pauza, .podpowiedz {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-shadow: 2px 2px 4px black;
+  pointer-events: none; /* klik przechodzi do gry */
+}
+
+h1 {
+  top: 10px;
+}
+
+#punkty {
+  top: 60px;
+  font-size: 28px;
+}
+
+#zycia {
+  top: 100px;
+  font-size: 28px;
+}
+
+#poziom {
+  top: 140px;
+  font-size: 24px;
+}
+
+#komunikat {
+  top: 40%;
+  font-size: 64px;
+}
+
+.podpowiedz {
+  bottom: 12px;
+  font-size: 20px;
+}
+
+/* Ile sekund małpka może jeszcze pływać: w prawym dolnym rogu */
+#powietrze {
+  left: auto;
+  right: 24px;
+  bottom: 70px;
+  font-size: 40px;
+}
+
+/* Napis PAUZA na środku ekranu, na przyciemnionym tle */
+#pauza {
+  display: none;
+  top: 35%;
+  font-size: 72px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 20px 0;
+}
+
+#pauza small {
+  font-size: 28px;
+}
+
+/* Mapa skarbu na środku ekranu, jak stary papier */
+#mapa {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px #8b5a2b, 0 10px 40px rgba(0, 0, 0, 0.6);
+}
