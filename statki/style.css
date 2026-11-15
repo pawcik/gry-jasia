@@ -125,11 +125,11 @@ ul {
   margin: 4px 0;
 }
 
-#poleKodu {
-  width: min(92vw, 240px);
+#poleKodu,
+#poleNowegoKodu {
+  width: min(92vw, 260px);
   font-size: 32px;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
+  letter-spacing: 0.12em;
 }
 
 #bladKodu {

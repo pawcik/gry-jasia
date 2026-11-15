@@ -22,7 +22,7 @@ var CZAS_PUSTEJ_GRY = SEKUNDY_PUSTEJ_GRY * 1000;
 var CO_ILE_SPRZATAMY = Math.min(30000, Math.max(1000, Math.floor(CZAS_PUSTEJ_GRY / 2)));
 var MAX_GIER = 40;
 // Takie kody da się wylosować, ale lepiej ich nie czytać przy obiedzie.
-var KODY_NIE = { KUPA: 1, PUPA: 1, DUPA: 1, KAKA: 1 };
+var KODY_NIE = { kupa: 1, pupa: 1, dupa: 1, kaka: 1, siki: 1 };
 var RODZAJE_PLIKOW = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -36,7 +36,7 @@ var RODZAJE_PLIKOW = {
   ".woff2": "font/woff2"
 };
 
-// Wszystkie gry. Klucz to kod (np. KUNA). Pusta mapa, żeby dziwny kod niczego nie zepsuł.
+// Wszystkie gry. Klucz to kod (np. jas1). Pusta mapa, żeby dziwny kod niczego nie zepsuł.
 var lobby = Object.create(null);
 // Przeglądarki na stronie startu (bez gry) — dostają tylko „odśwież stronę”.
 var goscie = [];
@@ -473,15 +473,9 @@ function rozeslij(gra) {
 }
 
 // ----- Wiele gier: kod, dołączanie, sprzątanie -----
-function losujKod() {
-  var spol = zasady.KOD_SPOLGLASKI;
-  var samo = zasady.KOD_SAMOGLOSKI;
-  var kod = "";
-  kod += spol.charAt(Math.floor(Math.random() * spol.length));
-  kod += samo.charAt(Math.floor(Math.random() * samo.length));
-  kod += spol.charAt(Math.floor(Math.random() * spol.length));
-  kod += samo.charAt(Math.floor(Math.random() * samo.length));
-  return kod;
+function kodJestBrzydki(kod) {
+  var litery = kod.replace(/[0-9]/g, "");
+  return !!(KODY_NIE[kod] || (litery && KODY_NIE[litery]));
 }
 
 function ileGier() {
@@ -493,8 +487,8 @@ function ileGier() {
 // Tekst, gdy kodu nie ma albo wygląda źle. Pusty napis = kod jest dobry i gra istnieje.
 function komunikatKodu(surowy) {
   var kod = zasady.oczyscKod(surowy);
-  if (!kod) return "Wpisz kod. To cztery litery, na przykład KUNA.";
-  if (!zasady.kodWygladaDobrze(kod)) return "Ten kod wygląda inaczej. Poproś, żeby przeczytać go jeszcze raz.";
+  if (!kod) return "Wpisz kod. Na przykład jas1.";
+  if (!zasady.kodWygladaDobrze(kod)) return "Użyj liter i cyfr, od 3 do 8 znaków. Na przykład jas1.";
   if (!lobby[kod]) return "Nie ma gry o kodzie " + kod + ". Sprawdź litery albo załóż nową grę.";
   return "";
 }
@@ -506,15 +500,25 @@ function sprawdzKod(surowy) {
   return { ok: true, kod: kod };
 }
 
-function zalozLobby() {
+function utworzLobby(kod) {
+  lobby[kod] = pustaGra(kod);
+  console.log("🆕 Nowa gra " + kod);
+  return { ok: true, kod: kod };
+}
+
+function zalozLobby(surowy) {
   posprzataj();
   if (ileGier() >= MAX_GIER) return { blad: "Jest już dużo gier. Poczekaj chwilę i spróbuj jeszcze raz." };
-  for (var proba = 0; proba < 50; proba++) {
-    var kod = losujKod();
-    if (KODY_NIE[kod] || lobby[kod]) continue;
-    lobby[kod] = pustaGra(kod);
-    console.log("🆕 Nowa gra " + kod);
-    return { ok: true, kod: kod };
+  var wpisany = zasady.oczyscKod(surowy);
+  if (wpisany) {
+    if (!zasady.kodWygladaDobrze(wpisany)) return { blad: "Użyj liter i cyfr, od 3 do 8 znaków. Na przykład jas1." };
+    if (kodJestBrzydki(wpisany)) return { blad: "Wybierz inny kod." };
+    if (lobby[wpisany]) return { blad: "Ten kod już ktoś ma. Wymyśl inny." };
+    return utworzLobby(wpisany);
+  }
+  for (var proba = 0; proba < 40; proba++) {
+    var kod = zasady.losujKodGry(lobby);
+    if (kod && !lobby[kod] && !kodJestBrzydki(kod)) return utworzLobby(kod);
   }
   return { blad: "Nie udało się założyć gry. Spróbuj jeszcze raz." };
 }
@@ -535,7 +539,7 @@ function posprzataj() {
 
 function obsluz(akcja) {
   var typ = String(akcja.typ || "");
-  if (typ === "noweLobby") return zalozLobby();
+  if (typ === "noweLobby") return zalozLobby(akcja.kod);
   if (typ === "sprawdzKod") return sprawdzKod(akcja.kod);
   var kod = zasady.oczyscKod(akcja.kod);
   var gra = lobby[kod];

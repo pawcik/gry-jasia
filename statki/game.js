@@ -48,7 +48,7 @@ if (!mojeId) {
   zapisz("id", mojeId);
 }
 
-// Kod gry z adresu (?kod=KUNA). Każde okno może być w innej grze.
+// Kod gry z adresu (?kod=jas1). Każde okno może być w innej grze. Wielkość liter nie ma znaczenia.
 var kodGry = "";
 try {
   kodGry = oczyscKod(new URLSearchParams(location.search).get("kod") || "");
@@ -104,7 +104,7 @@ function wyslij(typ, dane, potem) {
   dane = dane || {};
   dane.id = mojeId;
   dane.typ = typ;
-  if (kodGry && !dane.kod) dane.kod = kodGry;
+  if (kodGry && dane.kod === undefined) dane.kod = kodGry;
   fetch("/akcja", { method: "POST", body: JSON.stringify(dane) })
     .then(function (odpowiedz) {
       return odpowiedz.json();
@@ -247,7 +247,7 @@ function linkDoGry() {
 }
 
 function uzupelnijWroc() {
-  var zapisany = wczytaj("kod");
+  var zapisany = oczyscKod(wczytaj("kod") || "");
   var guzik = el("wrocDoGry");
   if (!zapisany || zapisany === kodGry || !kodWygladaDobrze(zapisany)) {
     guzik.style.display = "none";
@@ -405,7 +405,8 @@ function rysujPoczekalnie() {
   napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!: ");
   el("start").disabled = polaczonych < 2;
   el("kodDuzy").textContent = stan.kod || "";
-  el("kodLiterki").textContent = stan.kod ? stan.kod.split("").join(" · ") : "";
+  el("kodDuzy").style.fontSize = stan.kod && stan.kod.length > 5 ? "min(11vw, 54px)" : "min(16vw, 72px)";
+  el("kodLiterki").textContent = stan.kod ? stan.kod.toUpperCase().split("").join(" · ") : "";
   el("linkGry").textContent = stan.kod ? "Link: " + linkDoGry() : "";
 
   // Guziki: klasyczna albo szybka gra
@@ -751,11 +752,15 @@ el("nowaGraStart").addEventListener("click", function () {
   el("nowaGraStart").disabled = true;
   el("bladKodu").textContent = "";
   dzwiekKlik();
-  wyslij("noweLobby", {}, function (wynik) {
+  wyslij("noweLobby", { kod: el("poleNowegoKodu").value }, function (wynik) {
     zakladamGre = false;
     el("nowaGraStart").disabled = false;
     if (wynik && wynik.kod) idzDoKodu(wynik.kod);
   });
+});
+
+el("poleNowegoKodu").addEventListener("keydown", function (zdarzenie) {
+  if (zdarzenie.key === "Enter") el("nowaGraStart").click();
 });
 
 function dolaczWpisanymKodem() {
