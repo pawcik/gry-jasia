@@ -1003,6 +1003,230 @@ html.morze #dziennik {
   opacity: 0.85;
 }
 
+/* Wyniki na końcu gry: odznaki, kto do kogo, karty graczy */
+#statystyki {
+  display: none;
+  max-width: 760px;
+  margin: 0 auto 16px;
+  padding: 10px 14px 12px 18px;
+  text-align: left;
+}
+
+#statystyki h2 {
+  margin: 2px 0 10px;
+  font-size: 26px;
+  text-align: center;
+}
+
+#statystyki h3 {
+  margin: 12px 0 4px;
+  font-size: 20px;
+}
+
+.odznaki {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.odznaka {
+  flex: 1 1 140px;
+  max-width: 220px;
+  padding: 8px 10px;
+  color: #1c3352;
+  text-align: center;
+}
+
+.odznakaNazwa,
+.odznakaOpis {
+  display: block;
+}
+
+.odznakaNazwa {
+  font-size: 16px;
+}
+
+.odznakaKto {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 20px;
+}
+
+.odznakaOpis {
+  font-size: 15px;
+}
+
+.odznaka.snajper { background: #ffe566; }
+.odznaka.pechowiec { background: #f7c1bc; }
+.odznaka.seria { background: #ffd2a6; }
+.odznaka.pogromca { background: #c5e6a6; }
+
+.legendaStat {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.przewijanie {
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.macierz {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 17px;
+}
+
+.macierz th,
+.macierz td {
+  padding: 6px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.macierz th:first-child,
+.macierz td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+}
+
+.wciecie {
+  padding-left: 14px;
+}
+
+.kartyStat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.kartaStat {
+  flex: 1 1 210px;
+  padding: 8px 10px;
+}
+
+.kartaStat h3 {
+  margin: 0 0 4px;
+}
+
+.kartaStat p {
+  margin: 3px 0;
+  font-size: 17px;
+}
+
+.uwagaStat {
+  margin: 10px 0 0;
+}
+
+html:not(.morze) #statystyki {
+  border: 1.5px dashed #7eafd4;
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.9);
+  box-shadow: inset 5px 0 0 #e14b46;
+}
+
+html:not(.morze) #statystyki .zakreslacz {
+  background: #ffe566;
+  padding: 0 6px;
+}
+
+html:not(.morze) .odznaka {
+  border-radius: 8px;
+}
+
+html:not(.morze) .macierz th,
+html:not(.morze) .macierz td {
+  border-bottom: 1px solid rgba(126, 176, 214, 0.85);
+}
+
+html:not(.morze) .macierz th:first-child,
+html:not(.morze) .macierz td:first-child {
+  background: #fffdf8;
+}
+
+html:not(.morze) .macierz td.siebie,
+html:not(.morze) .macierz td.pusto {
+  color: rgba(36, 48, 68, 0.4);
+}
+
+html:not(.morze) .macierz td.celnie {
+  background: #fff6b0;
+}
+
+html:not(.morze) .macierz tr.wierszZwyciezcy th,
+html:not(.morze) .macierz tr.wierszZwyciezcy td {
+  background: #fff3a1;
+}
+
+html:not(.morze) .kartaStat {
+  border: 1.5px dashed rgba(40, 70, 110, 0.35);
+  border-radius: 6px;
+  background: rgba(255, 253, 248, 0.95);
+}
+
+html:not(.morze) .kartaStat.zwyciezca {
+  border-style: solid;
+  border-color: #e2b100;
+  background: #fff3a1;
+}
+
+html.morze #statystyki {
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+html.morze .odznaka {
+  border-radius: 12px;
+}
+
+html.morze .macierz th,
+html.morze .macierz td {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+html.morze .macierz th:first-child,
+html.morze .macierz td:first-child {
+  background: #0c4468;
+}
+
+html.morze .macierz td.siebie,
+html.morze .macierz td.pusto {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+html.morze .macierz tr.wierszZwyciezcy td.siebie,
+html.morze .macierz tr.wierszZwyciezcy td.pusto {
+  color: rgba(28, 51, 82, 0.45);
+}
+
+html.morze .macierz td.celnie {
+  background: #ffe566;
+  color: #1c3352;
+}
+
+html.morze .macierz tr.wierszZwyciezcy th,
+html.morze .macierz tr.wierszZwyciezcy td {
+  background: #fff3a1;
+  color: #1c3352;
+}
+
+html.morze .kartaStat {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+html.morze .kartaStat.zwyciezca {
+  box-shadow: 0 0 0 3px #ffeb3b;
+}
+
 /* Na punkty: licznik rund, żywa tablica i końcowy ranking */
 #sposoby,
 #rundy {
