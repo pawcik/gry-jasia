@@ -15,6 +15,7 @@
   <header>
     <h1>⚓ Statki</h1>
     <div>
+      <strong id="kodWNaglowku"></strong>
       <button id="wyglad" class="maly" title="Pokaż morze">Morze</button>
       <span id="mojeImie"></span>
       <button id="zmienImie" class="maly" title="Zmień imię">✏️</button>
@@ -35,8 +36,23 @@
     <p>W folderze gry uruchom <b>mise run serwer</b>.</p>
   </section>
 
+  <section class="ekran" id="ekranStart">
+    <h2>Zagrajmy w statki!</h2>
+    <p>Wpisz swój kod albo zostaw puste.</p>
+    <input id="poleNowegoKodu" maxlength="16" placeholder="jas1" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" inputmode="text">
+    <p class="maly">Litery i cyfry, od 3 do 8. Na przykład jas1.</p>
+    <button id="nowaGraStart" class="duzy">Nowa gra 🚢</button>
+    <p class="albo">albo</p>
+    <p>Masz kod od kogoś?</p>
+    <input id="poleKodu" maxlength="16" placeholder="ala3" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" inputmode="text">
+    <p class="maly">Wielkość liter nie ma znaczenia.</p>
+    <button id="dolaczKodem" class="duzy">Dołącz kodem ▶️</button>
+    <p id="bladKodu"></p>
+    <button id="wrocDoGry" class="maly">Wróć do gry</button>
+  </section>
+
   <section class="ekran" id="ekranLaczenie">
-    <p>📡 Dołączam do gry...</p>
+    <p id="tekstLaczenia">📡 Dołączam do gry...</p>
   </section>
 
   <section class="ekran" id="ekranImie">
@@ -51,12 +67,18 @@
     <p id="gramImie"></p>
     <p>Naciśnij Gram!, jeśli chcesz grać w tej rundzie.</p>
     <button id="gram" class="duzy">Gram! ✋</button>
+    <br>
+    <button id="wyjdzGram" class="maly">Wyjdź</button>
     <p id="gramCzekaja"></p>
     <p id="gramJeszcze" class="oczekujacy"></p>
   </section>
 
   <section class="ekran" id="ekranPoczekalnia">
     <h2>Poczekalnia</h2>
+    <p id="kodDuzy" class="kodDuzy"></p>
+    <p id="kodLiterki" class="kodLiterki"></p>
+    <p class="maly">Powiedz ten kod innym, żeby weszli do tej gry.</p>
+    <p id="linkGry" class="linkGry"></p>
     <ul id="listaGraczy"></ul>
     <p id="oczekujacy" class="oczekujacy"></p>
     <p>Jaką grę gramy?</p>
@@ -70,6 +92,7 @@
     <button id="start" class="duzy">Start gry 🚀</button>
     <p class="maly">Ktoś dołączył, ale nie gra? Zacznij od nowa. Każdy znów klika Gram!.</p>
     <button id="odNowaPoczekalnia">Zacznij od nowa 🔁</button>
+    <button id="wyjdzPoczekalnia" class="maly">Wyjdź</button>
     <p class="maly" id="adresy"></p>
     <div class="zasady">
       <b>Zasady</b>
@@ -104,6 +127,7 @@
         <ul id="gotowiGracze"></ul>
         <p id="oczekujacyUstawianie" class="oczekujacy"></p>
         <button id="odNowaUstawianie">Zacznij od nowa 🔁</button>
+        <button id="wyjdzUstawianie" class="maly">Wyjdź</button>
         <p class="maly">Każdy, kto chce grać, znów klika Gram!.</p>
       </div>
     </div>
@@ -116,6 +140,7 @@
     <button id="odNowaBitwa">Zacznij od nowa 🔁</button>
     <p class="maly" id="opisOdNowaBitwa">Ktoś nie gra? Każdy znów klika Gram!.</p>
     <button id="nowaGra" class="duzy">Nowa gra 🔄</button>
+    <button id="wyjdzBitwa" class="maly">Wyjdź</button>
     <ul id="dziennik"></ul>
   </section>
 

@@ -9,6 +9,10 @@ run = "node serwer.js --otworz"
 description = "Sprawdź zasady, klasyczną grę i tryb na punkty"
 run = "node --check zasady.js && node --check serwer.js && node --check game.js && node --test test.js"
 
+[tasks.testy]
+description = "Sprawdź, czy dwie gry naraz się nie mieszają"
+run = "node testy.js"
+
 # Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config), DOMENA i PORT_PUBLICZNY
 # są w mise.local.toml, który nie trafia do gita.
 [tasks.wdroz]

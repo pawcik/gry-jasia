@@ -197,6 +197,26 @@ test("na punkty: po 5 rundach koniec i remis, gdy nikt nie trafił", async funct
   assert.equal(stan.zwyciezca, "Ala i Bolek i Czes");
 });
 
+test("dwie gry: inny kod, inny sposób, domyślnie klasycznie", async function (t) {
+  var klasyczna = await nowaGra(t, ["Ala", "Bolek"], "klas1");
+  var punkty = await drugaGra(klasyczna, "punk1", ["Ewa", "Jan"]);
+  assert.equal(klasyczna.klienci[0].stan.sposob, "klasyczny");
+  assert.equal(klasyczna.klienci[0].stan.ileRund, 10);
+  assert.equal(punkty.klienci[0].stan.sposob, "klasyczny");
+
+  await wyslij(punkty, punkty.klienci[0], "sposob", { sposob: "punkty" });
+  await wyslij(punkty, punkty.klienci[0], "rundy", { ile: 5 });
+  await czekaj(punkty.klienci[1], function (s) { return s.sposob === "punkty" && s.ileRund === 5 && s.kod === "punk1"; });
+  assert.equal(klasyczna.klienci[1].stan.sposob, "klasyczny");
+  assert.equal(klasyczna.klienci[1].stan.ileRund, 10);
+  assert.equal(klasyczna.klienci[1].stan.kod, "klas1");
+
+  await wyslij(klasyczna, klasyczna.klienci[0], "tryb", { tryb: "szybka" });
+  await czekaj(klasyczna.klienci[1], function (s) { return s.tryb === "szybka"; });
+  assert.equal(punkty.klienci[1].stan.tryb, "klasyczna");
+  assert.equal(punkty.klienci[1].stan.sposob, "punkty");
+});
+
 test("od nowa zostawia sposób i czeka na Gram!", async function (t) {
   var gra = await nowaGra(t, ["Ala", "Bolek"]);
   await wyslij(gra, gra.klienci[0], "sposob", { sposob: "punkty" });
@@ -212,7 +232,7 @@ test("od nowa zostawia sposób i czeka na Gram!", async function (t) {
 
 // ----- Pomocnicy: trzy okna to trzy połączenia -----
 
-function nowaGra(t, imiona) {
+function nowaGra(t, imiona, kod) {
   var port = nastepnyPort++;
   var dziecko = child_process.spawn(process.execPath, ["serwer.js"], {
     cwd: __dirname,
@@ -222,33 +242,47 @@ function nowaGra(t, imiona) {
   var log = "";
   dziecko.stdout.on("data", function (d) { log += d; });
   dziecko.stderr.on("data", function (d) { log += d; });
-  var klienci = [];
+  var polaczenia = [];
   t.after(function () {
-    for (var i = 0; i < klienci.length; i++) klienci[i].req.destroy();
+    for (var i = 0; i < polaczenia.length; i++) polaczenia[i].req.destroy();
     dziecko.kill();
   });
+  var gra = { port: port, kod: kod || "gra1", klienci: [], grupy: {}, polaczenia: polaczenia };
   return czekajNaTekst(dziecko, function () { return log.indexOf("Statki działają") !== -1; }, function () { return log; })
     .then(function () {
-      var obietnice = [];
-      for (var i = 0; i < imiona.length; i++) obietnice.push(podlacz(port, "gracz-" + port + "-" + i));
-      return Promise.all(obietnice);
-    })
-    .then(function (lista) {
-      klienci = lista;
-      var dolaczenia = [];
-      for (var i = 0; i < imiona.length; i++) {
-        dolaczenia.push(wyslij({ port: port }, klienci[i], "dolacz", { imie: imiona[i] }));
-      }
-      return Promise.all(dolaczenia);
+      return zalozIDolacz(gra, imiona);
     })
     .then(function () {
-      return czekaj(klienci[klienci.length - 1], function (s) {
-        return s.gracze.length === imiona.length && s.ja !== 0;
-      });
-    })
-    .then(function () {
-      return { port: port, klienci: klienci, grupy: {} };
+      return gra;
     });
+}
+
+function drugaGra(baza, kod, imiona) {
+  var gra = { port: baza.port, kod: kod, klienci: [], grupy: {}, polaczenia: baza.polaczenia };
+  return zalozIDolacz(gra, imiona).then(function () { return gra; });
+}
+
+function zalozIDolacz(gra, imiona) {
+  return wyslij(gra, { id: "zakladacz" }, "noweLobby", { kod: gra.kod }).then(function (odp) {
+    if (odp.blad) throw new Error(odp.blad);
+    var obietnice = [];
+    for (var i = 0; i < imiona.length; i++) {
+      obietnice.push(podlacz(gra.port, "g" + gra.port + gra.kod + i, gra.kod));
+    }
+    return Promise.all(obietnice);
+  }).then(function (lista) {
+    gra.klienci = lista;
+    for (var i = 0; i < lista.length; i++) gra.polaczenia.push(lista[i]);
+    var dolaczenia = [];
+    for (var j = 0; j < imiona.length; j++) {
+      dolaczenia.push(wyslij(gra, gra.klienci[j], "dolacz", { imie: imiona[j] }));
+    }
+    return Promise.all(dolaczenia);
+  }).then(function () {
+    return czekaj(gra.klienci[gra.klienci.length - 1], function (s) {
+      return s.kod === gra.kod && s.gracze && s.gracze.length === imiona.length && s.ja !== 0;
+    });
+  });
 }
 
 function wystartuj(gra, tryb) {
@@ -348,9 +382,10 @@ function pudloW(kto, klienci) {
   return { cel: cel.nr, pole: poleZnaku(klienci, cel.nr, "0") };
 }
 
-function podlacz(port, id) {
+function podlacz(port, id, kod) {
   return new Promise(function (ok, zly) {
-    var req = http.get({ hostname: "127.0.0.1", port: port, path: "/wydarzenia?id=" + id }, function (res) {
+    var sciezka = "/wydarzenia?id=" + id + "&kod=" + encodeURIComponent(kod);
+    var req = http.get({ hostname: "127.0.0.1", port: port, path: sciezka }, function (res) {
       var klient = { id: id, req: req, stan: null };
       var buf = "";
       res.on("data", function (d) {
@@ -376,7 +411,7 @@ function podlacz(port, id) {
 }
 
 function wyslij(gra, klient, typ, dane) {
-  dane = Object.assign({ id: klient.id, typ: typ }, dane || {});
+  dane = Object.assign({ id: klient.id, typ: typ, kod: gra.kod }, dane || {});
   var body = JSON.stringify(dane);
   return new Promise(function (ok, zly) {
     var req = http.request({
