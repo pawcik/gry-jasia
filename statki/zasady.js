@@ -107,6 +107,50 @@ function losujFlote(tryb) {
   return [];
 }
 
+// Kod gry: krótkie słowo albo imię i cyfra, na przykład jas1 albo ala3.
+// Można też wpisać swój. Litery i cyfry, od 3 do 8 znaków. Wielkość liter nie ma znaczenia.
+var SLOWA_KODOW = [
+  "jas", "ala", "ola", "jan", "ewa", "maja", "leon", "nina",
+  "kuba", "ania", "ula", "iga", "max", "leo", "mia", "adam",
+  "tomek", "basia", "kasia", "hania", "zosia", "bartek", "franek",
+  "kot", "pies", "lis", "dom", "las", "rak", "ryba", "kura",
+  "mama", "tata", "mis", "slon", "zaba", "fala", "port", "most",
+  "park", "balon", "reka", "oko", "nos", "lody"
+];
+
+// ą -> a, żeby kod dało się wpisać bez polskich znaków.
+function bezPolskichZnakow(tekst) {
+  var z = "ąćęłńóśźżĄĆĘŁŃÓŚŹŻ";
+  var na = "acelnoszzACELNOSZZ";
+  var wynik = "";
+  for (var i = 0; i < tekst.length; i++) {
+    var gdzie = z.indexOf(tekst.charAt(i));
+    wynik += gdzie === -1 ? tekst.charAt(i) : na.charAt(gdzie);
+  }
+  return wynik;
+}
+
+function oczyscKod(tekst) {
+  var s = bezPolskichZnakow(String(tekst || ""));
+  if (s.normalize) s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function kodWygladaDobrze(kod) {
+  return /^[a-z0-9]{3,8}$/.test(kod);
+}
+
+// Puste pole przy nowej grze: słowo z listy i cyfra od 1 do 9 (zero myli się z literą o).
+function losujKodGry(zajete) {
+  for (var proba = 0; proba < 80; proba++) {
+    var slowo = SLOWA_KODOW[Math.floor(Math.random() * SLOWA_KODOW.length)];
+    var cyfra = 1 + Math.floor(Math.random() * 9);
+    var kod = slowo + cyfra;
+    if (!zajete || !zajete[kod]) return kod;
+  }
+  return "";
+}
+
 // Serwer (Node) bierze zasady stąd
 if (typeof module !== "undefined") {
   module.exports = {
@@ -114,6 +158,10 @@ if (typeof module !== "undefined") {
     nazwaPola: nazwaPola,
     sasiedzi: sasiedzi,
     zbudujFlote: zbudujFlote,
-    losujFlote: losujFlote
+    losujFlote: losujFlote,
+    SLOWA_KODOW: SLOWA_KODOW,
+    oczyscKod: oczyscKod,
+    kodWygladaDobrze: kodWygladaDobrze,
+    losujKodGry: losujKodGry
   };
 }
