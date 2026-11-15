@@ -5,6 +5,10 @@ node = "24"
 description = "Uruchom statki dla całej rodziny w tym Wi-Fi"
 run = "node serwer.js --otworz"
 
+[tasks.testy]
+description = "Sprawdź, czy dwie gry naraz się nie mieszają i czy statystyki zostają w swoim kodzie"
+run = "node testy.js"
+
 # Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config), DOMENA i PORT_PUBLICZNY
 # są w mise.local.toml, który nie trafia do gita.
 [tasks.wdroz]
