@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Statki</title>
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="icon" href="ikona-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="ikona.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="ikona-180.png" sizes="180x180">
+  <meta name="apple-mobile-web-app-title" content="Statki">
   <script>
     try {
       if (localStorage.getItem("statki-wyglad") === "morze") document.documentElement.classList.add("morze");
@@ -18,7 +23,7 @@
       <strong id="kodWNaglowku"></strong>
       <button id="wyglad" class="maly" title="Pokaż morze">Morze</button>
       <span id="mojeImie"></span>
-      <button id="zmienImie" class="maly" title="Zmień imię">✏️</button>
+      <button id="zmienImie" class="maly" title="Zmień imię albo ludzika">✏️</button>
     </div>
   </header>
   <p id="polaczenie">📡 Łączę z serwerem...</p>
@@ -58,7 +63,9 @@
   <section class="ekran" id="ekranImie">
     <h2>Jak masz na imię?</h2>
     <input id="imie" maxlength="12" placeholder="Imię" autocomplete="off">
-    <br>
+    <p class="podpowiedz">Wybierz ludzika. Ten telefon go zapamięta.</p>
+    <div id="awatary"></div>
+    <p id="wybranyAwatar"></p>
     <button id="dolacz" class="duzy">Dołącz ▶️</button>
   </section>
 
@@ -69,8 +76,8 @@
     <button id="gram" class="duzy">Gram! ✋</button>
     <br>
     <button id="wyjdzGram" class="maly">Wyjdź</button>
-    <p id="gramCzekaja"></p>
-    <p id="gramJeszcze" class="oczekujacy"></p>
+    <div id="gramCzekaja"></div>
+    <div id="gramJeszcze" class="oczekujacy"></div>
   </section>
 
   <section class="ekran" id="ekranPoczekalnia">
@@ -80,7 +87,7 @@
     <p class="maly">Powiedz ten kod innym, żeby weszli do tej gry.</p>
     <p id="linkGry" class="linkGry"></p>
     <ul id="listaGraczy"></ul>
-    <p id="oczekujacy" class="oczekujacy"></p>
+    <div id="oczekujacy" class="oczekujacy"></div>
     <p>Jaką grę gramy?</p>
     <div id="tryby"></div>
     <p>Kto wygrywa?</p>
@@ -125,7 +132,7 @@
         <p id="infoSposobu" class="maly"></p>
         <p id="czekamNaInnych"></p>
         <ul id="gotowiGracze"></ul>
-        <p id="oczekujacyUstawianie" class="oczekujacy"></p>
+        <div id="oczekujacyUstawianie" class="oczekujacy"></div>
         <button id="odNowaUstawianie">Zacznij od nowa 🔁</button>
         <button id="wyjdzUstawianie" class="maly">Wyjdź</button>
         <p class="maly">Każdy, kto chce grać, znów klika Gram!.</p>
@@ -145,6 +152,7 @@
   </section>
 
   <script src="zasady.js"></script>
+  <script src="awatary.js"></script>
   <script src="dzwieki.js"></script>
   <script src="game.js"></script>
 </body>

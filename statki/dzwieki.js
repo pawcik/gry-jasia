@@ -8,7 +8,11 @@ function wlaczDzwieki() {
     if (!Glosnik) return;
     dzwieki = new Glosnik();
   }
-  if (dzwieki.state === "suspended") dzwieki.resume();
+  // Gdy głośnik nie chce grać, obietnica się nie udaje. Kliknięcie i tak zostaje.
+  if (dzwieki.state === "suspended") {
+    var wznow = dzwieki.resume();
+    if (wznow && wznow.catch) wznow.catch(function () {});
+  }
 }
 document.addEventListener("pointerdown", wlaczDzwieki);
 document.addEventListener("keydown", wlaczDzwieki);
