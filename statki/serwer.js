@@ -9,6 +9,7 @@ var fs = require("fs");
 var path = require("path");
 var os = require("os");
 var zasady = require("./zasady.js");
+var awatary = require("./awatary.js");
 
 // Port i publiczny adres można podać z zewnątrz (tak gra działa na serwerze czarny)
 var PORT = Number(process.env.PORT) || 8081;
@@ -179,7 +180,7 @@ function ktoSlucha(gra) {
 // ----- Ruchy graczy (zawsze w jednej, wskazanej grze) -----
 function wykonaj(gra, id, akcja) {
   if (!idDobre(id)) return "Nie wiem, kim jesteś";
-  if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie);
+  if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie, akcja.awatar);
   if (akcja.typ === "odNowa") return odNowa(gra, id);
   if (akcja.typ === "wyjdz") return wyjdz(gra, id);
   var ja = znajdz(gra, id);
@@ -195,19 +196,29 @@ function wykonaj(gra, id, akcja) {
   return "Nie znam takiego ruchu";
 }
 
-function dolacz(gra, id, imie) {
+function ustalAwatar(podany, dotychczasowy) {
+  var id = String(podany || "").trim().slice(0, 24);
+  if (awatary.awatarPoId(id)) return id;
+  if (awatary.awatarPoId(dotychczasowy)) return dotychczasowy;
+  var lista = awatary.AWATARY;
+  return lista[Math.floor(Math.random() * lista.length)].id;
+}
+
+function dolacz(gra, id, imie, awatar) {
   imie = String(imie || "").trim().slice(0, 12);
   if (!imie) return "Wpisz imię";
   zabierzOczekujacego(gra, id);
   var ja = znajdz(gra, id);
   if (ja) {
     ja.imie = imie;
+    ja.awatar = ustalAwatar(awatar, ja.awatar);
     return "";
   }
   ja = {
     id: id,
     nr: gra.nastepnyNumer++,
     imie: imie,
+    awatar: ustalAwatar(awatar, ""),
     online: !!gra.sluchacze[id],
     offlineOd: Date.now(),
     widz: gra.etap !== "poczekalnia"
@@ -534,7 +545,7 @@ function odNowa(gra, id) {
   var imie = ja.imie;
   var lista = [];
   for (var i = 0; i < gra.gracze.length; i++) {
-    lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie });
+    lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie, awatar: gra.gracze[i].awatar || "" });
   }
   // Kto już wcześniej nie nacisnął Gram!, zostaje na liście (inaczej telefon sam by wrócił)
   for (var j = 0; j < gra.oczekujacy.length; j++) {
@@ -542,7 +553,7 @@ function odNowa(gra, id) {
     for (var k = 0; k < lista.length; k++) {
       if (lista[k].id === gra.oczekujacy[j].id) jest = true;
     }
-    if (!jest) lista.push({ id: gra.oczekujacy[j].id, imie: gra.oczekujacy[j].imie });
+    if (!jest) lista.push({ id: gra.oczekujacy[j].id, imie: gra.oczekujacy[j].imie, awatar: gra.oczekujacy[j].awatar || "" });
   }
   gra.oczekujacy = lista;
   gra.gracze = [];
@@ -577,7 +588,7 @@ function widokOczekujacych(gra, bezId) {
   for (var i = 0; i < gra.oczekujacy.length; i++) {
     var o = gra.oczekujacy[i];
     if (o.id === bezId) continue;
-    lista.push({ imie: o.imie, online: !!gra.sluchacze[o.id] });
+    lista.push({ imie: o.imie, awatar: o.awatar || "", online: !!gra.sluchacze[o.id] });
   }
   return lista;
 }
@@ -599,6 +610,7 @@ function widokDla(gra, id) {
     gracze.push({
       nr: g.nr,
       imie: g.imie,
+      awatar: g.awatar || "",
       online: g.online,
       offline: g.online ? 0 : Math.floor((teraz - g.offlineOd) / 1000),
       widz: g.widz,
