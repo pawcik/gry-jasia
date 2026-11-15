@@ -194,12 +194,27 @@ function zatrzymaj() {
 async function main() {
   await uruchom();
 
+  function kodZeSlowa(kod) {
+    if (!/^[a-z]{3,6}[1-9]$/.test(kod)) return false;
+    return zasady.SLOWA_KODOW.indexOf(kod.slice(0, -1)) !== -1;
+  }
+
+  var wlasny = await post({ typ: "noweLobby", kod: "Jaś1" });
+  sprawdz(wlasny.ok && wlasny.kod === "jas1", "własny kod: " + JSON.stringify(wlasny));
+  var zajety = await post({ typ: "noweLobby", kod: "JAS1" });
+  sprawdz(zajety.blad && zajety.blad.indexOf("już ktoś ma") !== -1, "zajęty kod: " + JSON.stringify(zajety));
+  var zaKrotki = await post({ typ: "noweLobby", kod: "ab" });
+  sprawdz(zaKrotki.blad && zaKrotki.blad.indexOf("3 do 8") !== -1, "za krótki kod: " + JSON.stringify(zaKrotki));
+  var brzydki = await post({ typ: "noweLobby", kod: "kupa" });
+  sprawdz(brzydki.blad && brzydki.blad.indexOf("inny kod") !== -1, "brzydki kod: " + JSON.stringify(brzydki));
+  var polski = await post({ typ: "sprawdzKod", kod: "Żółw" });
+  sprawdz(polski.blad && polski.blad.indexOf("zolw") !== -1, "polskie znaki: " + JSON.stringify(polski));
+
   var nowaA = await post({ typ: "noweLobby", id: "tworca" });
   var nowaB = await post({ typ: "noweLobby", id: "tworca" });
-  sprawdz(nowaA.ok && zasady.kodWygladaDobrze(nowaA.kod), "zły kod A: " + JSON.stringify(nowaA));
-  sprawdz(nowaB.ok && zasady.kodWygladaDobrze(nowaB.kod), "zły kod B: " + JSON.stringify(nowaB));
+  sprawdz(nowaA.ok && kodZeSlowa(nowaA.kod), "zły kod A: " + JSON.stringify(nowaA));
+  sprawdz(nowaB.ok && kodZeSlowa(nowaB.kod), "zły kod B: " + JSON.stringify(nowaB));
   sprawdz(nowaA.kod !== nowaB.kod, "dwie gry dostały ten sam kod");
-  sprawdz(!{ KUPA: 1, PUPA: 1, DUPA: 1, KAKA: 1 }[nowaA.kod], "kod A jest z zablokowanej listy");
   var kodA = nowaA.kod;
   var kodB = nowaB.kod;
 
@@ -282,30 +297,27 @@ async function main() {
   await czekajAz(a1, function (s) { return s.ja !== 0 && !s.trzebaPotwierdzic && imiona(s).join(",") === "Ala"; }, "Ala wróciła");
   sprawdz(b1.ostatni().etap === "bitwa", "powrót Ali przerwał grę B");
 
-  var puste = ["", "KOT", "KOTA", "0O1I", "LAMA", "1111", "OOOO"];
-  var kawalki = ["Wpisz kod", "wygląda inaczej", "wygląda inaczej", "wygląda inaczej", "wygląda inaczej", "wygląda inaczej", "wygląda inaczej"];
+  var puste = ["", "ab", "!!", "a", "abcdefghi"];
+  var kawalki = ["Wpisz kod", "3 do 8", "Wpisz kod", "3 do 8", "3 do 8"];
   for (var i = 0; i < puste.length; i++) {
     var zly = await post({ typ: "sprawdzKod", kod: puste[i] });
     sprawdz(zly.blad && zly.blad.indexOf(kawalki[i]) !== -1, "kod „" + puste[i] + "”: " + JSON.stringify(zly));
   }
   var wolny = "";
-  var spol = zasady.KOD_SPOLGLASKI;
-  var samo = zasady.KOD_SAMOGLOSKI;
-  for (var n = 0; n < spol.length && !wolny; n++) {
-    var kandydat = spol.charAt(n) + samo.charAt(0) + spol.charAt((n + 5) % spol.length) + samo.charAt(1);
-    if (kandydat !== kodA && kandydat !== kodB) {
-      var jest = await post({ typ: "sprawdzKod", kod: kandydat });
-      if (jest.blad && jest.blad.indexOf("Nie ma gry") !== -1) wolny = kandydat;
-    }
+  for (var n = 0; n < 20 && !wolny; n++) {
+    var kandydat = "xyz" + n;
+    if (kandydat === kodA || kandydat === kodB) continue;
+    var jest = await post({ typ: "sprawdzKod", kod: kandydat });
+    if (jest.blad && jest.blad.indexOf("Nie ma gry") !== -1) wolny = kandydat;
   }
   sprawdz(wolny, "nie znalazłem wolnego kodu do testu");
   var zlyDolacz = await post({ id: "okno9", kod: wolny, typ: "dolacz", imie: "Zen" });
   sprawdz(zlyDolacz.blad && zlyDolacz.blad.indexOf("Nie ma gry") !== -1, "dolacz do złego kodu: " + JSON.stringify(zlyDolacz));
   sprawdz(imiona(a1.ostatni()).join(",") === "Ala", "złe dołączenie dopisało gracza");
 
-  var gosc = await sluchaj("gosc", "KOTA");
+  var gosc = await sluchaj("gosc", "ab");
   var stanGoscia = await czekajAz(gosc, function (s) { return s.brakGry; }, "zły kod na łączu");
-  sprawdz(stanGoscia.tekst.indexOf("wygląda inaczej") !== -1, "komunikat łącza: " + stanGoscia.tekst);
+  sprawdz(stanGoscia.tekst.indexOf("3 do 8") !== -1, "komunikat łącza: " + stanGoscia.tekst);
   var brak = await sluchaj("gosc2", wolny);
   var stanBrak = await czekajAz(brak, function (s) { return s.brakGry; }, "brak gry");
   sprawdz(stanBrak.tekst.indexOf("Nie ma gry o kodzie " + wolny) !== -1, "komunikat braku: " + stanBrak.tekst);
