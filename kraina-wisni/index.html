@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Kraina Wiśni</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>🌸 Kraina Wiśni</h1>
+  <p id="punkty">🎯 0</p>
+  <p id="gracze"></p>
+  <button id="zmienImie" title="Zmień imię i kolor">✏️</button>
+  <button id="calyEkran" title="Cały ekran">⛶</button>
+  <div id="logowanie">
+    <div class="okienko">
+      <h2>🦊 Jak masz na imię?</h2>
+      <input id="imie" maxlength="12" placeholder="Imię" autocomplete="off">
+      <p>Wybierz kolor liska:</p>
+      <div id="kolory"></div>
+      <button id="graj">Graj! ▶️</button>
+    </div>
+  </div>
+  <p id="pauza">⏸️ PAUZA<br><small>naciśnij P, żeby grać dalej</small></p>
+  <canvas id="plansza"></canvas>
+  <div class="drazek" id="lewyDrazek"><div class="galka"></div></div>
+  <div class="drazek" id="prawyDrazek"><div class="galka"></div></div>
+  <div id="obroc">📱 Obróć telefon bokiem</div>
+  <p class="podpowiedz">Chodź W A S D albo strzałkami. Wciśnij mysz, celuj i puść = cięcie mieczem. Spacja = cięcie przed siebie, P = pauza, F = cały ekran</p>
+
+  <script src="biblioteki/three.min.js"></script>
+  <script src="dzwieki.js"></script>
+  <script src="swiat.js"></script>
+  <script src="sterowanie.js"></script>
+  <script src="bohater.js"></script>
+  <script src="kukly.js"></script>
+  <script src="siec.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

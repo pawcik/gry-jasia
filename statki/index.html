@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Statki</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>⚓ Statki</h1>
+    <div>
+      <span id="mojeImie"></span>
+      <button id="zmienImie" class="maly" title="Zmień imię">✏️</button>
+    </div>
+  </header>
+  <p id="polaczenie">📡 Łączę z serwerem...</p>
+  <div id="dymek"></div>
+
+  <section class="ekran" id="ekranPlik">
+    <p>Ta gra działa przez serwer, żeby wszyscy mogli grać razem.</p>
+    <p>W folderze gry uruchom <b>mise run serwer</b>.</p>
+  </section>
+
+  <section class="ekran" id="ekranLaczenie">
+    <p>📡 Dołączam do gry...</p>
+  </section>
+
+  <section class="ekran" id="ekranImie">
+    <h2>Jak masz na imię?</h2>
+    <input id="imie" maxlength="12" placeholder="Imię" autocomplete="off">
+    <br>
+    <button id="dolacz" class="duzy">Dołącz ▶️</button>
+  </section>
+
+  <section class="ekran" id="ekranPoczekalnia">
+    <h2>Poczekalnia</h2>
+    <ul id="listaGraczy"></ul>
+    <p>Jaką grę gramy?</p>
+    <div id="tryby"></div>
+    <button id="start" class="duzy">Start gry 🚀</button>
+    <p class="maly" id="adresy"></p>
+    <div class="zasady">
+      <b>Zasady</b>
+      <ul>
+        <li>🚢 Klasyczna gra: plansza 10×10 i 10 statków (jeden 4-masztowiec, dwa 3-masztowce, trzy 2-masztowce, cztery 1-masztowce). Szybka gra: plansza 7×7 i 5 statków (3, 2, 2, 1, 1). Statki nie mogą się stykać, nawet rogami.</li>
+        <li>🎯 Strzelacie po kolei. W swojej kolejce wybierasz planszę dowolnego przeciwnika i jedno pole.</li>
+        <li>💥 Trafiony? Strzelasz jeszcze raz! 💧 Pudło? Strzela następny gracz.</li>
+        <li>🔥 Gdy statek jest zatopiony, woda dookoła sama się zaznacza.</li>
+        <li>🏆 Kto straci wszystkie statki, odpada. Wygrywa ostatni gracz, który ma statki.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="ekran" id="ekranUstawianie">
+    <h2>Ustaw swoje statki</h2>
+    <div class="uklad">
+      <div id="planszaUstawiania"></div>
+      <div>
+        <div id="ustawPanel">
+          <p class="podpowiedz">Wybierz statek i stuknij w planszę. Stuknij w postawiony statek, żeby go zabrać.</p>
+          <div id="listaStatkow"></div>
+          <div>
+            <button id="obroc"></button>
+            <button id="losuj">🎲 Losuj</button>
+            <button id="wyczysc">🧹 Wyczyść</button>
+          </div>
+          <button id="gotowe" class="duzy">Gotowe ✔</button>
+        </div>
+        <p id="czekamNaInnych"></p>
+        <ul id="gotowiGracze"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="ekran" id="ekranBitwa">
+    <div id="tura"></div>
+    <div id="plansze"></div>
+    <button id="nowaGra" class="duzy">Nowa gra 🔄</button>
+    <ul id="dziennik"></ul>
+  </section>
+
+  <script src="zasady.js"></script>
+  <script src="dzwieki.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Prywatne rzeczy i pliki narzędzi: nie trafiają do publicznego repo
+CLAUDE.local.md
+mise.local.toml
+.DS_Store
+.TODO.md
+.todo/
+.playwright-cli/
+node_modules/
+
+# Ustawienia Claude: publiczne są tylko wspólne umiejętności (skills)
+/.claude/*
+!/.claude/skills/
+*/.claude/

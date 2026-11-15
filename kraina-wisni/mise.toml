@@ -1,0 +1,10 @@
+[tools]
+node = "24"
+
+[tasks.graj]
+description = "Otwórz grę w przeglądarce (sam, bez innych graczy)"
+run = "open index.html"
+
+[tasks.serwer]
+description = "Uruchom grę dla wszystkich w tym Wi-Fi (gra z innymi, odświeża się po każdej zmianie)"
+run = "node serwer.js --otworz"

@@ -1,0 +1,10 @@
+# Caddy na domowym serwerze: daje grom https pod adresem z mise.local.toml.
+# Certyfikat od Let's Encrypt Caddy zdobywa i odnawia sam przez port 80.
+{
+	auto_https disable_redirects
+}
+
+# Statki
+{$DOMENA}:{$PORT_PUBLICZNY} {
+	reverse_proxy statki:8081
+}
