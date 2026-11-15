@@ -1,4 +1,15 @@
-/* Morze w tle, duże guziki, które łatwo stuknąć palcem */
+/* Patrick Hand (Patrick Wagesreiter), licencja SIL OFL — plik i treść w czcionki/.
+   Czcionka jest w grze, więc działa bez internetu.
+   Gdyby się nie wczytała: Segoe Print, Comic Sans albo Chalkboard. */
+@font-face {
+  font-family: "Patrick Hand";
+  src: url("czcionki/PatrickHand-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Duże guziki, które łatwo stuknąć palcem. Kartka jest zwykłym wyglądem, morze jest drugie. */
 * {
   box-sizing: border-box;
 }
@@ -6,39 +17,46 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: linear-gradient(#0b3d5c, #1565a0) fixed;
-  color: white;
-  font-family: "Trebuchet MS", "Comic Sans MS", sans-serif;
+  padding-bottom: env(safe-area-inset-bottom);
   text-align: center;
   -webkit-tap-highlight-color: transparent;
 }
 
 header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 6px 10px;
   padding: 8px 14px;
   padding-top: calc(8px + env(safe-area-inset-top));
-  background: rgba(0, 0, 0, 0.25);
+  padding-left: calc(14px + env(safe-area-inset-left));
+  padding-right: calc(14px + env(safe-area-inset-right));
+}
+
+header > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 header h1 {
   margin: 0;
-  font-size: 24px;
+  font-size: 26px;
 }
 
 .ekran {
   display: none;
   padding: 12px;
+  padding-left: calc(12px + env(safe-area-inset-left));
+  padding-right: calc(12px + env(safe-area-inset-right));
 }
 
 button {
   margin: 4px;
   padding: 8px 14px;
-  border: none;
-  border-radius: 12px;
-  background: white;
-  color: #0b3d5c;
   font-family: inherit;
   font-size: 18px;
   cursor: pointer;
@@ -51,21 +69,28 @@ button:disabled {
 
 button.duzy {
   padding: 12px 28px;
-  background: #ffb300;
-  color: #3e2700;
   font-size: 24px;
 }
 
 button.maly {
   padding: 4px 8px;
-  font-size: 14px;
+  font-size: 16px;
+}
+
+#wyglad {
+  min-height: 40px;
+  padding: 6px 12px;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #e2a30b;
+  outline-offset: 2px;
 }
 
 input {
-  width: 240px;
+  width: min(92vw, 260px);
   padding: 8px 12px;
-  border: 3px solid #ffb300;
-  border-radius: 10px;
   font-family: inherit;
   font-size: 24px;
   text-align: center;
@@ -85,17 +110,11 @@ ul {
   font-size: 28px;
 }
 
-.oczekujacy {
-  color: #ffe082;
-  font-size: 18px;
-}
-
 #zaslonaOdNowa {
   display: none;
   position: fixed;
   z-index: 19;
   inset: 0;
-  background: rgba(0, 0, 0, 0.35);
 }
 
 #pytanieOdNowa {
@@ -106,9 +125,6 @@ ul {
   top: 22%;
   width: min(92vw, 420px);
   padding: 18px 16px;
-  border-radius: 18px;
-  background: #08304a;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   transform: translateX(-50%);
 }
 
@@ -123,17 +139,14 @@ ul {
 }
 
 .maly {
-  font-size: 14px;
-  opacity: 0.85;
+  font-size: 16px;
 }
 
 .zasady {
   max-width: 540px;
   margin: 16px auto;
   padding: 10px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 15px;
+  font-size: 16px;
   text-align: left;
 }
 
@@ -147,6 +160,7 @@ ul {
   margin: 0;
   padding: 6px;
   background: #c62828;
+  color: white;
 }
 
 #dymek {
@@ -156,8 +170,6 @@ ul {
   z-index: 10;
   max-width: 94vw;
   padding: 10px 18px;
-  border-radius: 16px;
-  background: rgba(0, 0, 0, 0.85);
   font-size: 20px;
   opacity: 0;
   pointer-events: none;
@@ -170,10 +182,11 @@ ul {
   transform: translateX(-50%) scale(1);
 }
 
-/* Plansza: 10 x 10 kratek plus litery i cyfry z boku */
+/* Plansza: kratki plus litery i cyfry z boku */
 .plansza {
+  --k: 11;
+  position: relative;
   display: grid;
-  gap: 2px;
   width: min(92vw, 340px);
   margin: 0 auto;
   user-select: none;
@@ -184,8 +197,8 @@ ul {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  opacity: 0.8;
+  min-width: 0;
+  font-size: 15px;
 }
 
 .kratka {
@@ -193,28 +206,12 @@ ul {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
   aspect-ratio: 1;
-  border-radius: 3px;
   font-size: 14px;
-  font-weight: bold;
 }
 
-.woda {
-  background: #9fd3f0;
-}
-
-.pudlo {
-  background: #9fd3f0;
-  color: #0b3d5c;
-}
-
-/* Pudło: woda, w którą wpadła bomba */
-.pudlo::after {
-  content: "💦";
-  font-size: 0.85em;
-}
-
-/* Świeży strzał: rozchodzi się koło na wodzie (albo ognista fala przy trafieniu) */
+/* Świeży strzał: rozchodzi się kółko */
 .wybuch::before {
   content: "";
   position: absolute;
@@ -224,11 +221,6 @@ ul {
   opacity: 0;
   pointer-events: none;
   animation: fala 0.9s ease-out;
-}
-
-.trafiony.wybuch::before,
-.zatopiony.wybuch::before {
-  border-color: #ffb300;
 }
 
 .wybuch::after {
@@ -258,46 +250,8 @@ ul {
   }
 }
 
-.trafiony {
-  background: #ff7043;
-  color: white;
-}
-
-.trafiony::after {
-  content: "✖";
-}
-
-.zatopiony {
-  background: #7b1c1c;
-  color: #ffcdd2;
-}
-
-.zatopiony::after {
-  content: "✖";
-}
-
-.statek {
-  background: #5d6d7e;
-}
-
-.podglad {
-  background: #66bb6a !important;
-}
-
-.zlyPodglad {
-  background: #ef5350 !important;
-}
-
-.ostatni {
-  outline: 3px solid #ffeb3b;
-}
-
 .plansza.aktywna .kratka {
   cursor: pointer;
-}
-
-.plansza.aktywna .kratka.woda:hover {
-  background: #d4f1ff;
 }
 
 /* Ustawianie statków: plansza obok guzików (na telefonie jedno pod drugim) */
@@ -315,25 +269,11 @@ ul {
 
 .podpowiedz {
   margin-top: 0;
-  font-size: 15px;
-}
-
-.trybGuzik.wybrany {
-  background: #ffb300;
-  color: #3e2700;
-  font-weight: bold;
+  font-size: 16px;
 }
 
 .statekGuzik {
   letter-spacing: 2px;
-}
-
-.statekGuzik.wybrany {
-  background: #ffb300;
-}
-
-.statekGuzik.postawiony {
-  opacity: 0.3;
 }
 
 #gotowiGracze li {
@@ -344,23 +284,13 @@ ul {
 /* Bitwa */
 #tura {
   position: sticky;
-  top: 0;
+  top: env(safe-area-inset-top);
   z-index: 3;
   margin: -12px -12px 12px;
+  margin-left: calc(-12px - env(safe-area-inset-left));
+  margin-right: calc(-12px - env(safe-area-inset-right));
   padding: 10px;
-  background: #0b3d5c;
   font-size: 20px;
-}
-
-#tura.mojaTura {
-  background: #2e7d32;
-  animation: pulsuj 0.8s infinite alternate;
-}
-
-@keyframes pulsuj {
-  to {
-    background: #43a047;
-  }
 }
 
 #plansze {
@@ -372,8 +302,6 @@ ul {
 
 .karta {
   padding: 8px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.12);
 }
 
 .karta h3 {
@@ -381,23 +309,473 @@ ul {
   font-size: 18px;
 }
 
-.karta.naTurze {
-  box-shadow: 0 0 0 3px #ffeb3b;
-}
-
-.karta.cel {
-  box-shadow: 0 0 0 3px #66bb6a;
-}
-
 .karta.odpadl {
   opacity: 0.55;
 }
 
 #dziennik {
-  font-size: 14px;
-  opacity: 0.85;
+  font-size: 15px;
 }
 
 #dziennik li {
   margin: 3px;
+}
+
+/* ===== Kartka w kratkę (zwykły wygląd) ===== */
+html:not(.morze) body {
+  background: #f3eee3;
+  color: #243044;
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", "Chalkboard SE", cursive, sans-serif;
+  font-size: 19px;
+}
+
+html:not(.morze) body::before {
+  content: "";
+  position: fixed;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  left: env(safe-area-inset-left);
+  width: 5px;
+  background: #e14b46;
+  pointer-events: none;
+}
+
+html:not(.morze) h1,
+html:not(.morze) h2,
+html:not(.morze) h3,
+html:not(.morze) button {
+  font-weight: 400;
+}
+
+html:not(.morze) header {
+  background: transparent;
+  border-bottom: 2px solid rgba(126, 176, 214, 0.85);
+}
+
+/* Na telefonie tytuł i guziki jeden pod drugim, żeby nic nie wychodziło za ekran. */
+@media (max-width: 520px) {
+  header h1 {
+    font-size: 24px;
+  }
+
+  header > div {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+html:not(.morze) button {
+  border: 2px solid #1c3352;
+  border-radius: 10px;
+  background: #fffdf8;
+  color: #1c3352;
+  box-shadow: 2px 2px 0 rgba(28, 51, 82, 0.12);
+}
+
+html:not(.morze) button.duzy {
+  background: #ffe566;
+  color: #1c3352;
+}
+
+html:not(.morze) .maly {
+  color: #3e5168;
+}
+
+html:not(.morze) input {
+  border: 2px solid #1c3352;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #1c3352;
+}
+
+html:not(.morze) .oczekujacy {
+  color: #8a4b12;
+  font-size: 18px;
+}
+
+html:not(.morze) #zaslonaOdNowa {
+  background: rgba(70, 55, 30, 0.28);
+}
+
+html:not(.morze) #pytanieOdNowa {
+  border: 2px solid #1c3352;
+  border-radius: 12px;
+  background: #fffdf8;
+  box-shadow: 4px 4px 0 rgba(28, 51, 82, 0.16);
+}
+
+html:not(.morze) .zasady {
+  border: 1.5px dashed #7eafd4;
+  border-radius: 8px;
+  background: rgba(255, 253, 248, 0.72);
+}
+
+html:not(.morze) #dymek {
+  top: auto;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  border: 2px solid #1c3352;
+  border-radius: 12px;
+  background: #fffdf8;
+  color: #1c3352;
+  box-shadow: 3px 3px 0 rgba(28, 51, 82, 0.14);
+}
+
+html:not(.morze) .plansza {
+  gap: 1px;
+  border: 1px solid #7eb6dc;
+  background: #7eb6dc;
+}
+
+/* Czerwona kreska jak margines w zeszycie, tuż za numerami wierszy */
+html:not(.morze) .plansza::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: calc((100% - (var(--k) - 1) * 1px) / var(--k));
+  width: 2px;
+  background: #e14b46;
+  pointer-events: none;
+}
+
+html:not(.morze) .opis,
+html:not(.morze) .kratka {
+  background: #fbf8f1;
+}
+
+/* Długopis na brzegu statku. Cień nie zmienia rozmiaru kratki, więc siatka zostaje równa. */
+html:not(.morze) .kratka {
+  box-shadow:
+    inset 0 3px 0 var(--obrys-gora, transparent),
+    inset 0 -3px 0 var(--obrys-dol, transparent),
+    inset 3px 0 0 var(--obrys-lewo, transparent),
+    inset -3px 0 0 var(--obrys-prawo, transparent);
+}
+
+html:not(.morze) .opis {
+  color: #1a4b86;
+  font-size: 16px;
+}
+
+html:not(.morze) .woda {
+  background: #fbf8f1;
+}
+
+/* Pudło: małe kółko długopisem */
+html:not(.morze) .pudlo::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border: 2px solid #1a4b86;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+html:not(.morze) .wybuch::before {
+  border-color: #1a4b86;
+}
+
+html:not(.morze) .trafiony.wybuch::before,
+html:not(.morze) .zatopiony.wybuch::before {
+  border-color: #c43737;
+}
+
+/* Trafienie: krzyżyk. Zatopiony statek: większy, mocniejszy krzyż. */
+html:not(.morze) .trafiony,
+html:not(.morze) .zatopiony,
+html:not(.morze) .statek {
+  background-color: #fbf8f1;
+}
+
+html:not(.morze) .trafiony {
+  background-image:
+    linear-gradient(45deg, transparent 46%, #c43737 46%, #c43737 54%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, #c43737 46%, #c43737 54%, transparent 54%);
+  background-size: 68% 68%, 68% 68%;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+
+html:not(.morze) .zatopiony {
+  background-color: #fde8e4;
+  background-image:
+    linear-gradient(45deg, transparent 42%, #9d1c1c 42%, #9d1c1c 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, #9d1c1c 42%, #9d1c1c 58%, transparent 58%);
+  background-size: 86% 86%, 86% 86%;
+  background-position: center, center;
+  background-repeat: no-repeat;
+}
+
+html:not(.morze) .statek {
+  background-color: #e7eef6;
+}
+
+html:not(.morze) .krawedzGora { --obrys-gora: #16365c; }
+html:not(.morze) .krawedzDol { --obrys-dol: #16365c; }
+html:not(.morze) .krawedzLewo { --obrys-lewo: #16365c; }
+html:not(.morze) .krawedzPrawo { --obrys-prawo: #16365c; }
+
+/* Zatopiony statek: czerwony długopis, jak przekreślona ramka. */
+html:not(.morze) .zatopiony.krawedzGora { --obrys-gora: #9d1c1c; }
+html:not(.morze) .zatopiony.krawedzDol { --obrys-dol: #9d1c1c; }
+html:not(.morze) .zatopiony.krawedzLewo { --obrys-lewo: #9d1c1c; }
+html:not(.morze) .zatopiony.krawedzPrawo { --obrys-prawo: #9d1c1c; }
+
+html:not(.morze) .podglad {
+  background: #b7e3a8 !important;
+  outline: 2.5px solid #1f7a34;
+  outline-offset: -3px;
+}
+
+html:not(.morze) .zlyPodglad {
+  background: #f3b4ae !important;
+  outline: 2.5px solid #b42318;
+  outline-offset: -3px;
+}
+
+html:not(.morze) .ostatni {
+  outline: 2px solid #e2a30b;
+  outline-offset: -3px;
+  z-index: 1;
+}
+
+html:not(.morze) .plansza.aktywna .kratka.woda:hover {
+  background: #e3f2fb;
+}
+
+html:not(.morze) .trybGuzik.wybrany,
+html:not(.morze) .statekGuzik.wybrany {
+  background: #ffe566;
+  color: #1c3352;
+  box-shadow: 2px 2px 0 rgba(28, 51, 82, 0.2);
+}
+
+html:not(.morze) .statekGuzik.postawiony {
+  opacity: 0.35;
+}
+
+html:not(.morze) #tura {
+  background: #efe6d2;
+  color: #1e3350;
+  border-bottom: 2px solid #8ec4e6;
+}
+
+html:not(.morze) #tura.mojaTura {
+  background: #fff3a1;
+  animation: pulsujKartka 0.8s infinite alternate;
+}
+
+html:not(.morze) #tura.koniecGry {
+  background: #ffe566;
+}
+
+@keyframes pulsujKartka {
+  to {
+    background: #ffe566;
+  }
+}
+
+html:not(.morze) .karta {
+  border: 1.5px dashed rgba(40, 70, 110, 0.4);
+  border-radius: 4px;
+  background: transparent;
+}
+
+html:not(.morze) .karta.naTurze {
+  border-style: solid;
+  border-color: #e2b100;
+  box-shadow: 0 0 0 3px rgba(226, 177, 0, 0.45);
+}
+
+html:not(.morze) .karta.cel {
+  border-style: solid;
+  border-color: #2f7d32;
+  box-shadow: 0 0 0 3px rgba(47, 125, 50, 0.28);
+}
+
+html:not(.morze) #dziennik {
+  color: #2c3e50;
+}
+
+/* ===== Morze (poprzedni wygląd) ===== */
+html.morze body {
+  background: linear-gradient(#0b3d5c, #1565a0) fixed;
+  color: white;
+  font-family: "Trebuchet MS", "Comic Sans MS", sans-serif;
+}
+
+html.morze header {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+html.morze header h1 {
+  font-size: 24px;
+}
+
+html.morze button {
+  border: none;
+  border-radius: 12px;
+  background: white;
+  color: #0b3d5c;
+}
+
+html.morze button.duzy {
+  background: #ffb300;
+  color: #3e2700;
+}
+
+html.morze button.maly {
+  font-size: 14px;
+}
+
+html.morze input {
+  border: 3px solid #ffb300;
+  border-radius: 10px;
+}
+
+html.morze .oczekujacy {
+  color: #ffe082;
+  font-size: 18px;
+}
+
+html.morze .maly {
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+html.morze #zaslonaOdNowa {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+html.morze #pytanieOdNowa {
+  border-radius: 18px;
+  background: #08304a;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+html.morze .zasady {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 15px;
+}
+
+html.morze #dymek {
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+html.morze .plansza {
+  gap: 2px;
+}
+
+html.morze .opis {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+html.morze .kratka {
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+html.morze .woda {
+  background: #9fd3f0;
+}
+
+html.morze .pudlo {
+  background: #9fd3f0;
+  color: #0b3d5c;
+}
+
+html.morze .pudlo::after {
+  content: "💦";
+  font-size: 0.85em;
+}
+
+html.morze .trafiony.wybuch::before,
+html.morze .zatopiony.wybuch::before {
+  border-color: #ffb300;
+}
+
+html.morze .trafiony {
+  background: #ff7043;
+  color: white;
+}
+
+html.morze .trafiony::after,
+html.morze .zatopiony::after {
+  content: "✖";
+}
+
+html.morze .zatopiony {
+  background: #7b1c1c;
+  color: #ffcdd2;
+}
+
+html.morze .statek {
+  background: #5d6d7e;
+}
+
+html.morze .podglad {
+  background: #66bb6a !important;
+}
+
+html.morze .zlyPodglad {
+  background: #ef5350 !important;
+}
+
+html.morze .ostatni {
+  outline: 3px solid #ffeb3b;
+}
+
+html.morze .plansza.aktywna .kratka.woda:hover {
+  background: #d4f1ff;
+}
+
+html.morze .trybGuzik.wybrany {
+  background: #ffb300;
+  color: #3e2700;
+  font-weight: bold;
+}
+
+html.morze .statekGuzik.wybrany {
+  background: #ffb300;
+}
+
+html.morze .statekGuzik.postawiony {
+  opacity: 0.3;
+}
+
+html.morze #tura {
+  background: #0b3d5c;
+}
+
+html.morze #tura.mojaTura {
+  background: #2e7d32;
+  animation: pulsuj 0.8s infinite alternate;
+}
+
+@keyframes pulsuj {
+  to {
+    background: #43a047;
+  }
+}
+
+html.morze .karta {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+html.morze .karta.naTurze {
+  box-shadow: 0 0 0 3px #ffeb3b;
+}
+
+html.morze .karta.cel {
+  box-shadow: 0 0 0 3px #66bb6a;
+}
+
+html.morze #dziennik {
+  opacity: 0.85;
 }

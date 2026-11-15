@@ -5,6 +5,21 @@
 var NAZWA_ZAPISU = "statki";
 var KLASY_POL = { "0": "woda", "1": "pudlo", "2": "trafiony", "3": "zatopiony", "4": "statek" };
 
+// Kartka w kratkę albo morze. Kartka jest od razu, morze tylko gdy ktoś je wybrał.
+function zastosujWyglad(nazwa) {
+  if (nazwa === "morze") document.documentElement.classList.add("morze");
+  else document.documentElement.classList.remove("morze");
+  var guzik = el("wyglad");
+  if (!guzik) return;
+  if (nazwa === "morze") {
+    guzik.textContent = "📄 Kartka";
+    guzik.title = "Pokaż kartkę w kratkę";
+  } else {
+    guzik.textContent = "🌊 Morze";
+    guzik.title = "Pokaż morze";
+  }
+}
+
 function el(id) {
   return document.getElementById(id);
 }
@@ -245,28 +260,46 @@ function rysujGram() {
   napiszOczekujacych(el("gramJeszcze"), "Jeszcze nie: ");
 }
 
+// Pole ze statkiem (cały, trafiony albo zatopiony) — do wspólnej ramki długopisem.
+function jestKawalkiemStatku(znak) {
+  return znak === "2" || znak === "3" || znak === "4";
+}
+
 // Plansza z kratkami. pola = 100 znaków od serwera (albo z ustawiania).
 // opcje: aktywna (można klikać), klik(pole), najazd(pole), podglad { pole: klasa }, ostatnie (pole)
+
 function zrobPlansze(pola, opcje) {
+  var rozmiar = tryb().rozmiar;
   var siatka = document.createElement("div");
   siatka.className = "plansza" + (opcje.aktywna ? " aktywna" : "");
-  siatka.style.gridTemplateColumns = "repeat(" + (tryb().rozmiar + 1) + ", 1fr)";
-  siatka.appendChild(document.createElement("div"));
-  for (var k = 0; k < tryb().rozmiar; k++) {
+  siatka.style.gridTemplateColumns = "repeat(" + (rozmiar + 1) + ", 1fr)";
+  siatka.style.setProperty("--k", String(rozmiar + 1));
+  var naroznik = document.createElement("div");
+  naroznik.className = "opis opisNaroznik";
+  siatka.appendChild(naroznik);
+  for (var k = 0; k < rozmiar; k++) {
     var litera = document.createElement("div");
-    litera.className = "opis";
+    litera.className = "opis opisKolumny";
     litera.textContent = LITERY.charAt(k);
     siatka.appendChild(litera);
   }
-  for (var w = 0; w < tryb().rozmiar; w++) {
+  for (var w = 0; w < rozmiar; w++) {
     var cyfra = document.createElement("div");
-    cyfra.className = "opis";
+    cyfra.className = "opis opisWiersza";
     cyfra.textContent = w + 1;
     siatka.appendChild(cyfra);
-    for (var kk = 0; kk < tryb().rozmiar; kk++) {
-      var pole = w * tryb().rozmiar + kk;
+    for (var kk = 0; kk < rozmiar; kk++) {
+      var pole = w * rozmiar + kk;
+      var znak = pola.charAt(pole);
       var kratka = document.createElement("div");
-      kratka.className = "kratka " + KLASY_POL[pola.charAt(pole)];
+      kratka.className = "kratka " + KLASY_POL[znak];
+      // Ramka dookoła całego statku, nie dookoła każdej kratki z osobna.
+      if (jestKawalkiemStatku(znak)) {
+        if (w === 0 || !jestKawalkiemStatku(pola.charAt(pole - rozmiar))) kratka.classList.add("krawedzGora");
+        if (w === rozmiar - 1 || !jestKawalkiemStatku(pola.charAt(pole + rozmiar))) kratka.classList.add("krawedzDol");
+        if (kk === 0 || !jestKawalkiemStatku(pola.charAt(pole - 1))) kratka.classList.add("krawedzLewo");
+        if (kk === rozmiar - 1 || !jestKawalkiemStatku(pola.charAt(pole + 1))) kratka.classList.add("krawedzPrawo");
+      }
       if (opcje.podglad && opcje.podglad[pole]) kratka.classList.add(opcje.podglad[pole]);
       if (opcje.ostatnie === pole) {
         kratka.classList.add("ostatni");
@@ -483,7 +516,8 @@ function rysujBitwe(ja) {
   else if (mojaKolej) napis = "🎯 Twoja kolej! Strzel w planszę przeciwnika";
   else if (naTurze) napis = "⏳ Strzela " + naTurze.imie + (naTurze.online ? "" : " (nie ma połączenia 📵)");
   el("tura").textContent = napis;
-  el("tura").className = mojaKolej ? "mojaTura" : "";
+  if (stan.etap === "koniec") el("tura").className = "koniecGry";
+  else el("tura").className = mojaKolej ? "mojaTura" : "";
   var koniec = stan.etap === "koniec";
   var mogeOdNowa = !koniec && !ja.widz;
   el("odNowaBitwa").style.display = mogeOdNowa ? "inline-block" : "none";
@@ -534,6 +568,14 @@ function strzelWGracza(nr) {
 }
 
 // ----- Guziki -----
+zastosujWyglad(wczytaj("wyglad") === "morze" ? "morze" : "kartka");
+el("wyglad").addEventListener("click", function () {
+  var nastepny = document.documentElement.classList.contains("morze") ? "kartka" : "morze";
+  zapisz("wyglad", nastepny);
+  zastosujWyglad(nastepny);
+  dzwiekKlik();
+});
+
 el("dolacz").addEventListener("click", function () {
   var imie = el("imie").value.trim();
   if (!imie) {

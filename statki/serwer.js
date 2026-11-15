@@ -23,7 +23,8 @@ var RODZAJE_PLIKOW = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".mp3": "audio/mpeg",
-  ".wav": "audio/wav"
+  ".wav": "audio/wav",
+  ".woff2": "font/woff2"
 };
 
 // ----- Stan gry -----
