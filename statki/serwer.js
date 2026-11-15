@@ -28,7 +28,8 @@ var RODZAJE_PLIKOW = {
 
 // ----- Stan gry -----
 // etap: "poczekalnia" -> "ustawianie" -> "bitwa" -> "koniec"
-var gra = { etap: "poczekalnia", tryb: "klasyczna", gracze: [], tura: 0, zwyciezca: "", dziennik: [], ostatni: null, numerStrzalu: 0 };
+// oczekujacy: kto był w grze, ale po "od nowa" jeszcze nie nacisnął Gram!
+var gra = { etap: "poczekalnia", tryb: "klasyczna", gracze: [], oczekujacy: [], tura: 0, zwyciezca: "", dziennik: [], ostatni: null, numerStrzalu: 0 };
 var nastepnyNumer = 1;
 var sluchacze = {};  // id gracza -> otwarte połączenie do jego przeglądarki
 
@@ -70,6 +71,23 @@ function znajdz(id) {
     if (gra.gracze[i].id === id) return gra.gracze[i];
   }
   return null;
+}
+
+// Czy ta osoba jeszcze musi nacisnąć Gram!
+function oczekuje(id) {
+  for (var i = 0; i < gra.oczekujacy.length; i++) {
+    if (gra.oczekujacy[i].id === id) return true;
+  }
+  return false;
+}
+
+function zabierzOczekujacego(id) {
+  for (var i = 0; i < gra.oczekujacy.length; i++) {
+    if (gra.oczekujacy[i].id === id) {
+      gra.oczekujacy.splice(i, 1);
+      return;
+    }
+  }
 }
 
 function gracz(nr) {
@@ -115,6 +133,7 @@ function zapiszWDzienniku(tekst) {
 function wykonaj(id, akcja) {
   if (!id) return "Nie wiem, kim jesteś";
   if (akcja.typ === "dolacz") return dolacz(id, akcja.imie);
+  if (akcja.typ === "odNowa") return odNowa(id);
   var ja = znajdz(id);
   if (!ja) return "Najpierw dołącz do gry";
   if (akcja.typ === "start") return start();
@@ -129,6 +148,7 @@ function wykonaj(id, akcja) {
 function dolacz(id, imie) {
   imie = String(imie || "").trim().slice(0, 12);
   if (!imie) return "Wpisz imię";
+  zabierzOczekujacego(id);
   var ja = znajdz(id);
   if (ja) {
     ja.imie = imie;
@@ -297,6 +317,49 @@ function nowaGra() {
   return "";
 }
 
+// Wszyscy wypadają z rundy i muszą sami nacisnąć Gram!. Kto nie naciśnie, nie gra.
+function odNowa(id) {
+  var ja = znajdz(id);
+  if (!ja) {
+    if (oczekuje(id)) return "";
+    return "Najpierw dołącz do gry";
+  }
+  if (ja.widz) return "Teraz tylko gracze mogą zacząć od nowa";
+  var imie = ja.imie;
+  var lista = [];
+  for (var i = 0; i < gra.gracze.length; i++) {
+    lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie });
+  }
+  // Kto już wcześniej nie nacisnął Gram!, zostaje na liście (inaczej telefon sam by wrócił)
+  for (var j = 0; j < gra.oczekujacy.length; j++) {
+    var jest = false;
+    for (var k = 0; k < lista.length; k++) {
+      if (lista[k].id === gra.oczekujacy[j].id) jest = true;
+    }
+    if (!jest) lista.push({ id: gra.oczekujacy[j].id, imie: gra.oczekujacy[j].imie });
+  }
+  gra.oczekujacy = lista;
+  gra.gracze = [];
+  gra.etap = "poczekalnia";
+  gra.tura = 0;
+  gra.zwyciezca = "";
+  gra.dziennik = [];
+  gra.ostatni = null;
+  zapiszWDzienniku("🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
+  return "";
+}
+
+// Imiona osób, które jeszcze nie nacisnęły Gram! (bez tajnych numerów)
+function widokOczekujacych(bezId) {
+  var lista = [];
+  for (var i = 0; i < gra.oczekujacy.length; i++) {
+    var o = gra.oczekujacy[i];
+    if (o.id === bezId) continue;
+    lista.push({ imie: o.imie, online: !!sluchacze[o.id] });
+  }
+  return lista;
+}
+
 // ----- Co widzi gracz -----
 // Plansza to 100 znaków: 0 woda, 1 pudło, 2 trafiony, 3 zatopiony, 4 cały statek (tylko swój albo na koniec gry)
 function widokDla(id) {
@@ -326,6 +389,8 @@ function widokDla(id) {
   return {
     etap: gra.etap,
     tryb: gra.tryb,
+    trzebaPotwierdzic: oczekuje(id),
+    oczekujacy: widokOczekujacych(id),
     ja: ja ? ja.nr : 0,
     tura: gra.tura,
     zwyciezca: gra.zwyciezca,

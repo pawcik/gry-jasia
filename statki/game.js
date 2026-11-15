@@ -40,6 +40,7 @@ var bylaMojaKolej = false;
 var czekamNaSerwer = false;  // wysłaliśmy strzał i czekamy na odpowiedź
 var wyslalemDolacz = false;
 var zmieniamImie = false;
+var czasPytania = null;
 var czasDymka = null;
 var wybuchDo = 0;            // do kiedy pokazujemy plusk albo wybuch na ostatnim polu
 
@@ -154,10 +155,11 @@ function dodajUsun(element, g) {
 
 // ----- Co się zmieniło: dźwięki i dymki -----
 function reaguj() {
-  // Nie ma mnie w grze (np. serwer wystartował od nowa): dołączam pod zapisanym imieniem
+  // Nie ma mnie w grze (np. serwer wystartował od nowa): dołączam pod zapisanym imieniem.
+  // Po "zacznij od nowa" nie dołączam sam — trzeba nacisnąć Gram!, żeby wiszący telefon nie blokował gry.
   if (stan.ja === 0) {
     var imie = wczytaj("imie");
-    if (imie && !wyslalemDolacz && !zmieniamImie) {
+    if (imie && !stan.trzebaPotwierdzic && !wyslalemDolacz && !zmieniamImie) {
       wyslalemDolacz = true;
       wyslij("dolacz", { imie: imie });
     }
@@ -168,6 +170,7 @@ function reaguj() {
   if (stan.etap !== poprzedniEtap) {
     if (stan.etap === "ustawianie") ustawianie = nowePlanowanie();
     poprzedniEtap = stan.etap;
+    schowajPytanie();
   }
 
   var o = stan.ostatni;
@@ -194,9 +197,14 @@ function reaguj() {
 function rysuj() {
   if (!stan) return;
   var ja = mnie();
-  el("mojeImie").textContent = ja ? "🙂 " + ja.imie : "";
-  if (zmieniamImie || (!ja && !wczytaj("imie"))) {
+  var zapisaneImie = wczytaj("imie");
+  el("mojeImie").textContent = ja ? "🙂 " + ja.imie : (zapisaneImie ? "🙂 " + zapisaneImie : "");
+  if (zmieniamImie || (!ja && !zapisaneImie)) {
     pokazTylko("ekranImie");
+    return;
+  }
+  if (!ja && stan.trzebaPotwierdzic) {
+    rysujGram();
     return;
   }
   if (!ja) {
@@ -206,6 +214,35 @@ function rysuj() {
   if (stan.etap === "poczekalnia") rysujPoczekalnie();
   else if (stan.etap === "ustawianie" && !ja.widz) rysujUstawianie(ja);
   else rysujBitwe(ja);
+}
+
+// Imiona z listy graczy. Przy zgaszonym telefonie doklejamy znaczek.
+function imiona(lista, znaczek) {
+  var nazwy = [];
+  for (var i = 0; i < lista.length; i++) {
+    nazwy.push(lista[i].imie + (znaczek && !lista[i].online ? " 📵" : ""));
+  }
+  return nazwy;
+}
+
+// Kto jeszcze nie nacisnął Gram!
+function napiszOczekujacych(element, przedrostek) {
+  var oczek = stan.oczekujacy || [];
+  if (!oczek.length) {
+    element.style.display = "none";
+    element.textContent = "";
+    return;
+  }
+  element.style.display = "block";
+  element.textContent = przedrostek + imiona(oczek, true).join(", ");
+}
+
+function rysujGram() {
+  pokazTylko("ekranGram");
+  el("gramImie").textContent = "Cześć, " + (wczytaj("imie") || "") + "!";
+  var wSrodku = imiona(stan.gracze, true);
+  el("gramCzekaja").textContent = wSrodku.length ? "Już w poczekalni: " + wSrodku.join(", ") : "W poczekalni nie ma jeszcze nikogo.";
+  napiszOczekujacych(el("gramJeszcze"), "Jeszcze nie: ");
 }
 
 // Plansza z kratkami. pola = 100 znaków od serwera (albo z ustawiania).
@@ -267,6 +304,7 @@ function rysujPoczekalnie() {
     wiersz.textContent = (g.online ? "🟢 " : "⚪ ") + g.imie + (g.nr === stan.ja ? " (ty)" : "");
     lista.appendChild(wiersz);
   }
+  napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!: ");
   el("start").disabled = polaczonych < 2;
 
   // Guziki: klasyczna albo szybka gra
@@ -420,6 +458,7 @@ function rysujUstawianie(ja) {
     dodajUsun(wiersz, g);
     lista.appendChild(wiersz);
   }
+  napiszOczekujacych(el("oczekujacyUstawianie"), "Czekamy na Gram!: ");
 }
 
 // ----- Bitwa (i koniec gry) -----
@@ -445,7 +484,11 @@ function rysujBitwe(ja) {
   else if (naTurze) napis = "⏳ Strzela " + naTurze.imie + (naTurze.online ? "" : " (nie ma połączenia 📵)");
   el("tura").textContent = napis;
   el("tura").className = mojaKolej ? "mojaTura" : "";
-  el("nowaGra").style.display = stan.etap === "koniec" ? "inline-block" : "none";
+  var koniec = stan.etap === "koniec";
+  var mogeOdNowa = !koniec && !ja.widz;
+  el("odNowaBitwa").style.display = mogeOdNowa ? "inline-block" : "none";
+  el("opisOdNowaBitwa").style.display = mogeOdNowa ? "block" : "none";
+  el("nowaGra").style.display = koniec ? "inline-block" : "none";
 
   // Najpierw plansze przeciwników, na końcu moja
   var kolejnosc = [];
@@ -542,6 +585,52 @@ el("gotowe").addEventListener("click", function () {
 
 el("nowaGra").addEventListener("click", function () {
   wyslij("nowaGra");
+});
+
+// Pytamy w osobnym okienku, żeby nie zacząć od nowa przez przypadek.
+function schowajPytanie() {
+  clearTimeout(czasPytania);
+  el("zaslonaOdNowa").style.display = "none";
+  el("pytanieOdNowa").style.display = "none";
+}
+
+function pokazPytanie() {
+  dzwiekKlik();
+  el("zaslonaOdNowa").style.display = "block";
+  el("pytanieOdNowa").style.display = "block";
+  clearTimeout(czasPytania);
+  czasPytania = setTimeout(schowajPytanie, 8000);
+}
+
+function podlaczOdNowa(przycisk) {
+  przycisk.addEventListener("click", pokazPytanie);
+}
+podlaczOdNowa(el("odNowaPoczekalnia"));
+podlaczOdNowa(el("odNowaUstawianie"));
+podlaczOdNowa(el("odNowaBitwa"));
+
+el("odNowaTak").addEventListener("click", function () {
+  schowajPytanie();
+  wyslij("odNowa");
+  dzwiekKlik();
+});
+
+el("odNowaNie").addEventListener("click", function () {
+  dzwiekKlik();
+  schowajPytanie();
+});
+
+el("gram").addEventListener("click", function () {
+  var imie = wczytaj("imie");
+  if (!imie) {
+    zmieniamImie = true;
+    pokazTylko("ekranImie");
+    return;
+  }
+  dzwiekKlik();
+  wyslalemDolacz = true;
+  wyslij("dolacz", { imie: imie });
+  pokazTylko("ekranLaczenie");
 });
 
 // R obraca statek przy ustawianiu

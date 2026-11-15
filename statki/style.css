@@ -81,6 +81,47 @@ ul {
   font-size: 22px;
 }
 
+#gramImie {
+  font-size: 28px;
+}
+
+.oczekujacy {
+  color: #ffe082;
+  font-size: 18px;
+}
+
+#zaslonaOdNowa {
+  display: none;
+  position: fixed;
+  z-index: 19;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+#pytanieOdNowa {
+  display: none;
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  top: 22%;
+  width: min(92vw, 420px);
+  padding: 18px 16px;
+  border-radius: 18px;
+  background: #08304a;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  transform: translateX(-50%);
+}
+
+#pytanieOdNowa p {
+  margin: 0 0 12px;
+  font-size: 22px;
+}
+
+#odNowaTak {
+  width: 90%;
+  font-size: 26px;
+}
+
 .maly {
   font-size: 14px;
   opacity: 0.85;
