@@ -6,6 +6,60 @@ var TRYBY = {
   klasyczna: { nazwa: "Klasyczna", opis: "plansza 10×10, 10 statków", rozmiar: 10, statki: [4, 3, 3, 2, 2, 2, 1, 1, 1, 1] },
   szybka: { nazwa: "Szybka", opis: "plansza 7×7, 5 statków", rozmiar: 7, statki: [3, 2, 2, 1, 1] }
 };
+
+// Kto wygrywa. Klasycznie zostaje po staremu. Na punkty liczy się tablica.
+var SPOSOBY = {
+  klasyczny: { nazwa: "Klasycznie", opis: "ostatni ze statkami wygrywa" },
+  punkty: { nazwa: "Na punkty", opis: "najwięcej punktów wygrywa" }
+};
+var RUNDY_DO_WYBORU = [5, 10, 15];
+var RUNDY_DOMYSLNIE = 10;
+
+// Trafione pole to 1 punkt. Zatopienie dokłada jeszcze tyle, ile masztów.
+function punktyZaStrzal(wynik, dlugosc) {
+  if (wynik === "trafiony") return 1;
+  if (wynik === "zatopiony") return 1 + dlugosc;
+  return 0;
+}
+
+// Kto trafiał częściej. Zero strzałów jest gorsze niż same pudła.
+function lepszaCelnosc(a, b) {
+  if (!a.oddane && !b.oddane) return 0;
+  if (!a.oddane) return -1;
+  if (!b.oddane) return 1;
+  var lewo = a.trafienia * b.oddane;
+  var prawo = b.trafienia * a.oddane;
+  if (lewo === prawo) return 0;
+  return lewo > prawo ? 1 : -1;
+}
+
+// Najpierw punkty, potem celność. Zero znaczy remis.
+function porownajWyniki(a, b) {
+  if (a.punkty !== b.punkty) return b.punkty - a.punkty;
+  return -lepszaCelnosc(a, b);
+}
+
+// Lista miejsc: 1, 2, 2, 4... przy remisie to samo miejsce.
+function ranking(lista) {
+  var kopia = [];
+  for (var i = 0; i < lista.length; i++) kopia.push(lista[i]);
+  kopia.sort(porownajWyniki);
+  var wynik = [];
+  for (var j = 0; j < kopia.length; j++) {
+    var miejsce = j + 1;
+    if (j > 0 && porownajWyniki(kopia[j - 1], kopia[j]) === 0) miejsce = wynik[j - 1].miejsce;
+    var g = kopia[j];
+    wynik.push({
+      miejsce: miejsce,
+      nr: g.nr,
+      imie: g.imie,
+      punkty: g.punkty,
+      trafienia: g.trafienia,
+      oddane: g.oddane
+    });
+  }
+  return wynik;
+}
 var LITERY = "ABCDEFGHIJ";
 
 // Pole to numer: wiersz * rozmiar + kolumna. Dla ludzi piszemy np. "B5".
@@ -155,6 +209,13 @@ function losujKodGry(zajete) {
 if (typeof module !== "undefined") {
   module.exports = {
     TRYBY: TRYBY,
+    SPOSOBY: SPOSOBY,
+    RUNDY_DO_WYBORU: RUNDY_DO_WYBORU,
+    RUNDY_DOMYSLNIE: RUNDY_DOMYSLNIE,
+    punktyZaStrzal: punktyZaStrzal,
+    lepszaCelnosc: lepszaCelnosc,
+    porownajWyniki: porownajWyniki,
+    ranking: ranking,
     nazwaPola: nazwaPola,
     sasiedzi: sasiedzi,
     zbudujFlote: zbudujFlote,
