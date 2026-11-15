@@ -16,6 +16,13 @@
   </header>
   <p id="polaczenie">📡 Łączę z serwerem...</p>
   <div id="dymek"></div>
+  <div id="zaslonaOdNowa"></div>
+  <div id="pytanieOdNowa">
+    <p>Zaczynamy od nowa.<br>Każdy znów klika Gram!</p>
+    <button id="odNowaTak" class="duzy">Tak, od nowa</button>
+    <br>
+    <button id="odNowaNie">Nie</button>
+  </div>
 
   <section class="ekran" id="ekranPlik">
     <p>Ta gra działa przez serwer, żeby wszyscy mogli grać razem.</p>
@@ -33,12 +40,24 @@
     <button id="dolacz" class="duzy">Dołącz ▶️</button>
   </section>
 
+  <section class="ekran" id="ekranGram">
+    <h2>Kto gra?</h2>
+    <p id="gramImie"></p>
+    <p>Naciśnij Gram!, jeśli chcesz grać w tej rundzie.</p>
+    <button id="gram" class="duzy">Gram! ✋</button>
+    <p id="gramCzekaja"></p>
+    <p id="gramJeszcze" class="oczekujacy"></p>
+  </section>
+
   <section class="ekran" id="ekranPoczekalnia">
     <h2>Poczekalnia</h2>
     <ul id="listaGraczy"></ul>
+    <p id="oczekujacy" class="oczekujacy"></p>
     <p>Jaką grę gramy?</p>
     <div id="tryby"></div>
     <button id="start" class="duzy">Start gry 🚀</button>
+    <p class="maly">Ktoś dołączył, ale nie gra? Zacznij od nowa. Każdy znów klika Gram!.</p>
+    <button id="odNowaPoczekalnia">Zacznij od nowa 🔁</button>
     <p class="maly" id="adresy"></p>
     <div class="zasady">
       <b>Zasady</b>
@@ -69,6 +88,9 @@
         </div>
         <p id="czekamNaInnych"></p>
         <ul id="gotowiGracze"></ul>
+        <p id="oczekujacyUstawianie" class="oczekujacy"></p>
+        <button id="odNowaUstawianie">Zacznij od nowa 🔁</button>
+        <p class="maly">Każdy, kto chce grać, znów klika Gram!.</p>
       </div>
     </div>
   </section>
@@ -76,6 +98,8 @@
   <section class="ekran" id="ekranBitwa">
     <div id="tura"></div>
     <div id="plansze"></div>
+    <button id="odNowaBitwa">Zacznij od nowa 🔁</button>
+    <p class="maly" id="opisOdNowaBitwa">Ktoś nie gra? Każdy znów klika Gram!.</p>
     <button id="nowaGra" class="duzy">Nowa gra 🔄</button>
     <ul id="dziennik"></ul>
   </section>
