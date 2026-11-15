@@ -65,6 +65,47 @@ function wyczyscPlansze(g) {
   g.statki = [];
   g.naPolu = pustaPlansza(-1);   // który statek stoi na polu
   g.strzaly = pustaPlansza(0);   // 0 nikt nie strzelał, 1 pudło, 2 trafiony, 3 zatopiony
+  g.stat = pusteStatystyki();    // licznik strzałów tej gry (zeruje się ze startem i nową grą)
+}
+
+// Strzały, trafienia, pudła i kto do kogo. Małe liczby, bez listy każdego pola.
+// Odznaka "Seria" jest od tylu trafień pod rząd.
+var MIN_SERIA_DO_ODZNAKI = 2;
+
+function pusteStatystyki() {
+  return {
+    strzaly: 0,
+    trafienia: 0,
+    pudla: 0,
+    seriaTeraz: 0,
+    seria: 0,
+    zatopione: [],
+    wKogo: {}
+  };
+}
+
+function liniaWKogo(stat, nr) {
+  if (!stat.wKogo[nr]) stat.wKogo[nr] = { strzaly: 0, trafienia: 0, pudla: 0 };
+  return stat.wKogo[nr];
+}
+
+// Jeden prawdziwy strzał. Woda dookoła zatopionego statku sama się rysuje i tu jej nie liczymy.
+function zapiszStrzal(ja, cel, wynik, dlugosc) {
+  if (!ja.stat) ja.stat = pusteStatystyki();
+  var linia = liniaWKogo(ja.stat, cel.nr);
+  ja.stat.strzaly++;
+  linia.strzaly++;
+  if (wynik === "pudlo") {
+    ja.stat.pudla++;
+    linia.pudla++;
+    ja.stat.seriaTeraz = 0;
+    return;
+  }
+  ja.stat.trafienia++;
+  linia.trafienia++;
+  ja.stat.seriaTeraz++;
+  if (ja.stat.seriaTeraz > ja.stat.seria) ja.stat.seria = ja.stat.seriaTeraz;
+  if (wynik === "zatopiony") ja.stat.zatopione.push({ nr: cel.nr, dlugosc: dlugosc });
 }
 
 function znajdz(id) {
@@ -228,6 +269,7 @@ function strzal(ja, celNr, pole) {
 
   var numerStatku = cel.naPolu[pole];
   var wynik = "pudlo";
+  var dlugoscStatku = 0;
   if (numerStatku === -1) {
     cel.strzaly[pole] = 1;
   } else {
@@ -237,6 +279,7 @@ function strzal(ja, celNr, pole) {
     wynik = "trafiony";
     if (statek.trafione === statek.pola.length) {
       wynik = "zatopiony";
+      dlugoscStatku = statek.pola.length;
       // Zatopiony statek: całe zaznaczamy, a wodę dookoła oznaczamy jako pudła
       for (var i = 0; i < statek.pola.length; i++) {
         cel.strzaly[statek.pola[i]] = 3;
@@ -247,6 +290,7 @@ function strzal(ja, celNr, pole) {
       }
     }
   }
+  zapiszStrzal(ja, cel, wynik, dlugoscStatku);
 
   var slowa = { pudlo: "pudło 💧", trafiony: "trafiony! 💥", zatopiony: "zatopiony! 🔥" };
   var tekst = ja.imie + " → " + cel.imie + ", " + zasady.nazwaPola(pole, tryb().rozmiar) + ": " + slowa[wynik];
@@ -361,6 +405,96 @@ function widokOczekujacych(bezId) {
   return lista;
 }
 
+// ----- Wyniki na końcu gry -----
+function imionaGraczy(lista) {
+  var imiona = [];
+  for (var i = 0; i < lista.length; i++) imiona.push(lista[i].imie);
+  return imiona;
+}
+
+function celnoscWieksza(a, b) {
+  return a.trafienia * b.strzaly > b.trafienia * a.strzaly;
+}
+
+function celnoscTakaSama(a, b) {
+  return a.trafienia * b.strzaly === b.trafienia * a.strzaly;
+}
+
+// Kto ma najwięcej w danym polu, ale co najmniej `minimum`.
+function graczeOd(lista, pole, minimum) {
+  var najlepsi = [];
+  var max = 0;
+  for (var i = 0; i < lista.length; i++) {
+    var v = lista[i][pole];
+    if (v < minimum) continue;
+    if (!najlepsi.length || v > max) {
+      max = v;
+      najlepsi = [lista[i]];
+    } else if (v === max) najlepsi.push(lista[i]);
+  }
+  return najlepsi;
+}
+
+function nagrodyZaGre(lista) {
+  var nagrody = [];
+  var snajperzy = [];
+  for (var i = 0; i < lista.length; i++) {
+    var g = lista[i];
+    if (g.strzaly < 1 || g.trafienia < 1) continue;
+    if (!snajperzy.length || celnoscWieksza(g, snajperzy[0])) snajperzy = [g];
+    else if (celnoscTakaSama(g, snajperzy[0])) snajperzy.push(g);
+  }
+  if (snajperzy.length) {
+    nagrody.push({ id: "snajper", kto: imionaGraczy(snajperzy), celnosc: snajperzy[0].celnosc });
+  }
+  var pechowcy = graczeOd(lista, "pudla", 1);
+  if (pechowcy.length) nagrody.push({ id: "pechowiec", kto: imionaGraczy(pechowcy), pudla: pechowcy[0].pudla });
+  var serie = graczeOd(lista, "seria", MIN_SERIA_DO_ODZNAKI);
+  if (serie.length) nagrody.push({ id: "seria", kto: imionaGraczy(serie), seria: serie[0].seria });
+  var pogromcy = graczeOd(lista, "zatopionych", 1);
+  if (pogromcy.length) nagrody.push({ id: "pogromca", kto: imionaGraczy(pogromcy), zatopionych: pogromcy[0].zatopionych });
+  return nagrody;
+}
+
+// Puste w trakcie gry, żeby wiadomość była lekka. Na końcu: liczby i odznaki, bez tajnych numerów.
+function widokStatystyk() {
+  if (gra.etap !== "koniec") return null;
+  var lista = [];
+  for (var i = 0; i < gra.gracze.length; i++) {
+    var g = gra.gracze[i];
+    if (g.widz) continue;
+    var s = g.stat || pusteStatystyki();
+    var wKogo = [];
+    for (var j = 0; j < gra.gracze.length; j++) {
+      var cel = gra.gracze[j];
+      if (cel.widz || cel.nr === g.nr) continue;
+      var linia = s.wKogo[cel.nr];
+      if (!linia || !linia.strzaly) continue;
+      wKogo.push({ nr: cel.nr, imie: cel.imie, strzaly: linia.strzaly, trafienia: linia.trafienia, pudla: linia.pudla });
+    }
+    var zatopione = [];
+    for (var z = 0; z < s.zatopione.length; z++) {
+      var ofiara = gracz(s.zatopione[z].nr);
+      zatopione.push({ imie: ofiara ? ofiara.imie : "?", dlugosc: s.zatopione[z].dlugosc });
+    }
+    var celnosc = null;
+    if (s.strzaly > 0) celnosc = Math.round(100 * s.trafienia / s.strzaly);
+    lista.push({
+      nr: g.nr,
+      imie: g.imie,
+      strzaly: s.strzaly,
+      trafienia: s.trafienia,
+      pudla: s.pudla,
+      celnosc: celnosc,
+      seria: s.seria,
+      zatopionych: zatopione.length,
+      zatopione: zatopione,
+      wKogo: wKogo
+    });
+  }
+  return { gracze: lista, nagrody: nagrodyZaGre(lista) };
+}
+
 // ----- Co widzi gracz -----
 // Plansza to 100 znaków: 0 woda, 1 pudło, 2 trafiony, 3 zatopiony, 4 cały statek (tylko swój albo na koniec gry)
 function widokDla(id) {
@@ -397,6 +531,7 @@ function widokDla(id) {
     zwyciezca: gra.zwyciezca,
     dziennik: gra.dziennik.slice(-8),
     ostatni: gra.ostatni,
+    statystyki: widokStatystyk(),
     adresy: ADRESY,
     sekundyDoUsuniecia: SEKUNDY_DO_USUNIECIA,
     gracze: gracze
