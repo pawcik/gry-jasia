@@ -9,6 +9,7 @@ var fs = require("fs");
 var path = require("path");
 var os = require("os");
 var zasady = require("./zasady.js");
+var awatary = require("./awatary.js");
 
 // Port i publiczny adres można podać z zewnątrz (tak gra działa w internecie)
 var PORT = Number(process.env.PORT) || 8081;
@@ -213,7 +214,7 @@ function ktoSlucha(gra) {
 // ----- Ruchy graczy (zawsze w jednej, wskazanej grze) -----
 function wykonaj(gra, id, akcja) {
   if (!idDobre(id)) return "Nie wiem, kim jesteś";
-  if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie);
+  if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie, akcja.awatar);
   if (akcja.typ === "odNowa") return odNowa(gra, id);
   if (akcja.typ === "wyjdz") return wyjdz(gra, id);
   var ja = znajdz(gra, id);
@@ -227,19 +228,29 @@ function wykonaj(gra, id, akcja) {
   return "Nie znam takiego ruchu";
 }
 
-function dolacz(gra, id, imie) {
+function ustalAwatar(podany, dotychczasowy) {
+  var id = String(podany || "").trim().slice(0, 24);
+  if (awatary.awatarPoId(id)) return id;
+  if (awatary.awatarPoId(dotychczasowy)) return dotychczasowy;
+  var lista = awatary.AWATARY;
+  return lista[Math.floor(Math.random() * lista.length)].id;
+}
+
+function dolacz(gra, id, imie, awatar) {
   imie = String(imie || "").trim().slice(0, 12);
   if (!imie) return "Wpisz imię";
   zabierzOczekujacego(gra, id);
   var ja = znajdz(gra, id);
   if (ja) {
     ja.imie = imie;
+    ja.awatar = ustalAwatar(awatar, ja.awatar);
     return "";
   }
   ja = {
     id: id,
     nr: gra.nastepnyNumer++,
     imie: imie,
+    awatar: ustalAwatar(awatar, ""),
     online: !!gra.sluchacze[id],
     offlineOd: Date.now(),
     widz: gra.etap !== "poczekalnia"
@@ -420,7 +431,7 @@ function odNowa(gra, id) {
   var imie = ja.imie;
   var lista = [];
   for (var i = 0; i < gra.gracze.length; i++) {
-    lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie });
+    lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie, awatar: gra.gracze[i].awatar || "" });
   }
   // Kto już wcześniej nie nacisnął Gram!, zostaje na liście (inaczej telefon sam by wrócił)
   for (var j = 0; j < gra.oczekujacy.length; j++) {
@@ -428,7 +439,7 @@ function odNowa(gra, id) {
     for (var k = 0; k < lista.length; k++) {
       if (lista[k].id === gra.oczekujacy[j].id) jest = true;
     }
-    if (!jest) lista.push({ id: gra.oczekujacy[j].id, imie: gra.oczekujacy[j].imie });
+    if (!jest) lista.push({ id: gra.oczekujacy[j].id, imie: gra.oczekujacy[j].imie, awatar: gra.oczekujacy[j].awatar || "" });
   }
   gra.oczekujacy = lista;
   gra.gracze = [];
@@ -461,16 +472,18 @@ function widokOczekujacych(gra, bezId) {
   for (var i = 0; i < gra.oczekujacy.length; i++) {
     var o = gra.oczekujacy[i];
     if (o.id === bezId) continue;
-    lista.push({ imie: o.imie, online: !!gra.sluchacze[o.id] });
+    lista.push({ imie: o.imie, awatar: o.awatar || "", online: !!gra.sluchacze[o.id] });
   }
   return lista;
 }
 
 // ----- Wyniki na końcu gry -----
-function imionaGraczy(lista) {
-  var imiona = [];
-  for (var i = 0; i < lista.length; i++) imiona.push(lista[i].imie);
-  return imiona;
+function krotko(lista) {
+  var osoby = [];
+  for (var i = 0; i < lista.length; i++) {
+    osoby.push({ imie: lista[i].imie, awatar: lista[i].awatar || "" });
+  }
+  return osoby;
 }
 
 function celnoscWieksza(a, b) {
@@ -506,14 +519,14 @@ function nagrodyZaGre(lista) {
     else if (celnoscTakaSama(g, snajperzy[0])) snajperzy.push(g);
   }
   if (snajperzy.length) {
-    nagrody.push({ id: "snajper", kto: imionaGraczy(snajperzy), celnosc: snajperzy[0].celnosc });
+    nagrody.push({ id: "snajper", kto: krotko(snajperzy), celnosc: snajperzy[0].celnosc });
   }
   var pechowcy = graczeOd(lista, "pudla", 1);
-  if (pechowcy.length) nagrody.push({ id: "pechowiec", kto: imionaGraczy(pechowcy), pudla: pechowcy[0].pudla });
+  if (pechowcy.length) nagrody.push({ id: "pechowiec", kto: krotko(pechowcy), pudla: pechowcy[0].pudla });
   var serie = graczeOd(lista, "seria", MIN_SERIA_DO_ODZNAKI);
-  if (serie.length) nagrody.push({ id: "seria", kto: imionaGraczy(serie), seria: serie[0].seria });
+  if (serie.length) nagrody.push({ id: "seria", kto: krotko(serie), seria: serie[0].seria });
   var pogromcy = graczeOd(lista, "zatopionych", 1);
-  if (pogromcy.length) nagrody.push({ id: "pogromca", kto: imionaGraczy(pogromcy), zatopionych: pogromcy[0].zatopionych });
+  if (pogromcy.length) nagrody.push({ id: "pogromca", kto: krotko(pogromcy), zatopionych: pogromcy[0].zatopionych });
   return nagrody;
 }
 
@@ -531,18 +544,23 @@ function widokStatystyk(gra) {
       if (cel.widz || cel.nr === g.nr) continue;
       var linia = s.wKogo[cel.nr];
       if (!linia || !linia.strzaly) continue;
-      wKogo.push({ nr: cel.nr, imie: cel.imie, strzaly: linia.strzaly, trafienia: linia.trafienia, pudla: linia.pudla });
+      wKogo.push({ nr: cel.nr, imie: cel.imie, awatar: cel.awatar || "", strzaly: linia.strzaly, trafienia: linia.trafienia, pudla: linia.pudla });
     }
     var zatopione = [];
     for (var z = 0; z < s.zatopione.length; z++) {
       var ofiara = gracz(gra, s.zatopione[z].nr);
-      zatopione.push({ imie: ofiara ? ofiara.imie : "?", dlugosc: s.zatopione[z].dlugosc });
+      zatopione.push({
+        imie: ofiara ? ofiara.imie : "?",
+        awatar: ofiara ? (ofiara.awatar || "") : "",
+        dlugosc: s.zatopione[z].dlugosc
+      });
     }
     var celnosc = null;
     if (s.strzaly > 0) celnosc = Math.round(100 * s.trafienia / s.strzaly);
     lista.push({
       nr: g.nr,
       imie: g.imie,
+      awatar: g.awatar || "",
       strzaly: s.strzaly,
       trafienia: s.trafienia,
       pudla: s.pudla,
@@ -573,6 +591,7 @@ function widokDla(gra, id) {
     gracze.push({
       nr: g.nr,
       imie: g.imie,
+      awatar: g.awatar || "",
       online: g.online,
       offline: g.online ? 0 : Math.floor((teraz - g.offlineOd) / 1000),
       widz: g.widz,
