@@ -214,6 +214,68 @@ ul {
   }
 }
 
+#wrocDoGry,
+#kodWNaglowku {
+  display: none;
+}
+
+#ekranStart .duzy {
+  display: block;
+  min-width: min(92vw, 280px);
+  margin: 10px auto;
+}
+
+#ekranStart .albo {
+  margin: 4px 0;
+}
+
+#poleKodu,
+#poleNowegoKodu {
+  width: min(92vw, 260px);
+  font-size: 32px;
+  letter-spacing: 0.12em;
+}
+
+#bladKodu {
+  min-height: 1.3em;
+  margin: 8px auto;
+  font-size: 20px;
+}
+
+.kodDuzy,
+.kodLiterki,
+.linkGry,
+#kodWNaglowku {
+  user-select: all;
+  -webkit-user-select: all;
+}
+
+.kodDuzy {
+  margin: 4px auto;
+  font-size: min(18vw, 76px);
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+}
+
+.kodLiterki {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.08em;
+}
+
+.linkGry {
+  max-width: 520px;
+  margin: 6px auto;
+  font-size: 16px;
+  word-break: break-all;
+}
+
+#kodWNaglowku {
+  padding: 2px 10px;
+  font-size: 22px;
+  letter-spacing: 0.14em;
+}
+
 #zaslonaOdNowa {
   display: none;
   position: fixed;
@@ -513,6 +575,28 @@ html:not(.morze) .oczekujacy {
   font-size: 18px;
 }
 
+html:not(.morze) #bladKodu {
+  color: #9d1c1c;
+}
+
+html:not(.morze) .kodDuzy {
+  display: inline-block;
+  padding: 0 12px;
+  background: #ffe566;
+  color: #1c3352;
+}
+
+html:not(.morze) .kodLiterki,
+html:not(.morze) .linkGry {
+  color: #1a4b86;
+}
+
+html:not(.morze) #kodWNaglowku {
+  border-radius: 8px;
+  background: #ffe566;
+  color: #1c3352;
+}
+
 html:not(.morze) #zaslonaOdNowa {
   background: rgba(70, 55, 30, 0.28);
 }
@@ -758,6 +842,24 @@ html.morze input {
 html.morze .oczekujacy {
   color: #ffe082;
   font-size: 18px;
+}
+
+html.morze #bladKodu {
+  color: #ffcdd2;
+}
+
+html.morze .kodDuzy,
+html.morze .kodLiterki {
+  color: #ffe082;
+}
+
+html.morze .linkGry {
+  color: white;
+}
+
+html.morze #kodWNaglowku {
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 html.morze .maly {
