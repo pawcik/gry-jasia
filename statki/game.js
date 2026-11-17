@@ -71,6 +71,16 @@ function wstawAwatar(rodzic, id, klasa) {
   rodzic.appendChild(pudelko);
 }
 
+// Imię ludzika (Śpioch, Kucharz...) obok obrazka, tam gdzie jest miejsce.
+function dopiszImieLudzika(rodzic, id) {
+  var a = awatarPoId(id);
+  if (!a) return;
+  var podpis = document.createElement("span");
+  podpis.className = "imieLudzika";
+  podpis.textContent = a.imie;
+  rodzic.appendChild(podpis);
+}
+
 function dopiszOsobe(rodzic, osoba, klasa, dodatki) {
   var kawalek = document.createElement("span");
   kawalek.className = "osoba";
@@ -78,6 +88,8 @@ function dopiszOsobe(rodzic, osoba, klasa, dodatki) {
   var napis = document.createElement("span");
   napis.textContent = (osoba.imie || "") + (dodatki || "");
   kawalek.appendChild(napis);
+  // Na wąskim pasku (kolejka, punkty) zostaje sam obrazek. Obok większego jest imię ludzika.
+  if (klasa !== "maly") dopiszImieLudzika(kawalek, osoba.awatar);
   rodzic.appendChild(kawalek);
 }
 
@@ -787,6 +799,7 @@ function rysujTablice() {
       var m = koniec[j];
       if (m.miejsce === 1) wiersz.className = "lider";
       wstawAwatar(wiersz, awatarGracza(m.nr), "maly");
+      dopiszImieLudzika(wiersz, awatarGracza(m.nr));
       var napisMiejsca = document.createElement("span");
       napisMiejsca.textContent = m.miejsce + ". " + m.imie + " — " + m.punkty + " pkt, trafienia " + m.trafienia + " z " + m.oddane;
       wiersz.appendChild(napisMiejsca);
@@ -860,6 +873,7 @@ function rysujBitwe(ja) {
     karta.className = "karta" + (g.nr === stan.tura && stan.etap === "bitwa" ? " naTurze" : "") + (moznaStrzelac ? " cel" : "") + (g.odpadl ? " odpadl" : "");
     var tytul = document.createElement("h3");
     wstawAwatar(tytul, g.awatar, "");
+    dopiszImieLudzika(tytul, g.awatar);
     var napisPlanszy = document.createElement("span");
     var punktyNapis = stan.sposob === "punkty" ? " · " + g.punkty + " pkt" : "";
     napisPlanszy.textContent = (g.nr === stan.ja ? "Twoje statki" : g.imie) + punktyNapis + "  🚢 " + g.zostalo + (g.odpadl || flotaPadla ? " 💀" : "") + (g.online ? "" : " 📵");
@@ -1100,6 +1114,7 @@ function rysujKartyGraczy(box, gracze) {
     karta.className = "kartaStat" + (wygralKarte ? " zwyciezca" : "");
     var tytul = document.createElement("h3");
     dopiszLudzikow(tytul, [g], wygralKarte);
+    dopiszImieLudzika(tytul, g.awatar);
     karta.appendChild(tytul);
     if (!g.strzaly) {
       dodajTekst(karta, "p", "", "Nie oddał żadnego strzału.");
