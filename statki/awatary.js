@@ -1,206 +1,158 @@
-// Mali niebiescy skrzaciki w białych, miękkich czapkach z pomponem.
-// Każdy ma inny charakter. To nasze rysunki długopisem, nie z żadnej bajki.
+// Dziesięciu skrzatów. Każdy ma inny kolor, grubą obwódkę w tym kolorze
+// i jedną dużą rzecz, żeby dało się go poznać nawet na malutkim obrazku.
+// To nasze rysunki, nie z żadnej bajki.
 // Serwer pamięta tylko krótki numer (id). Obrazek zostaje w przeglądarce.
 
-var KOLOR_ATR = "#1c3352";
-var KOLOR_SKORA = "#5ec4f5";
-var KOLOR_NOS = "#3aa6de";
-var KOLOR_UBR = "#2b86c2";
-var KOLOR_CZAPKA = "#fffdf8";
-var KOLOR_PAPIER = "#fff4dc";
-var KOLOR_RUZ = "#f6a8bb";
-var KOLOR_PASKA = "#c4843c";
-var KOLOR_BUTA = "#6b4423";
+var ATR = "#1c2430";
+var SKORA = "#ffd2a6";
 
-function ramka(srodek) {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" aria-hidden="true" focusable="false">' + srodek + "</svg>";
+// Obwódka jest ciemniejsza niż środek, żeby było ją widać na kremowej kartce.
+// Rysunek jest trochę mniejszy i siedzi w środku ramki.
+function ramka(kolor, pierscien, srodek) {
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">' +
+    '<circle cx="32" cy="32" r="30" fill="' + pierscien + '"/>' +
+    '<g transform="translate(32 32) scale(0.74) translate(-32 -32)">' +
+    '<circle cx="32" cy="32" r="30" fill="' + kolor + '"/>' +
+    srodek +
+    "</g></svg>";
 }
 
-function tlo() {
-  // Duże kółko, żeby czapka, buciki i rzeczy mieściły się w środku.
-  return '<path d="M40 3c17 0 33 12 35 30 2 18-8 36-26 41C30 79 8 70 4 50 0 30 12 8 28 4 32 3 36 3 40 3z" fill="' + KOLOR_PAPIER + '" stroke="' + KOLOR_ATR + '" stroke-width="2.2"/>';
+function oczy(y) {
+  return '<circle cx="24.5" cy="' + y + '" r="3.1" fill="' + ATR + '"/>' +
+    '<circle cx="39.5" cy="' + y + '" r="3.1" fill="' + ATR + '"/>';
 }
 
-function uszy() {
-  return '<ellipse cx="22" cy="46" rx="5.4" ry="6.4" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.6"/>' +
-    '<ellipse cx="54" cy="46" rx="5.4" ry="6.4" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.6"/>';
+function usmiech(y) {
+  return '<path d="M24 ' + y + 'c2.6 4.2 13.4 4.2 16 0" fill="none" stroke="' + ATR + '" stroke-width="2.8" stroke-linecap="round"/>';
 }
 
-function tunika() {
-  return '<path d="M26 55c1-5 6-8 12-8s11 3 12 8l4 14H22z" fill="' + KOLOR_UBR + '" stroke="' + KOLOR_ATR + '" stroke-width="1.7" stroke-linejoin="round"/>' +
-    '<rect x="25" y="60" width="26" height="3.6" rx="1.2" fill="' + KOLOR_PASKA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.1"/>' +
-    '<circle cx="38" cy="61.8" r="1.5" fill="#ffe566" stroke="' + KOLOR_ATR + '" stroke-width="0.8"/>';
-}
-
-function buty() {
-  return '<ellipse cx="30" cy="70" rx="7" ry="3.5" fill="' + KOLOR_BUTA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.4"/>' +
-    '<ellipse cx="46" cy="70" rx="7" ry="3.5" fill="' + KOLOR_BUTA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.4"/>';
-}
-
-function glowa() {
-  return '<ellipse cx="38" cy="46" rx="15" ry="13.6" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.8"/>' +
-    '<ellipse cx="38" cy="50" rx="2.8" ry="2" fill="' + KOLOR_NOS + '"/>';
-}
-
-// Długa miękka czapka opada w prawo i kończy się pomponem.
-function czapka() {
-  return '<path d="M24 44c-1-12 8-22 16-20 6-7 16-4 18 6 7-4 16 2 12 12-4 2-8 0-10-3-2 6-8 8-14 6-6 2-14 4-22-1z" fill="' + KOLOR_CZAPKA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linejoin="round"/>' +
-    '<circle cx="66" cy="40" r="5.2" fill="' + KOLOR_CZAPKA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.7"/>' +
-    '<path d="M32 28c4-2 10-1 13 3" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>';
-}
-
-function czapkaWLewo() {
-  return '<g transform="translate(76 0) scale(-1 1)">' + czapka() + "</g>";
-}
-
-function policzki() {
-  return '<ellipse cx="28" cy="53" rx="2.4" ry="1.5" fill="' + KOLOR_RUZ + '"/>' +
-    '<ellipse cx="48" cy="53" rx="2.4" ry="1.5" fill="' + KOLOR_RUZ + '"/>';
-}
-
-function oczyOtwarte() {
-  return '<ellipse cx="32" cy="46" rx="3.2" ry="3.5" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<ellipse cx="45" cy="46" rx="3.2" ry="3.5" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="33" cy="47" r="1.5" fill="' + KOLOR_ATR + '"/>' +
-    '<circle cx="46" cy="47" r="1.5" fill="' + KOLOR_ATR + '"/>' +
-    '<circle cx="32.3" cy="45.8" r="0.55" fill="#fff"/>' +
-    '<circle cx="45.3" cy="45.8" r="0.55" fill="#fff"/>';
-}
-
-function usmiech() {
-  return '<path d="M31 54c2.2 3 7 3.6 14 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.7" stroke-linecap="round"/>';
-}
-
-function duzyUsmiech() {
-  return '<path d="M29 53c3 5.4 11 6.2 17 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>';
-}
-
-function cialo() {
-  return uszy() + tunika() + buty() + glowa();
-}
-
-// Śpioch ciągle zasypia. Oczy ma zamknięte, a obok lecą zzz.
+// Śpioch: fiolet, długa nocna czapka z żółtym pomponem i poduszka.
 function svgSpioch() {
-  var zzz = '<path d="M16 22h10L16 32h10" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
-    '<path d="M24 15h7L24 22h7" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>';
-  var spi = '<path d="M28 47c2-2.6 5.4-2.6 7.2 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="2" stroke-linecap="round"/>' +
-    '<path d="M41 47c2-2.6 5.4-2.6 7.2 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="2" stroke-linecap="round"/>' +
-    '<ellipse cx="38" cy="55" rx="2.6" ry="3" fill="' + KOLOR_ATR + '"/>' +
-    '<ellipse cx="38" cy="54.4" rx="1.3" ry="1.4" fill="' + KOLOR_RUZ + '"/>';
-  return ramka(tlo() + zzz + cialo() + czapka() + spi + policzki());
+  var glowa = '<circle cx="34" cy="38" r="14" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var spi = '<path d="M24 37c2.6 3.6 6.8 3.6 9.2 0" fill="none" stroke="' + ATR + '" stroke-width="3.2" stroke-linecap="round"/>' +
+    '<path d="M38 37c2.6 3.6 6.8 3.6 9.2 0" fill="none" stroke="' + ATR + '" stroke-width="3.2" stroke-linecap="round"/>';
+  var czapka = '<path d="M22 34c1-16 14-22 20-12 5-8 16-2 12 8-3 4-7 5-11 4-1 7-10 11-18 8-5-1-6-4-3-8z" fill="#fffdf8" stroke="' + ATR + '" stroke-width="2.4" stroke-linejoin="round"/>' +
+    '<circle cx="48" cy="18" r="8" fill="#ffe14a" stroke="' + ATR + '" stroke-width="2.4"/>';
+  var poduszka = '<rect x="12" y="48" width="40" height="13" rx="6" fill="#ffe7b0" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<path d="M20 54.5h24" stroke="#e7c56a" stroke-width="2.6" stroke-linecap="round"/>';
+  var zzz = '<path d="M8 28h11L8 38h11" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>';
+  return ramka("#6d45c4", "#3b1d7a", glowa + spi + czapka + poduszka + zzz);
 }
 
-// Łasuch trzyma wielkie ciastko i ma okruszki na buzi.
+// Łasuch: różowy, wielka babeczka z wisienką zasłania pół buzi.
 function svgLasuch() {
-  var ciastko = '<circle cx="64" cy="58" r="10" fill="#e4b15c" stroke="' + KOLOR_ATR + '" stroke-width="1.7"/>' +
-    '<circle cx="60" cy="54" r="1.5" fill="#5c3b22"/>' +
-    '<circle cx="67" cy="56" r="1.45" fill="#5c3b22"/>' +
-    '<circle cx="62" cy="61" r="1.35" fill="#5c3b22"/>' +
-    '<circle cx="68" cy="62" r="1.2" fill="#5c3b22"/>' +
-    '<circle cx="55" cy="58" r="3" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="34" cy="51" r="0.8" fill="#c4843c"/>' +
-    '<circle cx="42" cy="49.5" r="0.7" fill="#c4843c"/>';
-  var radosne = '<path d="M28 47q3.4-3.6 7 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>' +
-    '<path d="M41 47q3.4-3.6 7 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>';
-  return ramka(tlo() + cialo() + czapkaWLewo() + radosne + duzyUsmiech() + policzki() + ciastko);
+  var glowa = '<circle cx="28" cy="30" r="15" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var radosne = '<path d="M18 28c2-3.4 6-3.4 8 0" fill="none" stroke="' + ATR + '" stroke-width="3" stroke-linecap="round"/>' +
+    '<path d="M30 28c2-3.4 6-3.4 8 0" fill="none" stroke="' + ATR + '" stroke-width="3" stroke-linecap="round"/>';
+  var papilot = '<path d="M30 42h28l-4 14H34z" fill="#f0b429" stroke="' + ATR + '" stroke-width="2.3" stroke-linejoin="round"/>' +
+    '<path d="M37 44l-1 10M44 44v11M51 44l1 10" stroke="' + ATR + '" stroke-width="1.8"/>';
+  var krem = '<ellipse cx="44" cy="40" rx="15" ry="11" fill="#fff" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<path d="M32 40c4-6 8-6 12 0s8 6 12 0" fill="none" stroke="#ff8ab4" stroke-width="2.6" stroke-linecap="round"/>';
+  var wisnia = '<circle cx="44" cy="28" r="6" fill="#e11d48" stroke="' + ATR + '" stroke-width="2.2"/>' +
+    '<path d="M44 22c2-5 8-4 7 1" fill="none" stroke="#166534" stroke-width="2.4" stroke-linecap="round"/>';
+  return ramka("#ff4f8b", "#b01258", glowa + radosne + papilot + krem + wisnia);
 }
 
-// Kucharz ma czerwoną chustkę i drewnianą łyżkę. Czapka zostaje biała.
+// Kucharz: czerwony, wysoka biała czapka kucharza.
 function svgKucharz() {
-  var chusta = '<path d="M32 56l6 8 6-8" fill="#e14b46" stroke="' + KOLOR_ATR + '" stroke-width="1.3" stroke-linejoin="round"/>';
-  var lyzka = '<g transform="translate(62 46) rotate(-35)">' +
-    '<rect x="-2.2" y="2" width="4.6" height="20" rx="2" fill="' + KOLOR_PASKA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<ellipse cx="0" cy="-1" rx="7.2" ry="8.2" fill="#e8c48a" stroke="' + KOLOR_ATR + '" stroke-width="1.6"/>' +
-    "</g>";
-  return ramka(tlo() + cialo() + chusta + czapkaWLewo() + oczyOtwarte() + usmiech() + policzki() + lyzka);
+  var fartuch = '<path d="M16 58c4-14 28-14 32 0z" fill="#fff" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var glowa = '<circle cx="32" cy="46" r="13" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var czapka = '<rect x="18" y="6" width="28" height="24" rx="12" fill="#fff" stroke="' + ATR + '" stroke-width="2.4"/>' +
+    '<rect x="14" y="24" width="36" height="10" rx="2" fill="#fff" stroke="' + ATR + '" stroke-width="2.4"/>';
+  return ramka("#e53935", "#8f1518", fartuch + glowa + oczy(45) + usmiech(50) + czapka);
 }
 
-// Mądrala nosi duże okulary i czyta małą książkę.
+// Mądrala: zielony, wielkie okulary i otwarta książka.
 function svgMadrala() {
-  var ksiazka = '<path d="M26 63h24v10H26z" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.5" stroke-linejoin="round"/>' +
-    '<path d="M38 63v10" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>' +
-    '<path d="M29 66h6M41 66h6M29 69h6M41 69h5" fill="none" stroke="#7ea0c4" stroke-width="1.1" stroke-linecap="round"/>';
-  var okulary = '<circle cx="32" cy="46" r="6.3" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.7"/>' +
-    '<circle cx="45" cy="46" r="6.3" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.7"/>' +
-    '<path d="M38.2 46h1.6" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.5" stroke-linecap="round"/>';
-  var brew = '<path d="M26 40q5-3.4 9 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.6" stroke-linecap="round"/>' +
-    '<path d="M41 41.5h9" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.6" stroke-linecap="round"/>';
-  return ramka(tlo() + cialo() + ksiazka + czapka() + oczyOtwarte() + okulary + brew + usmiech() + policzki());
+  var glowa = '<circle cx="32" cy="30" r="16" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var okulary = '<circle cx="23" cy="27" r="8.2" fill="#e7f4ff" stroke="' + ATR + '" stroke-width="3.4"/>' +
+    '<circle cx="42" cy="27" r="8.2" fill="#e7f4ff" stroke="' + ATR + '" stroke-width="3.4"/>' +
+    '<path d="M31.2 27h3.6" stroke="' + ATR + '" stroke-width="3.2" stroke-linecap="round"/>' +
+    '<circle cx="24.2" cy="27.6" r="2.4" fill="' + ATR + '"/>' +
+    '<circle cx="43.2" cy="27.6" r="2.4" fill="' + ATR + '"/>';
+  var buzia = '<path d="M25 40c2.4 3.4 12 3.4 15 0" fill="none" stroke="' + ATR + '" stroke-width="2.6" stroke-linecap="round"/>';
+  var ksiazka = '<path d="M6 50 L32 44 L32 60 L6 62 Z" fill="#fffdf8" stroke="' + ATR + '" stroke-width="2.2" stroke-linejoin="round"/>' +
+    '<path d="M58 50 L32 44 L32 60 L58 62 Z" fill="#d9e6ff" stroke="' + ATR + '" stroke-width="2.2" stroke-linejoin="round"/>' +
+    '<path d="M14 53h10M40 53h10" stroke="#2f62d6" stroke-width="2.3" stroke-linecap="round"/>';
+  return ramka("#1f9d57", "#0b5e34", glowa + okulary + buzia + ksiazka);
 }
 
-// Siłacz trzyma czerwoną hantlę z boku, żeby było ją widać.
+// Siłacz: pomarańczowy, czerwona hantla nad głową.
 function svgSilacz() {
-  var hantla = '<rect x="54" y="46" width="14" height="4.2" rx="2" fill="#d5dbe2" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="55" cy="48.1" r="5" fill="#e14b46" stroke="' + KOLOR_ATR + '" stroke-width="1.5"/>' +
-    '<circle cx="68" cy="48.1" r="5" fill="#e14b46" stroke="' + KOLOR_ATR + '" stroke-width="1.5"/>' +
-    '<circle cx="50" cy="50" r="2.6" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>';
-  var brwi = '<path d="M27 42l7 2" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.7" stroke-linecap="round"/>' +
-    '<path d="M42 44l7-2" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.7" stroke-linecap="round"/>';
-  return ramka(tlo() + cialo() + czapkaWLewo() + brwi + oczyOtwarte() + usmiech() + policzki() + hantla);
+  var koszula = '<path d="M12 58c6-14 34-14 40 0z" fill="#d32f2f" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var glowa = '<circle cx="32" cy="44" r="13" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var brwi = '<path d="M22 38h8M34 38h8" stroke="' + ATR + '" stroke-width="3" stroke-linecap="round"/>';
+  var hantla = '<rect x="12" y="14" width="40" height="8" rx="3" fill="#6d4c41" stroke="' + ATR + '" stroke-width="2.2"/>' +
+    '<circle cx="14" cy="18" r="9.5" fill="#e23b32" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<circle cx="50" cy="18" r="9.5" fill="#e23b32" stroke="' + ATR + '" stroke-width="2.3"/>';
+  return ramka("#f57c00", "#9a3412", koszula + glowa + brwi + oczy(44) + usmiech(50) + hantla);
 }
 
-// Maruda ma zmarszczone brwi, smutne usta i skrzyżowane ręce.
+// Maruda: szary, zmarszczone brwi, duży dąs i skrzyżowane ręce.
 function svgMaruda() {
-  var rece = '<path d="M27 60l22 9" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="4.4" stroke-linecap="round"/>' +
-    '<path d="M27 60l22 9" fill="none" stroke="' + KOLOR_SKORA + '" stroke-width="2.2" stroke-linecap="round"/>' +
-    '<path d="M27 69l22-9" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="4.4" stroke-linecap="round"/>' +
-    '<path d="M27 69l22-9" fill="none" stroke="' + KOLOR_SKORA + '" stroke-width="2.2" stroke-linecap="round"/>';
-  var brwi = '<path d="M27 41l8 3.5" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>' +
-    '<path d="M41 44.5l8-3.5" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>';
-  var usta = '<path d="M31 56c2.2-3.2 7.4-3.6 14 0" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.8" stroke-linecap="round"/>';
-  return ramka(tlo() + cialo() + rece + czapka() + brwi + oczyOtwarte() + usta);
+  var glowa = '<circle cx="32" cy="28" r="16" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var brwi = '<path d="M16 18l12 6" stroke="' + ATR + '" stroke-width="4.4" stroke-linecap="round"/>' +
+    '<path d="M48 18L36 24" stroke="' + ATR + '" stroke-width="4.4" stroke-linecap="round"/>';
+  var usta = '<path d="M20 44c4-8 20-8 24 0" fill="none" stroke="' + ATR + '" stroke-width="4.4" stroke-linecap="round"/>';
+  var rece = '<path d="M12 48L52 60" stroke="' + ATR + '" stroke-width="9" stroke-linecap="round"/>' +
+    '<path d="M12 48L52 60" stroke="' + SKORA + '" stroke-width="5" stroke-linecap="round"/>' +
+    '<path d="M52 48L12 60" stroke="' + ATR + '" stroke-width="9" stroke-linecap="round"/>' +
+    '<path d="M52 48L12 60" stroke="' + SKORA + '" stroke-width="5" stroke-linecap="round"/>';
+  return ramka("#607086", "#2c3a48", glowa + brwi + oczy(30) + usta + rece);
 }
 
-// Wesołek macha ręką i ma wielki uśmiech.
+// Wesołek: żółty, wielki uśmiech i machająca ręka.
 function svgWesolek() {
-  var reka = '<path d="M50 58c3-3 6-7 8-11" fill="none" stroke="' + KOLOR_UBR + '" stroke-width="4" stroke-linecap="round"/>' +
-    '<circle cx="62" cy="44" r="6.4" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.5"/>' +
-    '<circle cx="57" cy="39" r="2.5" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>' +
-    '<circle cx="62.5" cy="36.5" r="2.5" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>' +
-    '<circle cx="68" cy="40" r="2.5" fill="' + KOLOR_SKORA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>';
-  var iskra = '<path d="M16 28l1.5 3.8 4 .6-3.1 2.6 1 4L16 36.4l-3.4 2.6 1-4-3.1-2.6 4-.6z" fill="#ffe566" stroke="' + KOLOR_ATR + '" stroke-width="1" stroke-linejoin="round"/>';
-  return ramka(tlo() + iskra + cialo() + reka + czapkaWLewo() + oczyOtwarte() + duzyUsmiech() + policzki());
+  var reka = '<path d="M40 38c8-2 12-10 10-16" fill="none" stroke="' + ATR + '" stroke-width="8" stroke-linecap="round"/>' +
+    '<path d="M40 38c8-2 12-10 10-16" fill="none" stroke="' + SKORA + '" stroke-width="4.6" stroke-linecap="round"/>' +
+    '<circle cx="50" cy="20" r="7" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.2"/>' +
+    '<circle cx="45" cy="15" r="2.7" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="1.6"/>' +
+    '<circle cx="50" cy="13" r="2.7" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="1.6"/>' +
+    '<circle cx="55" cy="16" r="2.7" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="1.6"/>';
+  var glowa = '<circle cx="30" cy="36" r="18" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var radosne = '<path d="M18 32c2.4-4.5 7-4.5 9.2 0" fill="none" stroke="' + ATR + '" stroke-width="3.2" stroke-linecap="round"/>' +
+    '<path d="M33 32c2.4-4.5 7-4.5 9.2 0" fill="none" stroke="' + ATR + '" stroke-width="3.2" stroke-linecap="round"/>';
+  var buzia = '<path d="M16 38c2 14 26 14 28 0z" fill="#fff" stroke="' + ATR + '" stroke-width="2.4"/>';
+  return ramka("#f5c000", "#8a5a00", reka + glowa + radosne + buzia);
 }
 
-// Malarz macha pędzlem. Obok są kleksy farby.
+// Malarz: morski, czerwony beret i paleta z trzema plamami farby.
 function svgMalarz() {
-  var kleksy = '<circle cx="14" cy="36" r="3.3" fill="#3d9a4a" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>' +
-    '<circle cx="16" cy="58" r="2.3" fill="#3d7ec9" stroke="' + KOLOR_ATR + '" stroke-width="1"/>';
-  var pedzel = '<g transform="translate(64 50) rotate(-50)">' +
-    '<rect x="-2" y="0" width="4.2" height="18" rx="2" fill="#8a5a32" stroke="' + KOLOR_ATR + '" stroke-width="1.2"/>' +
-    '<rect x="-2.6" y="-4" width="5.4" height="6" rx="1" fill="#d5dbe2" stroke="' + KOLOR_ATR + '" stroke-width="1.1"/>' +
-    '<ellipse cx="0" cy="-8" rx="4.4" ry="5.6" fill="#ffe566" stroke="' + KOLOR_ATR + '" stroke-width="1.4"/>' +
-    "</g>";
-  return ramka(tlo() + kleksy + cialo() + czapkaWLewo() + oczyOtwarte() + usmiech() + policzki() + pedzel);
+  var beret = '<ellipse cx="32" cy="16" rx="18" ry="9" fill="#e53935" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<ellipse cx="32" cy="17" rx="6" ry="3" fill="#b71c1c"/>';
+  var glowa = '<circle cx="32" cy="32" r="14" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var paleta = '<ellipse cx="36" cy="50" rx="20" ry="12" fill="#f6e2c0" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<circle cx="22" cy="50" r="4.2" fill="#00a0b8" stroke="' + ATR + '" stroke-width="2"/>' +
+    '<circle cx="34" cy="45" r="4.6" fill="#e53935" stroke="' + ATR + '" stroke-width="1.6"/>' +
+    '<circle cx="44" cy="48" r="4.6" fill="#f5c000" stroke="' + ATR + '" stroke-width="1.6"/>' +
+    '<circle cx="38" cy="55" r="4.6" fill="#1f9d57" stroke="' + ATR + '" stroke-width="1.6"/>';
+  return ramka("#00a0b8", "#015a68", beret + glowa + oczy(31) + usmiech(37) + paleta);
 }
 
-// Pirat ma opaskę na oku i czerwoną wstążkę na czapce. Bez czaszki, żeby nie straszył.
+// Pirat: ciemny, czerwona chusta i wielka opaska na oku. Bez czaszki, żeby nie straszył.
 function svgPirat() {
-  var wstazka = '<path d="M28 34c6-3 14-2 20 2" fill="none" stroke="#e14b46" stroke-width="3" stroke-linecap="round"/>';
-  var opaska = '<path d="M24 42c6-2 12-1 18 2" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.4" stroke-linecap="round"/>' +
-    '<ellipse cx="32" cy="46.5" rx="5.8" ry="5" fill="' + KOLOR_ATR + '"/>';
-  var oko = '<ellipse cx="45" cy="46" rx="3.2" ry="3.5" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="46" cy="47" r="1.5" fill="' + KOLOR_ATR + '"/>' +
-    '<circle cx="45.3" cy="45.8" r="0.55" fill="#fff"/>';
-  var statek = '<path d="M12 62h11l-2.2 5.2H14.2z" fill="' + KOLOR_PASKA + '" stroke="' + KOLOR_ATR + '" stroke-width="1.2" stroke-linejoin="round"/>' +
-    '<path d="M17.5 62v-8" fill="none" stroke="' + KOLOR_ATR + '" stroke-width="1.3" stroke-linecap="round"/>' +
-    '<path d="M17.5 54l6 6h-6z" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.1" stroke-linejoin="round"/>';
-  return ramka(tlo() + statek + cialo() + czapka() + wstazka + oko + opaska + usmiech() + policzki());
+  var glowa = '<circle cx="32" cy="36" r="17" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var bandana = '<path d="M14 36c1-16 12-22 18-18 6-6 18-2 18 18z" fill="#e11d48" stroke="' + ATR + '" stroke-width="2.3" stroke-linejoin="round"/>' +
+    '<path d="M46 28c8 0 12 6 8 10-5 0-8-3-8-10z" fill="#e11d48" stroke="' + ATR + '" stroke-width="2.2"/>';
+  var pasek = '<path d="M14 34c12-6 24-2 38 8" fill="none" stroke="#141414" stroke-width="4.5" stroke-linecap="round"/>';
+  var opaska = '<ellipse cx="24" cy="40" rx="9" ry="8" fill="#141414"/>';
+  var oko = '<circle cx="43" cy="40" r="4.2" fill="#fff" stroke="' + ATR + '" stroke-width="2"/>' +
+    '<circle cx="44.2" cy="40.6" r="2.1" fill="' + ATR + '"/>';
+  var usmiechPirat = '<path d="M28 50c2.4 3.4 8 3.6 11 0" fill="none" stroke="' + ATR + '" stroke-width="2.8" stroke-linecap="round"/>';
+  var kolczyk = '<circle cx="50" cy="48" r="3.6" fill="none" stroke="#f5c000" stroke-width="2.6"/>';
+  return ramka("#3b271c", "#a35b32", glowa + bandana + pasek + opaska + oko + usmiechPirat + kolczyk);
 }
 
-// Kapitan patrzy przez złotą lunetę. Na ubraniu ma dwa złote guziki.
+// Kapitan: niebieski, biała czapka z daszkiem i złotym kółkiem.
 function svgKapitan() {
-  var guziki = '<circle cx="38" cy="66" r="2" fill="#e2b100" stroke="' + KOLOR_ATR + '" stroke-width="1"/>' +
-    '<circle cx="38" cy="70.5" r="1.7" fill="#e2b100" stroke="' + KOLOR_ATR + '" stroke-width="0.9"/>';
-  var luneta = '<g transform="translate(46 44) rotate(-8)">' +
-    '<rect x="0" y="-3.6" width="20" height="7.2" rx="3" fill="#e2b100" stroke="' + KOLOR_ATR + '" stroke-width="1.4"/>' +
-    '<rect x="16" y="-4.8" width="6.5" height="9.6" rx="2" fill="#f0d56a" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="3" cy="0" r="1.8" fill="#9fd4f0" stroke="' + KOLOR_ATR + '" stroke-width="1"/>' +
-    "</g>";
-  var oko = '<ellipse cx="32" cy="46" rx="3.2" ry="3.5" fill="#fff" stroke="' + KOLOR_ATR + '" stroke-width="1.3"/>' +
-    '<circle cx="33" cy="47" r="1.5" fill="' + KOLOR_ATR + '"/>' +
-    '<circle cx="32.3" cy="45.8" r="0.55" fill="#fff"/>';
-  return ramka(tlo() + cialo() + guziki + czapkaWLewo() + oko + luneta + usmiech() + policzki());
+  var mundur = '<path d="M12 58c6-12 34-12 40 0z" fill="#0d3b86" stroke="' + ATR + '" stroke-width="2.3"/>' +
+    '<circle cx="26" cy="52" r="2.6" fill="#f5c000" stroke="' + ATR + '" stroke-width="1.4"/>' +
+    '<circle cx="38" cy="52" r="2.6" fill="#f5c000" stroke="' + ATR + '" stroke-width="1.4"/>';
+  var glowa = '<circle cx="32" cy="44" r="14" fill="' + SKORA + '" stroke="' + ATR + '" stroke-width="2.3"/>';
+  var czapka = '<rect x="16" y="12" width="32" height="16" rx="3" fill="#fff" stroke="' + ATR + '" stroke-width="2.4"/>' +
+    '<circle cx="32" cy="20" r="4.4" fill="#f5c000" stroke="' + ATR + '" stroke-width="1.8"/>' +
+    '<path d="M8 28h48l-7 8H15z" fill="#141414" stroke="' + ATR + '" stroke-width="2.2" stroke-linejoin="round"/>';
+  return ramka("#1d6fd4", "#0d3f8f", mundur + glowa + oczy(44) + usmiech(50) + czapka);
 }
 
 var AWATARY = [
