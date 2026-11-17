@@ -177,8 +177,16 @@ ul {
 }
 
 .awatar.maly {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+}
+
+.imieLudzika {
+  font-size: 0.72em;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(28, 36, 48, 0.08);
 }
 
 .osoba {
@@ -808,6 +816,10 @@ html.morze body {
   background: linear-gradient(#0b3d5c, #1565a0) fixed;
   color: white;
   font-family: "Trebuchet MS", "Comic Sans MS", sans-serif;
+}
+
+html.morze .imieLudzika {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 html.morze header {
