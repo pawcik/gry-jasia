@@ -1,6 +1,6 @@
 // Robot do statków. Ustawia flotę losowo (to robi serwer) i strzela sam.
-// Najpierw losuje pole, a gdy trafi — szuka obok, wzdłuż statku.
-// Nie widzi ukrytych statków, więc da się go pokonać.
+// Prawie zawsze losuje pole. Tylko czasem szuka obok trafienia i często o nim zapomina.
+// Nie zagląda pod statki, więc dziecko wygrywa częściej niż robot.
 
 // Podgląd (nie zwykła gra w domu) włącza grę z robotem.
 // STATKI_PODGLAD=1, albo port 8090, albo adres kończący się na :50090.
@@ -74,12 +74,19 @@ function polaWolne(strzaly) {
   return wolne;
 }
 
+// Jak często robot, mając trafienie, strzela obok zamiast losowo. Mało, żeby dało się wygrać.
+var SZANSA_POLOWANIA = 0.2;
+
 // Numer pola albo -1, gdy nie ma już gdzie strzelać.
+// Losuje wodę. Od czasu do czasu trafia w pole obok trafienia. Resztę razy zapomina i strzela gdzie indziej.
 function wybierzPoleRobota(strzaly, rozmiar) {
-  var cele = polaPolowania(strzaly, rozmiar);
-  if (!cele.length) cele = polaWolne(strzaly);
-  if (!cele.length) return -1;
-  return cele[Math.floor(Math.random() * cele.length)];
+  var wolne = polaWolne(strzaly);
+  if (!wolne.length) return -1;
+  if (Math.random() < SZANSA_POLOWANIA) {
+    var cele = polaPolowania(strzaly, rozmiar);
+    if (cele.length) return cele[Math.floor(Math.random() * cele.length)];
+  }
+  return wolne[Math.floor(Math.random() * wolne.length)];
 }
 
 function czyPoluje(strzaly, rozmiar) {
@@ -91,6 +98,7 @@ if (typeof module !== "undefined") {
     podgladZRobotem: podgladZRobotem,
     polaPolowania: polaPolowania,
     wybierzPoleRobota: wybierzPoleRobota,
-    czyPoluje: czyPoluje
+    czyPoluje: czyPoluje,
+    SZANSA_POLOWANIA: SZANSA_POLOWANIA
   };
 }
