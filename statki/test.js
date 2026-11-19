@@ -230,7 +230,7 @@ test("flaga robota: podgląd, port 8090 albo adres :50090", function () {
   assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:500901"), false);
 });
 
-test("robot po trafieniu szuka na końcach linii", function () {
+test("robot po trafieniu zwykle losuje i tylko czasem szuka obok", function () {
   var rozmiar = 7;
   var strzaly = [];
   for (var i = 0; i < rozmiar * rozmiar; i++) strzaly.push(0);
@@ -239,10 +239,17 @@ test("robot po trafieniu szuka na końcach linii", function () {
   var cele = robot.polaPolowania(strzaly, rozmiar);
   cele.sort(function (a, b) { return a - b; });
   assert.deepEqual(cele, [15, 18]);
-  for (var n = 0; n < 30; n++) {
+  assert.ok(robot.SZANSA_POLOWANIA < 0.35);
+  var obok = 0;
+  var inne = 0;
+  for (var n = 0; n < 200; n++) {
     var pole = robot.wybierzPoleRobota(strzaly, rozmiar);
-    assert.ok(pole === 15 || pole === 18, "pole " + pole);
+    assert.ok(strzaly[pole] === 0);
+    if (pole === 15 || pole === 18) obok++;
+    else inne++;
   }
+  assert.ok(inne > obok, "za często szuka obok: " + obok);
+  assert.ok(obok > 5, "ani razu nie szukał obok: " + obok);
   strzaly[17] = 0;
   var wokol = robot.polaPolowania(strzaly, rozmiar);
   wokol.sort(function (a, b) { return a - b; });
