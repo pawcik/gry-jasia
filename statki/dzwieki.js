@@ -123,19 +123,22 @@ function nastroj() {
   return 0.94 + Math.random() * 0.12;
 }
 
-// Armata: krótkie wesołe "bum-pop". Słychać je też w telefonie (nie tylko gruby bas).
+// Armata na statku: niskie bum, krótki trzask na początku, pomruk i ciche echo nad wodą.
+// Całość krótsza niż sekunda i nie za głośna. Pudło i trafienie grają osobno.
 function dzwiekStrzalu() {
   if (!dzwieki) return;
   var g = GLOSNOSC_ARMATA;
   var n = nastroj();
-  // Miękkie bum, które chwilę zostaje, żeby było "bum", a nie tyknięcie
-  zagrajTonMiekki("sine", 300 * n, 130 * n, 0.22, 0.2 * g, 0, 0.006, 0.05);
-  // Wyraźny pop, który podskakuje jak piłka
-  zagrajBoing(620 * n, 230 * n, 330 * n, 0.14, 0.15 * g, 0);
-  // Cichy świst lecącej piłki, w dół, bez ostrego pisku
-  zagrajTonMiekki("sine", 820 * n, 460 * n, 0.1, 0.04 * g, 0.02, 0.012);
-  // Powietrze: cichy "puf", filtr ścina ostry trzask
-  zagrajSzum(0.08, "lowpass", 1100, 0.06 * g, 0, 0.006, 420);
+  // Grube bum, słychać też w telefonie (zaczyna wyżej niż sam bas)
+  zagrajTonMiekki("sine", 130 * n, 42 * n, 0.48, 0.2 * g, 0, 0.004, 0.03);
+  zagrajTonMiekki("sine", 70 * n, 36 * n, 0.55, 0.12 * g, 0, 0.006, 0.04);
+  // Ostry początek: bardzo krótki szum, filtr ścina pisk
+  zagrajSzum(0.045, "bandpass", 1600, 0.09 * g, 0, 0.003, 700, 0.8);
+  // Krótki pomruk po wystrzale
+  zagrajSzum(0.55, "lowpass", 380, 0.1 * g, 0.02, 0.01, 90);
+  // Echo nad wodą: to samo bum, ciszej i trochę później
+  zagrajTonMiekki("sine", 110 * n, 48 * n, 0.32, 0.07 * g, 0.18, 0.008, 0.02);
+  zagrajSzum(0.28, "lowpass", 500, 0.04 * g, 0.2, 0.012, 160);
 }
 
 // Bąbelek: krótki ton, który szybko idzie w górę ("blup")
