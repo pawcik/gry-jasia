@@ -47,6 +47,9 @@
     <input id="poleNowegoKodu" maxlength="16" placeholder="jas1" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" inputmode="text">
     <p class="maly">Litery i cyfry, od 3 do 8. Na przykład jas1.</p>
     <button id="nowaGraStart" class="duzy">Nowa gra 🚢</button>
+    <p class="albo" id="alboRobot" style="display:none">albo</p>
+    <button id="grajZRobotem" class="duzy" style="display:none">Graj z robotem 🤖</button>
+    <p class="maly" id="opisRobota" style="display:none">Robot sam ustawia statki i strzela. Da się go wygrać!</p>
     <p class="albo">albo</p>
     <p>Masz kod od kogoś?</p>
     <input id="poleKodu" maxlength="16" placeholder="ala3" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="go" inputmode="text">
@@ -84,7 +87,7 @@
     <h2>Poczekalnia</h2>
     <p id="kodDuzy" class="kodDuzy"></p>
     <p id="kodLiterki" class="kodLiterki"></p>
-    <p class="maly">Powiedz ten kod innym, żeby weszli do tej gry.</p>
+    <p class="maly" id="opisKodu">Powiedz ten kod innym, żeby weszli do tej gry.</p>
     <p id="linkGry" class="linkGry"></p>
     <ul id="listaGraczy"></ul>
     <div id="oczekujacy" class="oczekujacy"></div>

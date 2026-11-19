@@ -389,6 +389,7 @@ ul {
 .wybuch::before {
   content: "";
   position: absolute;
+  z-index: 3;
   inset: 0;
   border: 3px solid white;
   border-radius: 50%;
@@ -656,13 +657,20 @@ html:not(.morze) .kratka {
   background: #fbf8f1;
 }
 
-/* Długopis na brzegu statku. Cień nie zmienia rozmiaru kratki, więc siatka zostaje równa. */
-html:not(.morze) .kratka {
-  box-shadow:
-    inset 0 3px 0 var(--obrys-gora, transparent),
-    inset 0 -3px 0 var(--obrys-dol, transparent),
-    inset 3px 0 0 var(--obrys-lewo, transparent),
-    inset -3px 0 0 var(--obrys-prawo, transparent);
+/* Statek z góry: dziób, pokład i rufa. Obrót w pionie jest na rysunku. */
+.sylwetka {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sylwetka.pion {
+  transform: rotate(90deg);
+  transform-origin: center;
 }
 
 html:not(.morze) .opis {
@@ -693,46 +701,74 @@ html:not(.morze) .zatopiony.wybuch::before {
   border-color: #c43737;
 }
 
-/* Trafienie: krzyżyk. Zatopiony statek: większy, mocniejszy krzyż. */
+/* Kartka: statek narysowany długopisem. Trafienie to krzyżyk nad rysunkiem. */
 html:not(.morze) .trafiony,
 html:not(.morze) .zatopiony,
 html:not(.morze) .statek {
   background-color: #fbf8f1;
 }
 
-html:not(.morze) .trafiony {
-  background-image:
-    linear-gradient(45deg, transparent 46%, #c43737 46%, #c43737 54%, transparent 54%),
-    linear-gradient(-45deg, transparent 46%, #c43737 46%, #c43737 54%, transparent 54%);
-  background-size: 68% 68%, 68% 68%;
-  background-position: center, center;
-  background-repeat: no-repeat;
+html:not(.morze) .sylwetka .kadlub,
+html:not(.morze) .sylwetka .linia,
+html:not(.morze) .sylwetka .kabina,
+html:not(.morze) .sylwetka .okno {
+  fill: none;
+  stroke: #16365c;
+  stroke-width: 3.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+html:not(.morze) .sylwetka .okno {
+  fill: #fbf8f1;
+}
+
+html:not(.morze) .sylwetka .komin {
+  fill: #16365c;
+  stroke: none;
 }
 
 html:not(.morze) .zatopiony {
   background-color: #fde8e4;
+}
+
+html:not(.morze) .zatopiony .sylwetka .kadlub,
+html:not(.morze) .zatopiony .sylwetka .linia,
+html:not(.morze) .zatopiony .sylwetka .kabina,
+html:not(.morze) .zatopiony .sylwetka .okno {
+  stroke: #9d1c1c;
+}
+
+html:not(.morze) .zatopiony .sylwetka .okno {
+  fill: #fde8e4;
+}
+
+html:not(.morze) .zatopiony .sylwetka .komin {
+  fill: #9d1c1c;
+}
+
+html:not(.morze) .trafiony::after,
+html:not(.morze) .zatopiony::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  top: 18%;
+  width: 64%;
+  height: 64%;
+  z-index: 2;
+  pointer-events: none;
   background-image:
-    linear-gradient(45deg, transparent 42%, #9d1c1c 42%, #9d1c1c 58%, transparent 58%),
-    linear-gradient(-45deg, transparent 42%, #9d1c1c 42%, #9d1c1c 58%, transparent 58%);
-  background-size: 86% 86%, 86% 86%;
-  background-position: center, center;
+    linear-gradient(45deg, transparent 44%, #c43737 44%, #c43737 56%, transparent 56%),
+    linear-gradient(-45deg, transparent 44%, #c43737 44%, #c43737 56%, transparent 56%);
+  background-size: 100% 100%;
   background-repeat: no-repeat;
 }
 
-html:not(.morze) .statek {
-  background-color: #e7eef6;
+html:not(.morze) .zatopiony::after {
+  background-image:
+    linear-gradient(45deg, transparent 40%, #9d1c1c 40%, #9d1c1c 60%, transparent 60%),
+    linear-gradient(-45deg, transparent 40%, #9d1c1c 40%, #9d1c1c 60%, transparent 60%);
 }
-
-html:not(.morze) .krawedzGora { --obrys-gora: #16365c; }
-html:not(.morze) .krawedzDol { --obrys-dol: #16365c; }
-html:not(.morze) .krawedzLewo { --obrys-lewo: #16365c; }
-html:not(.morze) .krawedzPrawo { --obrys-prawo: #16365c; }
-
-/* Zatopiony statek: czerwony długopis, jak przekreślona ramka. */
-html:not(.morze) .zatopiony.krawedzGora { --obrys-gora: #9d1c1c; }
-html:not(.morze) .zatopiony.krawedzDol { --obrys-dol: #9d1c1c; }
-html:not(.morze) .zatopiony.krawedzLewo { --obrys-lewo: #9d1c1c; }
-html:not(.morze) .zatopiony.krawedzPrawo { --obrys-prawo: #9d1c1c; }
 
 html:not(.morze) .podglad {
   background: #b7e3a8 !important;
@@ -934,22 +970,69 @@ html.morze .zatopiony.wybuch::before {
 }
 
 html.morze .trafiony {
-  background: #ff7043;
-  color: white;
+  background: #ffccbc;
+  color: #4e342e;
 }
 
 html.morze .trafiony::after,
 html.morze .zatopiony::after {
   content: "✖";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
 }
 
 html.morze .zatopiony {
-  background: #7b1c1c;
-  color: #ffcdd2;
+  background: #e6c3b8;
+  color: #5d4037;
 }
 
 html.morze .statek {
-  background: #5d6d7e;
+  background: #9fd3f0;
+}
+
+html.morze .sylwetka .kadlub {
+  fill: #6d8eae;
+  stroke: #1b3348;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+html.morze .sylwetka .linia {
+  fill: none;
+  stroke: #1b3348;
+  stroke-width: 2;
+}
+
+html.morze .sylwetka .kabina {
+  fill: #fff8e1;
+  stroke: #1b3348;
+  stroke-width: 2;
+}
+
+html.morze .sylwetka .okno {
+  fill: #e1f5fe;
+  stroke: #1b3348;
+  stroke-width: 2;
+}
+
+html.morze .sylwetka .komin {
+  fill: #ffb300;
+  stroke: #1b3348;
+  stroke-width: 1.6;
+}
+
+html.morze .zatopiony .sylwetka .kadlub {
+  fill: #a1887f;
+}
+
+html.morze .zatopiony .sylwetka .komin {
+  fill: #d7ccc8;
 }
 
 html.morze .podglad {
