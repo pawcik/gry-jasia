@@ -275,6 +275,8 @@ function reaguj() {
     if (ostatniStrzal !== -1) {
       pokazDymek(o.tekst);
       wybuchDo = Date.now() + 900;
+      // Swoją armatę słychać od razu po stuknięciu. Cudzą (albo robota) dopiero z wynikiem.
+      if (o.kto !== stan.ja) dzwiekStrzalu();
       if (o.wynik === "pudlo") dzwiekPlusk();
       else if (o.wynik === "trafiony") dzwiekWybuch();
       else dzwiekZatopienie();
@@ -323,6 +325,10 @@ function pokazStart(tekst) {
   pokazTylko("ekranStart");
   el("bladKodu").textContent = tekst || "";
   uzupelnijWroc();
+  var jestRobot = !!(stan && stan.robot);
+  el("alboRobot").style.display = jestRobot ? "block" : "none";
+  el("grajZRobotem").style.display = jestRobot ? "inline-block" : "none";
+  el("opisRobota").style.display = jestRobot ? "block" : "none";
 }
 
 function rysuj() {
@@ -449,9 +455,82 @@ function rysujWyborAwatara() {
   el("wybranyAwatar").textContent = opis ? "Twój ludzik: " + opis.imie : "";
 }
 
-// Pole ze statkiem (cały, trafiony albo zatopiony) — do wspólnej ramki długopisem.
+// Pole ze statkiem (cały, trafiony albo zatopiony).
 function jestKawalkiemStatku(znak) {
   return znak === "2" || znak === "3" || znak === "4";
+}
+
+// Dziób jest na początku statku (z lewej albo u góry), rufa na końcu.
+// Przed rufą jest kajuta z kominem, a w dłuższych statkach jeszcze okienka.
+function rolaKawalka(indeks, dlugosc) {
+  if (dlugosc <= 1) return "lodka";
+  if (indeks <= 0) return "dziob";
+  if (indeks >= dlugosc - 1) return "rufa";
+  if (indeks === dlugosc - 2) return "poklad";
+  return "srodek";
+}
+
+// Rysunek z góry: ostry dziób, proste śródokręcie, okrągła rufa.
+var KSZTALT_STATKU = {
+  dziob: '<path class="kadlub" d="M4 32 L22 16 H66 V48 H22 Z"/>' +
+    '<path class="linia" d="M24 32 H58"/>' +
+    '<circle class="okno" cx="38" cy="32" r="5"/>',
+  rufa: '<path class="kadlub" d="M-2 16 H40 C56 16 62 23 62 32 C62 41 56 48 40 48 H-2 Z"/>' +
+    '<rect class="kabina" x="20" y="22" width="16" height="20" rx="2"/>' +
+    '<circle class="komin" cx="28" cy="30" r="4"/>' +
+    '<circle class="okno" cx="10" cy="32" r="4.5"/>',
+  poklad: '<path class="kadlub" d="M-2 16 H66 V48 H-2 Z"/>' +
+    '<rect class="kabina" x="16" y="20" width="22" height="24" rx="2"/>' +
+    '<circle class="komin" cx="27" cy="28" r="5"/>' +
+    '<circle class="okno" cx="48" cy="32" r="4"/>',
+  srodek: '<path class="kadlub" d="M-2 16 H66 V48 H-2 Z"/>' +
+    '<path class="linia" d="M2 32 H62"/>' +
+    '<circle class="okno" cx="22" cy="32" r="5"/>' +
+    '<circle class="okno" cx="44" cy="32" r="5"/>',
+  lodka: '<path class="kadlub" d="M10 32 L22 18 H40 C52 18 56 24 56 32 C56 40 52 46 40 46 H22 Z"/>' +
+    '<rect class="kabina" x="30" y="24" width="12" height="16" rx="2"/>' +
+    '<circle class="komin" cx="36" cy="30" r="3.2"/>' +
+    '<circle class="okno" cx="24" cy="32" r="3.5"/>'
+};
+
+function wstawStatek(kratka, opis) {
+  var klucz = opis ? opis.rola + (opis.pion ? "-pion" : "") : "";
+  if ((kratka.getAttribute("data-statek") || "") === klucz) return;
+  if (klucz) kratka.setAttribute("data-statek", klucz);
+  else kratka.removeAttribute("data-statek");
+  var stary = kratka.querySelector(".sylwetka");
+  if (stary) kratka.removeChild(stary);
+  if (!opis) return;
+  var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 64 64");
+  svg.setAttribute("class", "sylwetka" + (opis.pion ? " pion" : ""));
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML = KSZTALT_STATKU[opis.rola] || KSZTALT_STATKU.lodka;
+  kratka.appendChild(svg);
+}
+
+// Który to kawałek statku na gotowej planszy (dziób, środek, rufa).
+function opisKawalka(pola, rozmiar, w, k) {
+  var znak = pola.charAt(w * rozmiar + k);
+  if (!jestKawalkiemStatku(znak)) return null;
+  function kawalek(ww, kk) {
+    if (ww < 0 || kk < 0 || ww >= rozmiar || kk >= rozmiar) return false;
+    return jestKawalkiemStatku(pola.charAt(ww * rozmiar + kk));
+  }
+  var poziomo = kawalek(w, k - 1) || kawalek(w, k + 1);
+  var pionowo = kawalek(w - 1, k) || kawalek(w + 1, k);
+  if (pionowo && !poziomo) {
+    var gora = w;
+    while (kawalek(gora - 1, k)) gora--;
+    var dol = w;
+    while (kawalek(dol + 1, k)) dol++;
+    return { rola: rolaKawalka(w - gora, dol - gora + 1), pion: true };
+  }
+  var lewo = k;
+  while (kawalek(w, lewo - 1)) lewo--;
+  var prawo = k;
+  while (kawalek(w, prawo + 1)) prawo++;
+  return { rola: rolaKawalka(k - lewo, prawo - lewo + 1), pion: false };
 }
 
 // Plansza z kratkami. pola = 100 znaków od serwera (albo z ustawiania).
@@ -496,6 +575,7 @@ function zrobPlansze(pola, opcje) {
       }
       if (opcje.klik) dodajKlik(kratka, opcje.klik, pole);
       if (opcje.najazd) dodajNajazd(kratka, opcje.najazd, pole);
+      wstawStatek(kratka, opisKawalka(pola, rozmiar, w, kk));
       siatka.appendChild(kratka);
     }
   }
@@ -526,7 +606,7 @@ function rysujPoczekalnie() {
     var kropka = document.createElement("span");
     kropka.textContent = g.online ? "🟢" : "⚪";
     wiersz.appendChild(kropka);
-    dopiszOsobe(wiersz, g, "duzy", g.nr === stan.ja ? " (ty)" : "");
+    dopiszOsobe(wiersz, g, "duzy", (g.nr === stan.ja ? " (ty)" : "") + (g.robot ? " 🤖" : ""));
     lista.appendChild(wiersz);
   }
   napiszOczekujacych(el("oczekujacy"), "Czekamy na Gram!");
@@ -534,6 +614,9 @@ function rysujPoczekalnie() {
   el("kodDuzy").textContent = stan.kod || "";
   el("kodDuzy").style.fontSize = stan.kod && stan.kod.length > 5 ? "min(11vw, 54px)" : "min(16vw, 72px)";
   el("kodLiterki").textContent = stan.kod ? stan.kod.toUpperCase().split("").join(" · ") : "";
+  el("opisKodu").textContent = stan.zRobotem
+    ? "Grasz z robotem. On sam ustawia statki i strzela do ciebie."
+    : "Powiedz ten kod innym, żeby weszli do tej gry.";
   el("linkGry").textContent = stan.kod ? "Link: " + linkDoGry() : "";
 
   // Guziki: klasyczna albo szybka gra
@@ -658,11 +741,32 @@ function najedzUstawianie(pole) {
   var kratki = el("planszaUstawiania").querySelectorAll(".kratka");
   if (kratki.length !== tryb().rozmiar * tryb().rozmiar) return;
   var podglad = klasyPodgladu();
+  var opisy = opisyPodgladu();
   for (var i = 0; i < kratki.length; i++) {
     kratki[i].classList.remove("podglad");
     kratki[i].classList.remove("zlyPodglad");
     if (podglad[i]) kratki[i].classList.add(podglad[i]);
+    // Postawiony statek już ma rysunek. Pod myszką dorysowujemy tylko pustą wodę.
+    if (!kratki[i].classList.contains("statek")) wstawStatek(kratki[i], opisy[i] || null);
   }
+}
+
+// Podgląd pod myszką: ten sam dziób i rufa co prawdziwy statek, bez budowania planszy od nowa.
+function opisyPodgladu() {
+  var opisy = {};
+  if (ustawianie.podglad < 0 || ustawianie.wybrany < 0) return opisy;
+  var flota = zbudujFlote(ustawianie.statki, tryb(), false);
+  if (!flota || flota.naPolu[ustawianie.podglad] !== -1) return opisy;
+  var kandydat = kandydatNa(ustawianie.podglad);
+  var rozmiar = tryb().rozmiar;
+  for (var j = 0; j < kandydat.dlugosc; j++) {
+    var w = kandydat.poziomo ? kandydat.w : kandydat.w + j;
+    var k = kandydat.poziomo ? kandydat.k + j : kandydat.k;
+    if (w >= 0 && k >= 0 && w < rozmiar && k < rozmiar) {
+      opisy[w * rozmiar + k] = { rola: rolaKawalka(j, kandydat.dlugosc), pion: kandydat.poziomo !== true };
+    }
+  }
+  return opisy;
 }
 
 function rysujListeStatkow() {
@@ -840,7 +944,7 @@ function rysujBitwe(ja) {
   else if (stan.sposob === "punkty" && ja.zostalo === 0 && mojaKolej) napiszZLudzikami(pasek, [{ awatar: ja.awatar, klasa: "maly" }, " 🎯 Twoja kolej! Twoje statki zatonęły, ale strzelasz dalej"]);
   else if (stan.sposob === "punkty" && ja.zostalo === 0 && naTurze) napiszZLudzikami(pasek, ["💀 Twoje statki zatonęły. Strzela ", { osoba: naTurze, klasa: "maly" }, " — twoja kolejka wróci"]);
   else if (mojaKolej) napiszZLudzikami(pasek, [{ awatar: ja.awatar, klasa: "maly" }, " 🎯 Twoja kolej! Strzel w planszę przeciwnika"]);
-  else if (naTurze) napiszZLudzikami(pasek, ["⏳ Strzela ", { osoba: naTurze, klasa: "maly", dodatki: naTurze.online ? "" : " (nie ma połączenia 📵)" }]);
+  else if (naTurze) napiszZLudzikami(pasek, ["⏳ Strzela ", { osoba: naTurze, klasa: "maly", dodatki: (naTurze.robot ? " 🤖" : "") + (naTurze.online ? "" : " (nie ma połączenia 📵)") }]);
   else pasek.textContent = "";
   if (stan.etap === "koniec") el("tura").className = "koniecGry";
   else el("tura").className = mojaKolej ? "mojaTura" : "";
@@ -1288,6 +1392,19 @@ el("nowaGraStart").addEventListener("click", function () {
   wyslij("noweLobby", { kod: el("poleNowegoKodu").value }, function (wynik) {
     zakladamGre = false;
     el("nowaGraStart").disabled = false;
+    if (wynik && wynik.kod) idzDoKodu(wynik.kod);
+  });
+});
+
+el("grajZRobotem").addEventListener("click", function () {
+  if (zakladamGre) return;
+  zakladamGre = true;
+  el("grajZRobotem").disabled = true;
+  el("bladKodu").textContent = "";
+  dzwiekKlik();
+  wyslij("grajZRobotem", { kod: el("poleNowegoKodu").value }, function (wynik) {
+    zakladamGre = false;
+    el("grajZRobotem").disabled = false;
     if (wynik && wynik.kod) idzDoKodu(wynik.kod);
   });
 });

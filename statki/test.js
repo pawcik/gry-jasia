@@ -6,6 +6,7 @@ var assert = require("node:assert/strict");
 var http = require("http");
 var child_process = require("child_process");
 var zasady = require("./zasady.js");
+var robot = require("./robot.js");
 
 var nastepnyPort = 23000 + (process.pid % 500) * 20;
 
@@ -217,6 +218,143 @@ test("dwie gry: inny kod, inny sposób, domyślnie klasycznie", async function (
   assert.equal(punkty.klienci[1].stan.sposob, "punkty");
 });
 
+test("flaga robota: podgląd, port 8090 albo adres :18443", function () {
+  assert.equal(robot.podgladZRobotem({}, 8081, ""), false);
+  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "1" }, 8081, ""), true);
+  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "0" }, 8081, ""), false);
+  assert.equal(robot.podgladZRobotem({}, "8090", ""), true);
+  assert.equal(robot.podgladZRobotem({}, 8090, "https://przyklad.example:18441"), true);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:18443"), true);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:18443/"), true);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://przyklad.example:18441"), false);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:184431"), false);
+});
+
+test("robot po trafieniu szuka na końcach linii", function () {
+  var rozmiar = 7;
+  var strzaly = [];
+  for (var i = 0; i < rozmiar * rozmiar; i++) strzaly.push(0);
+  strzaly[16] = 2;
+  strzaly[17] = 2;
+  var cele = robot.polaPolowania(strzaly, rozmiar);
+  cele.sort(function (a, b) { return a - b; });
+  assert.deepEqual(cele, [15, 18]);
+  for (var n = 0; n < 30; n++) {
+    var pole = robot.wybierzPoleRobota(strzaly, rozmiar);
+    assert.ok(pole === 15 || pole === 18, "pole " + pole);
+  }
+  strzaly[17] = 0;
+  var wokol = robot.polaPolowania(strzaly, rozmiar);
+  wokol.sort(function (a, b) { return a - b; });
+  assert.deepEqual(wokol, [9, 15, 17, 23]);
+  strzaly[16] = 3;
+  assert.equal(robot.czyPoluje(strzaly, rozmiar), false);
+  assert.ok(robot.wybierzPoleRobota(strzaly, rozmiar) >= 0);
+});
+
+test("bez podglądu nie ma robota", async function (t) {
+  var gra = await uruchomSerwer(t, {});
+  var start = await podlacz(gra.port, "start" + gra.port, "");
+  gra.polaczenia.push(start);
+  await czekaj(start, function (s) { return s.ekran === "start"; });
+  assert.equal(!!start.stan.robot, false);
+  var odp = await wyslij(gra, { id: "ktos" }, "grajZRobotem", { kod: "nie1" });
+  assert.equal(odp.blad, "Tu nie ma robota. Zaproś kogoś do gry.");
+});
+
+test("podgląd: robot stawia flotę i oddaje strzał", async function (t) {
+  var gra = await uruchomSerwer(t, { STATKI_PODGLAD: "1", STATKI_ROBOT_PAUZA: "0" });
+  var gosc = await podlacz(gra.port, "gosc" + gra.port, "");
+  gra.polaczenia.push(gosc);
+  await czekaj(gosc, function (s) { return s.ekran === "start" && s.robot === true; });
+
+  gra.kod = "rob1";
+  var zaloz = await wyslij(gra, { id: "zakladacz" }, "grajZRobotem", { kod: "rob1" });
+  assert.equal(zaloz.ok, true, zaloz.blad);
+
+  var czlowiek = await podlacz(gra.port, "ala" + gra.port, "rob1");
+  gra.polaczenia.push(czlowiek);
+  await wyslij(gra, czlowiek, "dolacz", { imie: "Ala", awatar: "wesolek" });
+  var lobby = await czekaj(czlowiek, function (s) {
+    return s.zRobotem === true && s.gracze && s.gracze.length === 2 && s.ja !== 0;
+  });
+  var nrRobota = 0;
+  for (var i = 0; i < lobby.gracze.length; i++) {
+    if (lobby.gracze[i].robot) {
+      nrRobota = lobby.gracze[i].nr;
+      assert.equal(lobby.gracze[i].imie, "Robot");
+      assert.equal(lobby.gracze[i].online, true);
+    }
+  }
+  assert.ok(nrRobota);
+
+  var podszyw = await wyslij(gra, { id: "robotplanszy" }, "strzal", { cel: nrRobota, pole: 0 });
+  assert.ok(podszyw.blad);
+
+  await wyslij(gra, czlowiek, "tryb", { tryb: "szybka" });
+  var startGry = await wyslij(gra, czlowiek, "start", {});
+  assert.equal(startGry.ok, true, startGry.blad);
+  await czekaj(czlowiek, function (s) { return s.etap === "ustawianie"; });
+  var lista = [];
+  for (var proba = 0; proba < 30 && lista.length === 0; proba++) lista = zasady.losujFlote(zasady.TRYBY.szybka);
+  assert.ok(lista.length);
+  var ustawione = await wyslij(gra, czlowiek, "ustaw", { statki: lista });
+  assert.equal(ustawione.blad, undefined);
+  var bitwa = await czekaj(czlowiek, function (s) { return s.etap === "bitwa"; });
+  var robotNaPlanszy = null;
+  var ja = null;
+  for (var g = 0; g < bitwa.gracze.length; g++) {
+    if (bitwa.gracze[g].robot) robotNaPlanszy = bitwa.gracze[g];
+    if (bitwa.gracze[g].nr === bitwa.ja) ja = bitwa.gracze[g];
+  }
+  assert.ok(robotNaPlanszy.zostalo > 0);
+  assert.equal(robotNaPlanszy.pola.indexOf("4"), -1);
+  assert.ok(ja.pola.indexOf("4") !== -1);
+
+  var kroki = 0;
+  while (czlowiek.stan.etap === "bitwa" && kroki++ < 90) {
+    if (czlowiek.stan.tura !== czlowiek.stan.ja) {
+      var numerCzekam = czlowiek.stan.ostatni ? czlowiek.stan.ostatni.numer : 0;
+      await czekaj(czlowiek, function (s) {
+        return s.etap !== "bitwa" || (s.ostatni && s.ostatni.numer > numerCzekam);
+      });
+      continue;
+    }
+    var planszaRobota = null;
+    for (var r = 0; r < czlowiek.stan.gracze.length; r++) {
+      if (czlowiek.stan.gracze[r].robot) planszaRobota = czlowiek.stan.gracze[r];
+    }
+    var pole = -1;
+    for (var p = 0; p < planszaRobota.pola.length; p++) {
+      if (planszaRobota.pola.charAt(p) === "0") {
+        pole = p;
+        break;
+      }
+    }
+    assert.ok(pole >= 0, "nie ma wolnego pola");
+    var przed = czlowiek.stan.ostatni ? czlowiek.stan.ostatni.numer : 0;
+    var odp = await wyslij(gra, czlowiek, "strzal", { cel: planszaRobota.nr, pole: pole });
+    if (odp.blad) throw new Error(odp.blad);
+    await czekaj(czlowiek, function (s) {
+      return s.etap !== "bitwa" || (s.ostatni && s.ostatni.numer > przed);
+    });
+  }
+  assert.equal(czlowiek.stan.etap, "koniec");
+  var strzalyRobota = 0;
+  var stat = czlowiek.stan.statystyki;
+  for (var q = 0; q < stat.gracze.length; q++) {
+    if (stat.gracze[q].imie === "Robot") strzalyRobota = stat.gracze[q].strzaly;
+  }
+  assert.ok(strzalyRobota > 0, "robot nie strzelił");
+
+  await wyslij(gra, czlowiek, "odNowa", {});
+  var po = await czekaj(czlowiek, function (s) { return s.trzebaPotwierdzic && s.etap === "poczekalnia"; });
+  var robotZostal = false;
+  for (var z = 0; z < po.gracze.length; z++) if (po.gracze[z].robot) robotZostal = true;
+  assert.equal(robotZostal, true);
+  assert.equal(po.zRobotem, true);
+});
+
 test("od nowa zostawia sposób i czeka na Gram!", async function (t) {
   var gra = await nowaGra(t, ["Ala", "Bolek"]);
   await wyslij(gra, gra.klienci[0], "sposob", { sposob: "punkty" });
@@ -232,11 +370,13 @@ test("od nowa zostawia sposób i czeka na Gram!", async function (t) {
 
 // ----- Pomocnicy: trzy okna to trzy połączenia -----
 
-function nowaGra(t, imiona, kod) {
+function uruchomSerwer(t, envDodatkowe) {
   var port = nastepnyPort++;
+  var env = Object.assign({}, process.env, { PORT: String(port), PUBLICZNY_ADRES: "", STATKI_PODGLAD: "" });
+  if (envDodatkowe) Object.assign(env, envDodatkowe);
   var dziecko = child_process.spawn(process.execPath, ["serwer.js"], {
     cwd: __dirname,
-    env: Object.assign({}, process.env, { PORT: String(port), PUBLICZNY_ADRES: "" }),
+    env: env,
     stdio: ["ignore", "pipe", "pipe"]
   });
   var log = "";
@@ -247,14 +387,16 @@ function nowaGra(t, imiona, kod) {
     for (var i = 0; i < polaczenia.length; i++) polaczenia[i].req.destroy();
     dziecko.kill();
   });
-  var gra = { port: port, kod: kod || "gra1", klienci: [], grupy: {}, polaczenia: polaczenia };
+  var gra = { port: port, kod: "", klienci: [], grupy: {}, polaczenia: polaczenia };
   return czekajNaTekst(dziecko, function () { return log.indexOf("Statki działają") !== -1; }, function () { return log; })
-    .then(function () {
-      return zalozIDolacz(gra, imiona);
-    })
-    .then(function () {
-      return gra;
-    });
+    .then(function () { return gra; });
+}
+
+function nowaGra(t, imiona, kod) {
+  return uruchomSerwer(t, {}).then(function (gra) {
+    gra.kod = kod || "gra1";
+    return zalozIDolacz(gra, imiona).then(function () { return gra; });
+  });
 }
 
 function drugaGra(baza, kod, imiona) {

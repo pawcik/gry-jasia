@@ -10,6 +10,12 @@ var path = require("path");
 var os = require("os");
 var zasady = require("./zasady.js");
 var awatary = require("./awatary.js");
+var robotLogika = require("./robot.js");
+
+// Robot ma stały numer, którego nie da się wylosować graczowi z telefonu.
+var ID_ROBOTA = "robotplanszy";
+var IMIE_ROBOTA = "Robot";
+var AWATAR_ROBOTA = "madrala";
 
 // Port i publiczny adres można podać z zewnątrz (tak gra działa w internecie)
 var PORT = Number(process.env.PORT) || 8081;
@@ -201,9 +207,33 @@ function zostaloStatkow(g) {
 function tylkoPolaczeni(gra) {
   var lista = [];
   for (var i = 0; i < gra.gracze.length; i++) {
-    if (gra.gracze[i].online) lista.push(gra.gracze[i]);
+    // Robot nie ma telefonu, ale zostaje w grze.
+    if (gra.gracze[i].online || gra.gracze[i].robot) lista.push(gra.gracze[i]);
   }
   gra.gracze = lista;
+}
+
+// Podgląd gry (nie zwykły serwer w domu) może posadzić robota.
+function robotDostepny() {
+  return robotLogika.podgladZRobotem(process.env, PORT, PUBLICZNY_ADRES);
+}
+
+// Ile robot czeka między strzałami, żeby było widać plusk. Testy dają 0.
+function pauzaRobota() {
+  if (process.env.STATKI_ROBOT_PAUZA === "0") return 0;
+  var n = Number(process.env.STATKI_ROBOT_PAUZA);
+  if (process.env.STATKI_ROBOT_PAUZA && isFinite(n) && n >= 0) return n;
+  return 700;
+}
+
+function zatrzymajRobota(gra) {
+  if (!gra.timerRobota) return;
+  clearTimeout(gra.timerRobota);
+  gra.timerRobota = null;
+}
+
+function znajdzRobota(gra) {
+  return znajdz(gra, ID_ROBOTA);
 }
 
 function zapiszWDzienniku(gra, tekst) {
@@ -221,6 +251,7 @@ function ktoSlucha(gra) {
 // ----- Ruchy graczy (zawsze w jednej, wskazanej grze) -----
 function wykonaj(gra, id, akcja) {
   if (!idDobre(id)) return "Nie wiem, kim jesteś";
+  if (id === ID_ROBOTA) return "Robot gra sam";
   if (akcja.typ === "dolacz") return dolacz(gra, id, akcja.imie, akcja.awatar);
   if (akcja.typ === "odNowa") return odNowa(gra, id);
   if (akcja.typ === "wyjdz") return wyjdz(gra, id);
@@ -304,8 +335,80 @@ function zmienRundy(gra, ile) {
   return "";
 }
 
+function dodajRobota(gra) {
+  var jest = znajdzRobota(gra);
+  if (jest) return jest;
+  var graczRobot = {
+    id: ID_ROBOTA,
+    nr: gra.nastepnyNumer++,
+    imie: IMIE_ROBOTA,
+    awatar: AWATAR_ROBOTA,
+    online: true,
+    offlineOd: 0,
+    widz: false,
+    robot: true
+  };
+  wyczyscPlansze(gra, graczRobot);
+  gra.gracze.push(graczRobot);
+  zapiszWDzienniku(gra, "🤖 Robot siada do gry");
+  return graczRobot;
+}
+
+// Robot stawia statki sam, od razu gdy zaczyna się ustawianie.
+function ustawRobota(gra) {
+  var graczRobot = znajdzRobota(gra);
+  if (!graczRobot || graczRobot.gotowy) return;
+  var lista = [];
+  for (var proba = 0; proba < 30 && lista.length === 0; proba++) lista = zasady.losujFlote(tryb(gra));
+  if (!lista.length) {
+    zapiszWDzienniku(gra, "🤖 Robot nie umie ustawić statków");
+    return;
+  }
+  ustaw(gra, graczRobot, lista);
+}
+
+function wybierzRuchRobota(gra, graczRobot) {
+  var rozmiar = tryb(gra).rozmiar;
+  var polowanie = [];
+  var losowe = [];
+  for (var i = 0; i < gra.gracze.length; i++) {
+    var g = gra.gracze[i];
+    if (g === graczRobot || g.widz || g.odpadl) continue;
+    if (zostaloStatkow(g) === 0) continue;
+    var pole = robotLogika.wybierzPoleRobota(g.strzaly, rozmiar);
+    if (pole < 0) continue;
+    var ruch = { cel: g.nr, pole: pole };
+    if (robotLogika.czyPoluje(g.strzaly, rozmiar)) polowanie.push(ruch);
+    else losowe.push(ruch);
+  }
+  var lista = polowanie.length ? polowanie : losowe;
+  if (!lista.length) return null;
+  return lista[Math.floor(Math.random() * lista.length)];
+}
+
+// Po krótkiej przerwie robot strzela, jeśli to jego kolej. Trafienie = strzela dalej.
+function ruszRobota(gra) {
+  if (!gra.zRobotem || !robotDostepny()) return;
+  if (gra.timerRobota) return;
+  if (gra.etap !== "bitwa") return;
+  var graczRobot = znajdzRobota(gra);
+  if (!graczRobot || graczRobot.odpadl || gra.tura !== graczRobot.nr) return;
+  var kod = gra.kod;
+  gra.timerRobota = setTimeout(function () {
+    gra.timerRobota = null;
+    if (lobby[kod] !== gra) return;
+    if (gra.etap !== "bitwa" || gra.tura !== graczRobot.nr) return;
+    var ruch = wybierzRuchRobota(gra, graczRobot);
+    if (!ruch) return;
+    var blad = strzal(gra, graczRobot, ruch.cel, ruch.pole);
+    if (blad) return;
+    if (lobby[kod] === gra) rozeslij(gra);
+  }, pauzaRobota());
+}
+
 function start(gra) {
   if (gra.etap !== "poczekalnia") return "Gra już trwa";
+  zatrzymajRobota(gra);
   tylkoPolaczeni(gra);
   if (gra.gracze.length < 2) return "Potrzeba co najmniej dwóch graczy";
   for (var i = 0; i < gra.gracze.length; i++) {
@@ -319,6 +422,7 @@ function start(gra) {
   gra.runda = 1;
   gra.kolejka = [];
   zapiszWDzienniku(gra, "🚢 Ustawiamy statki!");
+  if (gra.zRobotem) ustawRobota(gra);
   return "";
 }
 
@@ -355,6 +459,7 @@ function sprawdzCzyWszyscyGotowi(gra) {
   } else {
     zapiszWDzienniku(gra, "⚓ Bitwa! Zaczyna " + pierwszy.imie);
   }
+  ruszRobota(gra);
 }
 
 function strzal(gra, ja, celNr, pole) {
@@ -413,6 +518,7 @@ function strzal(gra, ja, celNr, pole) {
   }
   if (!naPunkty(gra) && sprawdzKoniec(gra)) return "";
   if (wynik === "pudlo") nastepnaTura(gra);  // trafienie = strzelasz jeszcze raz
+  ruszRobota(gra);
   return "";
 }
 
@@ -547,6 +653,7 @@ function zakonczNaPunkty(gra, powod) {
 function usun(gra, ja, nr) {
   var g = gracz(gra, nr);
   if (!g || g === ja) return "";
+  if (g.robot) return "Robota nie da się usunąć";
   if (g.online || Date.now() - g.offlineOd < SEKUNDY_DO_USUNIECIA * 1000) return "Ten gracz jest jeszcze połączony";
   zapiszWDzienniku(gra, "🚪 " + g.imie + " wypada z gry");
   if (gra.etap === "bitwa") {
@@ -565,6 +672,7 @@ function usun(gra, ja, nr) {
 
 function nowaGra(gra) {
   if (gra.etap !== "koniec") return "Gra jeszcze trwa";
+  zatrzymajRobota(gra);
   tylkoPolaczeni(gra);
   for (var i = 0; i < gra.gracze.length; i++) {
     gra.gracze[i].widz = false;
@@ -586,9 +694,13 @@ function odNowa(gra, id) {
     return "Najpierw dołącz do gry";
   }
   if (ja.widz) return "Teraz tylko gracze mogą zacząć od nowa";
+  if (ja.robot) return "Robot nie zaczyna od nowa";
+  zatrzymajRobota(gra);
   var imie = ja.imie;
   var lista = [];
+  var bylaZRobotem = !!gra.zRobotem;
   for (var i = 0; i < gra.gracze.length; i++) {
+    if (gra.gracze[i].robot) continue;
     lista.push({ id: gra.gracze[i].id, imie: gra.gracze[i].imie, awatar: gra.gracze[i].awatar || "" });
   }
   // Kto już wcześniej nie nacisnął Gram!, zostaje na liście (inaczej telefon sam by wrócił)
@@ -609,6 +721,10 @@ function odNowa(gra, id) {
   gra.runda = 1;
   gra.kolejka = [];
   zapiszWDzienniku(gra, "🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
+  if (bylaZRobotem && robotDostepny()) {
+    gra.zRobotem = true;
+    dodajRobota(gra);
+  }
   return "";
 }
 
@@ -762,10 +878,13 @@ function widokDla(gra, id) {
       punkty: g.punkty || 0,
       trafienia: g.trafienia || 0,
       oddane: g.oddane || 0,
-      pola: pola
+      pola: pola,
+      robot: !!g.robot
     });
   }
   return {
+    robot: robotDostepny(),
+    zRobotem: !!gra.zRobotem,
     kod: gra.kod,
     etap: gra.etap,
     tryb: gra.tryb,
@@ -828,6 +947,17 @@ function utworzLobby(kod) {
   return { ok: true, kod: kod };
 }
 
+function grajZRobotem(surowy) {
+  if (!robotDostepny()) return { blad: "Tu nie ma robota. Zaproś kogoś do gry." };
+  var wynik = zalozLobby(surowy);
+  if (wynik.blad) return wynik;
+  var gra = lobby[wynik.kod];
+  gra.zRobotem = true;
+  dodajRobota(gra);
+  rozeslij(gra);
+  return wynik;
+}
+
 function zalozLobby(surowy) {
   posprzataj();
   if (ileGier() >= MAX_GIER) return { blad: "Jest już dużo gier. Poczekaj chwilę i spróbuj jeszcze raz." };
@@ -862,6 +992,7 @@ function posprzataj() {
 function obsluz(akcja) {
   var typ = String(akcja.typ || "");
   if (typ === "noweLobby") return zalozLobby(akcja.kod);
+  if (typ === "grajZRobotem") return grajZRobotem(akcja.kod);
   if (typ === "sprawdzKod") return sprawdzKod(akcja.kod);
   var kod = zasady.oczyscKod(akcja.kod);
   var gra = lobby[kod];
@@ -913,7 +1044,9 @@ function polaczGracza(adresStrony, zadanie, odpowiedz) {
 
   var gra = kod ? lobby[kod] : null;
   if (!gra) {
-    var wiadomosc = kod ? { brakGry: true, kod: kod, tekst: komunikatKodu(kod) } : { ekran: "start" };
+    var wiadomosc = kod
+      ? { brakGry: true, kod: kod, tekst: komunikatKodu(kod), robot: robotDostepny() }
+      : { ekran: "start", robot: robotDostepny() };
     pisz(odpowiedz, "event: stan\ndata: " + JSON.stringify(wiadomosc) + "\n\n");
     goscie.push(odpowiedz);
     zadanie.on("close", function () {
