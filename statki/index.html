@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Statki">
   <script>
     try {
-      if (localStorage.getItem("statki-wyglad") === "morze") document.documentElement.classList.add("morze");
+      if (localStorage.getItem("statki-wyglad") !== "kartka") document.documentElement.classList.add("morze");
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="style.css">
@@ -21,7 +21,7 @@
     <h1>⚓ Statki</h1>
     <div>
       <strong id="kodWNaglowku"></strong>
-      <button id="wyglad" class="maly" title="Pokaż morze">Morze</button>
+      <button id="wyglad" class="maly" title="Pokaż kartkę w kratkę">📄 Kartka</button>
       <span id="mojeImie"></span>
       <button id="zmienImie" class="maly" title="Zmień imię albo ludzika">✏️</button>
     </div>
