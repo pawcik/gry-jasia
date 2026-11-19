@@ -156,38 +156,35 @@ function babelek(opoznienie, od, doo, dlugosc, glosnosc) {
   ton.stop(t + dlugosc + 0.02);
 }
 
-// Pudło: bomba wpada do wody. Głuche "plum", wesołe "blooop", szum rozbryzgu i krople.
+// Pudło: prawdziwy plusk. Szum wody schodzi w dół („sploosh”) i kapie kilka kropel.
 function dzwiekPlusk() {
   if (!dzwieki) return;
   var g = GLOSNOSC_PLUSK;
   var n = nastroj();
-
-  // 1. Plum: coś wpada pod wodę
-  zagrajTonMiekki("sine", 230 * n, 90 * n, 0.24, 0.16 * g, 0, 0.008, 0.03);
-  // 2. Dwa bąbelki w górę, jak kreskówkowe "blooop"
-  babelek(0.01, 300 * n, 820 * n, 0.1, 0.15 * g);
-  babelek(0.1, 220 * n, 520 * n, 0.12, 0.09 * g);
-
-  // 3. Rozbryzg: miękki szum, który cichnie i robi się coraz niższy
-  zagrajSzum(0.6, "bandpass", 1800, 0.13 * g, 0, 0.018, 420, 0.7);
-
-  // 4. Krople spadają z powrotem do wody: kilka cichych "kap"
-  for (var i = 0; i < 4; i++) {
-    var kiedy = 0.16 + Math.random() * 0.4;
-    var wysokosc = 800 + Math.random() * 900;
-    babelek(kiedy, wysokosc, wysokosc * 1.6, 0.045, (0.035 + Math.random() * 0.03) * g);
+  // Coś wpada: krótki, niski ton w dół
+  zagrajTonMiekki("sine", 200 * n, 70 * n, 0.22, 0.16 * g, 0, 0.006, 0.02);
+  // Rozbryzg: szum, który z wysokiego robi się niski
+  zagrajSzum(0.42, "bandpass", 2400, 0.16 * g, 0, 0.012, 380, 0.65);
+  zagrajSzum(0.28, "lowpass", 900, 0.1 * g, 0.02, 0.01, 220);
+  // Kilka kropel
+  for (var i = 0; i < 3; i++) {
+    var kiedy = 0.12 + Math.random() * 0.28;
+    var wysokosc = 700 + Math.random() * 700;
+    babelek(kiedy, wysokosc, wysokosc * 1.5, 0.04, (0.03 + Math.random() * 0.025) * g);
   }
 }
 
-// Trafienie: lekkie stuknięcie i wesoły dzwoneczek, nie huk.
+// Trafienie: głębokie bum i krótkie stuknięcie w drewno albo metal. Bez ognia.
 function dzwiekWybuch() {
   if (!dzwieki) return;
   var g = GLOSNOSC_TRAFIENIE;
-  zagrajTonMiekki("sine", 260, 140, 0.14, 0.12 * g, 0, 0.005, 0.03);
-  zagrajSzum(0.06, "lowpass", 1200, 0.04 * g, 0, 0.004, 480);
-  // "Ding!" i od razu wyższy "ding!" — jak małe brawo
-  zagrajDzwonek(659, 0.2, 0.17 * g, 0.02);
-  zagrajDzwonek(988, 0.26, 0.15 * g, 0.13);
+  var n = nastroj();
+  zagrajTonMiekki("sine", 150 * n, 55 * n, 0.26, 0.18 * g, 0, 0.005, 0.04);
+  zagrajSzum(0.16, "lowpass", 500, 0.1 * g, 0, 0.004, 140);
+  // Stuk w deskę
+  zagrajTonMiekki("triangle", 220 * n, 90 * n, 0.09, 0.1 * g, 0, 0.003, 0.012);
+  // Krótki brzęk metalu, cichy
+  zagrajTonMiekki("sine", 880 * n, 420 * n, 0.12, 0.07 * g, 0.01, 0.004, 0.02);
 }
 
 // Zatopienie: trzy śmieszne "glu" i krótka wesoła fanfara do-mi-sol.
