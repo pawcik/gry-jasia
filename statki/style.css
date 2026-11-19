@@ -938,24 +938,47 @@ html.morze #dymek {
 
 html.morze .plansza {
   gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: #f7fdff;
 }
 
 html.morze .opis {
-  font-size: 12px;
-  opacity: 0.8;
+  font-size: 14px;
+  font-weight: 700;
+  opacity: 1;
+  color: #fff;
+  background: #0e5f96;
+  text-shadow: 0 1px 0 rgba(0, 30, 60, 0.35);
 }
 
 html.morze .kratka {
-  border-radius: 3px;
+  border-radius: 2px;
   font-weight: bold;
 }
 
-html.morze .woda {
-  background: #9fd3f0;
+html.morze .woda,
+html.morze .pudlo,
+html.morze .statek {
+  background-color: #3eace6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='16' viewBox='0 0 48 16'%3E%3Cpath d='M0 6 Q6 1 12 6 T24 6 T36 6 T48 6' fill='none' stroke='%23ffffff' stroke-opacity='0.55' stroke-width='1.6'/%3E%3Cpath d='M0 12 Q6 7 12 12 T24 12 T36 12 T48 12' fill='none' stroke='%23ffffff' stroke-opacity='0.28' stroke-width='1.4'/%3E%3C/svg%3E");
+  background-size: 24px 12px;
+  animation: fale 7s linear infinite;
+}
+
+@keyframes fale {
+  to { background-position: 24px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.morze .woda,
+  html.morze .pudlo,
+  html.morze .statek {
+    animation: none;
+  }
 }
 
 html.morze .pudlo {
-  background: #9fd3f0;
   color: #0b3d5c;
 }
 
@@ -991,9 +1014,6 @@ html.morze .zatopiony {
   color: #5d4037;
 }
 
-html.morze .statek {
-  background: #9fd3f0;
-}
 
 html.morze .sylwetka .kadlub {
   fill: #6d8eae;

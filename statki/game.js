@@ -5,10 +5,10 @@
 var NAZWA_ZAPISU = "statki";
 var KLASY_POL = { "0": "woda", "1": "pudlo", "2": "trafiony", "3": "zatopiony", "4": "statek" };
 
-// Kartka w kratkę albo morze. Kartka jest od razu, morze tylko gdy ktoś je wybrał.
+// Morze jest od razu. Kartka tylko gdy ktoś ją wybrał i zapisał.
 function zastosujWyglad(nazwa) {
-  if (nazwa === "morze") document.documentElement.classList.add("morze");
-  else document.documentElement.classList.remove("morze");
+  if (nazwa === "kartka") document.documentElement.classList.remove("morze");
+  else document.documentElement.classList.add("morze");
   var guzik = el("wyglad");
   if (!guzik) return;
   if (nazwa === "morze") {
@@ -1274,7 +1274,7 @@ function rysujStatystyki(koniec) {
 }
 
 // ----- Guziki -----
-zastosujWyglad(wczytaj("wyglad") === "morze" ? "morze" : "kartka");
+zastosujWyglad(wczytaj("wyglad") === "kartka" ? "kartka" : "morze");
 el("wyglad").addEventListener("click", function () {
   var nastepny = document.documentElement.classList.contains("morze") ? "kartka" : "morze";
   zapisz("wyglad", nastepny);
