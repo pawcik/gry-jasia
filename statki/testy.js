@@ -445,7 +445,7 @@ async function sprawdzDwieGryDoKonca() {
 function uruchom() {
   dziecko = child_process.spawn(process.execPath, ["serwer.js"], {
     cwd: __dirname,
-    env: Object.assign({}, process.env, { PORT: String(PORT), SEKUNDY_PUSTEGO_LOBBY: "3" }),
+    env: Object.assign({}, process.env, { PORT: String(PORT), SEKUNDY_PUSTEGO_LOBBY: "3", PUBLICZNY_ADRES: "", STATKI_PODGLAD: "" }),
     stdio: ["ignore", "pipe", "pipe"]
   });
   dziecko.stdout.on("data", function (buf) {

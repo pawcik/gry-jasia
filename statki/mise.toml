@@ -7,7 +7,7 @@ run = "node serwer.js --otworz"
 
 [tasks.test]
 description = "Sprawdź zasady, klasyczną grę i tryb na punkty"
-run = "node --check zasady.js && node --check serwer.js && node --check game.js && node --test test.js"
+run = "node --check zasady.js && node --check serwer.js && node --check game.js && node --check robot.js && node --check dzwieki.js && node --test test.js"
 
 [tasks.testy]
 description = "Sprawdź, czy dwie gry naraz się nie mieszają i czy statystyki zostają w swoim kodzie"
