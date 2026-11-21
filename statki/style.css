@@ -957,18 +957,41 @@ html.morze .kratka {
   font-weight: bold;
 }
 
-/* Wysokie fale jak na zdjęciu, namalowane raz. Nic się nie rusza.
-   --morze, --kol i --wiersz składa kratki w jeden rysunek. */
+/* Małe fale jak 🌊. Stoją w miejscu. Statek jest nad nimi. */
 html.morze .woda,
 html.morze .pudlo,
 html.morze .statek {
   background-color: #0b2144;
-  background-image: url("obrazki/pagorki.svg");
-  background-repeat: no-repeat;
-  background-size: calc(var(--morze, 10) * 100%) calc(var(--morze, 10) * 100%);
-  background-position:
-    calc(var(--kol, 0) * 100% / (var(--morze, 10) - 1))
-    calc(var(--wiersz, 0) * 100% / (var(--morze, 10) - 1));
+}
+
+.falaOzdoba {
+  display: none;
+}
+
+html.morze .falaOzdoba {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  z-index: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  background: url("obrazki/fala.svg") center / contain no-repeat;
+}
+
+html.morze .falaMala {
+  width: 46%;
+  height: 46%;
+}
+
+html.morze .falaSrednia {
+  width: 68%;
+  height: 68%;
+}
+
+html.morze .falaDuza {
+  width: 86%;
+  height: 86%;
 }
 
 html.morze .pudlo {
