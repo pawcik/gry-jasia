@@ -63,7 +63,7 @@ for (var nazwaSieci in sieci) {
 // Nowe rzeczy (punkty, obrazek gracza, statystyki) dopisuj tutaj albo w funkcjach
 // poniżej, które dostają `gra`. Nie trzymaj ich obok, na całym serwerze.
 function pustaGra(kod) {
-  return {
+  var gra = {
     kod: kod,
     etap: "poczekalnia",
     tryb: "klasyczna",
@@ -82,6 +82,31 @@ function pustaGra(kod) {
     sluchacze: Object.create(null),
     ostatnio: Date.now()
   };
+  losujFale(gra);
+  return gra;
+}
+
+// Małe fale na morzu. Nowa gra dostaje nowe miejsca i nowe wielkości.
+var WIELKOSCI_FAL = ["mala", "srednia", "duza"];
+var ILE_FAL = { klasyczna: 9, szybka: 6 };
+
+function losujFale(gra) {
+  var ilePolPlanszy = ilePol(gra);
+  var ile = ILE_FAL[gra.tryb] || 9;
+  var zajete = {};
+  var fale = [];
+  var proby = 0;
+  while (fale.length < ile && proby < ilePolPlanszy * 3) {
+    proby++;
+    var pole = Math.floor(Math.random() * ilePolPlanszy);
+    if (zajete[pole]) continue;
+    zajete[pole] = true;
+    fale.push({
+      pole: pole,
+      wielkosc: WIELKOSCI_FAL[Math.floor(Math.random() * WIELKOSCI_FAL.length)]
+    });
+  }
+  gra.fale = fale;
 }
 
 function idDobre(id) {
@@ -307,6 +332,7 @@ function zmienTryb(gra, nowy) {
   if (!zasady.TRYBY.hasOwnProperty(nowy)) return "Nie ma takiego rodzaju gry";
   if (gra.tryb === nowy) return "";
   gra.tryb = nowy;
+  losujFale(gra);
   for (var i = 0; i < gra.gracze.length; i++) wyczyscPlansze(gra, gra.gracze[i]);
   zapiszWDzienniku(gra, "⚙️ Gramy w wersję: " + tryb(gra).nazwa + " (" + tryb(gra).opis + ")");
   return "";
@@ -682,6 +708,7 @@ function nowaGra(gra) {
   gra.ostatni = null;
   gra.runda = 1;
   gra.kolejka = [];
+  losujFale(gra);
   zapiszWDzienniku(gra, "🔄 Nowa gra! Czekamy na start");
   return "";
 }
@@ -720,6 +747,7 @@ function odNowa(gra, id) {
   gra.ostatni = null;
   gra.runda = 1;
   gra.kolejka = [];
+  losujFale(gra);
   zapiszWDzienniku(gra, "🔁 " + imie + " zaczyna od nowa. Kto gra, naciska Gram!");
   if (bylaZRobotem && robotDostepny()) {
     gra.zRobotem = true;
@@ -902,6 +930,7 @@ function widokDla(gra, id) {
     statystyki: widokStatystyk(gra),
     adresy: ADRESY,
     sekundyDoUsuniecia: SEKUNDY_DO_USUNIECIA,
+    fale: gra.fale || [],
     gracze: gracze
   };
 }
