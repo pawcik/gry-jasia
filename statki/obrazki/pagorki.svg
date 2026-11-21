@@ -1,58 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
-  <!-- Morze po burzy: wysokie, poszarpane fale i biała piana. Obrazek stoi w miejscu. -->
+  <!-- Wysokie bajkowe fale. Okrągłe loki, kilka błękitów i puszysta piana. Stoją w miejscu. -->
 
-  <!-- Ciemne doliny, żeby fale wyglądały na wysokie. -->
-  <path d="M0 78 L18 58 L34 92 L52 48 L70 96 L88 54 L108 100 L128 50 L148 94 L168 56 L186 90 L200 62 L200 118 L186 108 L168 128 L148 100 L128 132 L108 104 L88 136 L70 108 L52 130 L34 102 L18 126 L0 112 Z" fill="#020814" fill-opacity="0.72"/>
-  <path d="M0 150 L16 132 L34 162 L54 128 L74 166 L96 134 L118 170 L140 130 L162 168 L182 138 L200 156 L200 188 L182 176 L162 196 L140 172 L118 198 L96 174 L74 196 L54 170 L34 192 L16 168 L0 184 Z" fill="#020814" fill-opacity="0.62"/>
+  <!-- Dolna wysoka fala, bardziej niebieska. -->
+  <path d="M0 168 C 18 164, 24 118, 48 112 C 68 107, 76 138, 92 150 C 108 162, 118 124, 140 114 C 158 106, 168 140, 186 148 C 194 152, 200 136, 200 132 L 200 200 L 0 200 Z" fill="#1a5690" fill-opacity="0.55"/>
+  <path d="M0 162 C 18 158, 26 122, 48 116 C 66 111, 74 136, 90 146 C 106 156, 118 128, 140 118 C 156 110, 166 136, 184 142 C 194 146, 200 132, 200 128 L 200 168 C 176 180, 148 158, 118 168 C 84 180, 48 156, 0 170 Z" fill="#3a96c4" fill-opacity="0.4"/>
 
-  <!-- Jaśniejszy stok fali. -->
-  <path d="M0 62 L14 16 L26 46 L42 4 L56 38 L72 18 L86 50 L104 6 L118 40 L136 12 L150 46 L168 8 L184 36 L200 20 L200 58 L184 70 L168 42 L150 74 L136 48 L118 78 L104 44 L86 82 L72 52 L56 74 L42 40 L26 78 L14 48 L0 86 Z" fill="#9ec9ef" fill-opacity="0.5"/>
-  <path d="M0 118 L16 74 L30 108 L48 66 L64 112 L82 78 L98 116 L118 68 L134 110 L154 72 L170 114 L188 80 L200 96 L200 132 L188 118 L170 146 L154 112 L134 148 L118 108 L98 150 L82 116 L64 146 L48 108 L30 142 L16 112 L0 148 Z" fill="#9ec9ef" fill-opacity="0.42"/>
-  <path d="M0 176 L18 142 L34 170 L52 136 L70 174 L90 146 L110 178 L130 140 L150 172 L170 144 L188 176 L200 158 L200 192 L188 184 L170 198 L150 180 L130 196 L110 178 L90 198 L70 182 L52 196 L34 178 L18 190 L0 176 Z" fill="#9ec9ef" fill-opacity="0.36"/>
+  <!-- Górna fala jest najwyższa: od samej góry aż nisko. -->
+  <path d="M0 96 C 14 90, 16 18, 44 8 C 64 1, 74 36, 88 56 C 102 76, 112 28, 136 8 C 154 -2, 166 34, 180 54 C 190 68, 196 24, 200 16 L 200 132 C 174 118, 146 150, 112 134 C 76 118, 42 152, 12 134 C 4 128, 0 116, 0 110 Z" fill="#0f6e86" fill-opacity="0.52"/>
+  <path d="M0 86 C 16 80, 20 22, 44 12 C 62 5, 72 34, 86 50 C 100 66, 114 28, 136 14 C 152 4, 164 32, 178 48 C 188 60, 196 28, 200 22 L 200 78 C 176 92, 150 64, 124 76 C 92 90, 58 62, 28 78 C 14 86, 0 74, 0 74 Z" fill="#3ec4c0" fill-opacity="0.42"/>
+  <path d="M0 70 C 18 64, 28 28, 46 20 C 60 14, 70 32, 82 40 C 96 30, 114 16, 132 18 C 150 20, 162 34, 176 30 C 188 26, 196 18, 200 22 L 200 48 C 178 58, 156 40, 134 48 C 108 58, 86 38, 62 50 C 40 60, 18 42, 0 50 Z" fill="#c8fff6" fill-opacity="0.3"/>
 
-  <!-- Poszarpany grzbiet z pianą. -->
-  <path d="M0 62 L14 16 L26 46 L42 4 L56 38 L72 18 L86 50 L104 6 L118 40 L136 12 L150 46 L168 8 L184 36 L200 20" fill="none" stroke="#ffffff" stroke-opacity="0.96" stroke-width="3.4" stroke-linejoin="miter" stroke-miterlimit="2.4" stroke-linecap="round"/>
-  <path d="M0 70 L14 28 L26 54 L42 16 L56 46 L72 28 L86 58 L104 18 L118 48 L136 24 L150 54 L168 20 L184 46 L200 32" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.6" stroke-linejoin="miter" stroke-miterlimit="2.2" stroke-linecap="round"/>
-  <path d="M0 118 L16 74 L30 108 L48 66 L64 112 L82 78 L98 116 L118 68 L134 110 L154 72 L170 114 L188 80 L200 96" fill="none" stroke="#ffffff" stroke-opacity="0.94" stroke-width="3.2" stroke-linejoin="miter" stroke-miterlimit="2.4" stroke-linecap="round"/>
-  <path d="M0 126 L16 86 L30 116 L48 78 L64 120 L82 90 L98 124 L118 80 L134 118 L154 84 L170 122 L188 92 L200 106" fill="none" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.5" stroke-linejoin="miter" stroke-miterlimit="2.2" stroke-linecap="round"/>
-  <path d="M0 176 L18 142 L34 170 L52 136 L70 174 L90 146 L110 178 L130 140 L150 172 L170 144 L188 176 L200 158" fill="none" stroke="#ffffff" stroke-opacity="0.9" stroke-width="3" stroke-linejoin="miter" stroke-miterlimit="2.4" stroke-linecap="round"/>
-
-  <!-- Małe, też poszarpane falki między dużymi. -->
-  <path d="M8 100 L20 88 L30 102 L42 84 L52 98" fill="none" stroke="#ffffff" stroke-opacity="0.7" stroke-width="1.7" stroke-linejoin="miter" stroke-linecap="round"/>
-  <path d="M140 158 L152 146 L164 160 L176 148 L190 162" fill="none" stroke="#ffffff" stroke-opacity="0.65" stroke-width="1.7" stroke-linejoin="miter" stroke-linecap="round"/>
-
-  <!-- Biała piana na szczytach. -->
-  <g fill="#ffffff">
-    <circle cx="14" cy="16" r="4.2"/>
-    <circle cx="19" cy="20" r="2.3" fill-opacity="0.85"/>
-    <circle cx="42" cy="4" r="5"/>
-    <circle cx="48" cy="9" r="2.6" fill-opacity="0.9"/>
-    <circle cx="37" cy="10" r="2" fill-opacity="0.8"/>
-    <circle cx="72" cy="18" r="3.6"/>
-    <circle cx="104" cy="6" r="5.2"/>
-    <circle cx="110" cy="11" r="2.5" fill-opacity="0.88"/>
-    <circle cx="98" cy="12" r="2.1" fill-opacity="0.8"/>
-    <circle cx="136" cy="12" r="4"/>
-    <circle cx="168" cy="8" r="5"/>
-    <circle cx="174" cy="13" r="2.4" fill-opacity="0.85"/>
-    <circle cx="16" cy="74" r="4"/>
-    <circle cx="48" cy="66" r="4.6"/>
-    <circle cx="54" cy="71" r="2.2" fill-opacity="0.85"/>
-    <circle cx="118" cy="68" r="4.8"/>
-    <circle cx="154" cy="72" r="4.2"/>
-    <circle cx="188" cy="80" r="3.4"/>
-    <circle cx="52" cy="136" r="4.4"/>
-    <circle cx="130" cy="140" r="4.6"/>
-    <circle cx="136" cy="146" r="2.3" fill-opacity="0.85"/>
-    <circle cx="18" cy="142" r="3.5"/>
-    <circle cx="170" cy="144" r="3.8"/>
+  <!-- Wielkie okrągłe loczki. Każdy jest krótki, nie ma kreski przez całą planszę. -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 64 C 12 36, 28 6, 50 6 C 72 6, 80 28, 72 46 C 65 60, 50 58, 48 44 C 46 34, 56 32, 58 40" stroke="#e9fffd" stroke-width="3.3" stroke-opacity="0.92"/>
+    <path d="M108 62 C 104 30, 124 2, 148 4 C 170 6, 178 30, 168 48 C 160 62, 144 58, 144 46" stroke="#f4fffe" stroke-width="3.5" stroke-opacity="0.94"/>
+    <path d="M176 58 C 178 36, 190 16, 204 18" stroke="#e4fffb" stroke-width="3" stroke-opacity="0.8"/>
+    <path d="M12 158 C 8 136, 26 116, 46 118 C 64 120, 70 140, 60 152 C 52 160, 42 154, 44 146" stroke="#e7f6ff" stroke-width="3" stroke-opacity="0.9"/>
+    <path d="M112 156 C 110 134, 128 114, 148 116 C 166 118, 170 138, 160 150" stroke="#e7f6ff" stroke-width="3" stroke-opacity="0.9"/>
+    <path d="M168 160 C 170 140, 186 124, 202 128" stroke="#f3fbff" stroke-width="2.8" stroke-opacity="0.85"/>
   </g>
-  <!-- Krótkie bryzgi piany, też nieruchome. -->
-  <g fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-opacity="0.9">
-    <path d="M42 4 l3 -7 M46 6 l6 -3"/>
-    <path d="M104 6 l-2 -7 M108 5 l5 -4"/>
-    <path d="M168 8 l4 -6"/>
-    <path d="M48 66 l-4 -6 M118 68 l3 -7"/>
-    <path d="M130 140 l4 -6"/>
+
+  <!-- Puszysta piana tylko na lokach. -->
+  <g fill="#ffffff">
+    <circle cx="32" cy="16" r="4.4" fill-opacity="0.95"/>
+    <circle cx="42" cy="8" r="5.6"/>
+    <circle cx="52" cy="10" r="4.8" fill-opacity="0.94"/>
+    <circle cx="62" cy="20" r="3.8" fill-opacity="0.9"/>
+    <circle cx="66" cy="32" r="3" fill-opacity="0.82"/>
+    <circle cx="58" cy="40" r="2.5" fill-opacity="0.75"/>
+    <circle cx="48" cy="34" r="2.2" fill-opacity="0.7"/>
+
+    <circle cx="124" cy="14" r="4.2"/>
+    <circle cx="136" cy="5" r="6"/>
+    <circle cx="148" cy="8" r="5" fill-opacity="0.95"/>
+    <circle cx="158" cy="18" r="4" fill-opacity="0.9"/>
+    <circle cx="162" cy="32" r="3.1" fill-opacity="0.82"/>
+    <circle cx="152" cy="38" r="2.6" fill-opacity="0.74"/>
+
+    <circle cx="186" cy="22" r="4" fill-opacity="0.92"/>
+    <circle cx="196" cy="16" r="5"/>
+
+    <circle cx="30" cy="122" r="3.8" fill-opacity="0.92"/>
+    <circle cx="40" cy="114" r="5"/>
+    <circle cx="50" cy="118" r="3.8" fill-opacity="0.9"/>
+    <circle cx="56" cy="128" r="2.8" fill-opacity="0.8"/>
+
+    <circle cx="128" cy="120" r="3.6"/>
+    <circle cx="138" cy="112" r="5" fill-opacity="0.96"/>
+    <circle cx="148" cy="116" r="3.8" fill-opacity="0.9"/>
+    <circle cx="154" cy="126" r="2.7" fill-opacity="0.78"/>
+
+    <circle cx="180" cy="130" r="3.4" fill-opacity="0.9"/>
+    <circle cx="190" cy="122" r="4.6"/>
   </g>
 </svg>
