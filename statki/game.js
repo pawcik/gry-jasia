@@ -542,6 +542,8 @@ function zrobPlansze(pola, opcje) {
   siatka.className = "plansza" + (opcje.aktywna ? " aktywna" : "");
   siatka.style.gridTemplateColumns = "repeat(" + (rozmiar + 1) + ", 1fr)";
   siatka.style.setProperty("--k", String(rozmiar + 1));
+  // Ile kratek ma morze, żeby pagórki złożyły się w jeden obrazek.
+  siatka.style.setProperty("--morze", String(rozmiar));
   var naroznik = document.createElement("div");
   naroznik.className = "opis opisNaroznik";
   siatka.appendChild(naroznik);
@@ -561,6 +563,9 @@ function zrobPlansze(pola, opcje) {
       var znak = pola.charAt(pole);
       var kratka = document.createElement("div");
       kratka.className = "kratka " + KLASY_POL[znak];
+      // Która to kratka. Dzięki temu fala leci dalej na sąsiednim polu.
+      kratka.style.setProperty("--kol", String(kk));
+      kratka.style.setProperty("--wiersz", String(w));
       // Ramka dookoła całego statku, nie dookoła każdej kratki z osobna.
       if (jestKawalkiemStatku(znak)) {
         if (w === 0 || !jestKawalkiemStatku(pola.charAt(pole - rozmiar))) kratka.classList.add("krawedzGora");
