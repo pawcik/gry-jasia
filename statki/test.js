@@ -36,6 +36,25 @@ test("ranking: najpierw punkty, potem celność, remis dzieli miejsce", function
   assert.equal(zero[1].miejsce, 2);
 });
 
+test("fale: różne wielkości, ta sama gra trzyma układ, nowa gra losuje od nowa", async function (t) {
+  var gra = await nowaGra(t, ["Ala", "Bolek"]);
+  var fale = gra.klienci[0].stan.fale;
+  assert.deepEqual(gra.klienci[1].stan.fale, fale);
+  sprawdzFale(fale, 100, 9);
+
+  await wyslij(gra, gra.klienci[0], "rundy", { ile: 5 });
+  await czekaj(gra.klienci[1], function (s) { return s.ileRund === 5; });
+  assert.deepEqual(gra.klienci[1].stan.fale, fale);
+
+  await wyslij(gra, gra.klienci[0], "tryb", { tryb: "szybka" });
+  await czekaj(gra.klienci[1], function (s) { return s.tryb === "szybka"; });
+  sprawdzFale(gra.klienci[1].stan.fale, 49, 6);
+
+  var druga = await drugaGra(gra, "gra2", ["Czes", "Dyzio"]);
+  sprawdzFale(druga.klienci[0].stan.fale, 100, 9);
+  assert.notEqual(JSON.stringify(druga.klienci[0].stan.fale), JSON.stringify(fale));
+});
+
 test("poczekalnia: wszyscy widzą sposób i rundy, zła liczba odpada", async function (t) {
   var gra = await nowaGra(t, ["Ala", "Bolek"]);
   assert.equal(gra.klienci[1].stan.sposob, "klasyczny");
@@ -524,6 +543,18 @@ function przeciwnikZeStatkami(kto) {
     if (g.nr !== kto.stan.ja && !g.widz && !g.odpadl && g.zostalo > 0) return g;
   }
   return null;
+}
+
+function sprawdzFale(fale, ilePolPlanszy, ile) {
+  assert.equal(fale.length, ile);
+  var widziane = {};
+  var rozmiary = { mala: true, srednia: true, duza: true };
+  for (var i = 0; i < fale.length; i++) {
+    assert.equal(widziane[fale[i].pole], undefined);
+    widziane[fale[i].pole] = true;
+    assert.ok(fale[i].pole >= 0 && fale[i].pole < ilePolPlanszy);
+    assert.equal(rozmiary[fale[i].wielkosc], true);
+  }
 }
 
 function pudloW(kto, klienci) {

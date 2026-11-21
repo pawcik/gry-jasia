@@ -542,8 +542,7 @@ function zrobPlansze(pola, opcje) {
   siatka.className = "plansza" + (opcje.aktywna ? " aktywna" : "");
   siatka.style.gridTemplateColumns = "repeat(" + (rozmiar + 1) + ", 1fr)";
   siatka.style.setProperty("--k", String(rozmiar + 1));
-  // Ile kratek ma morze, żeby pagórki złożyły się w jeden obrazek.
-  siatka.style.setProperty("--morze", String(rozmiar));
+  var fale = mapaFal();
   var naroznik = document.createElement("div");
   naroznik.className = "opis opisNaroznik";
   siatka.appendChild(naroznik);
@@ -563,9 +562,6 @@ function zrobPlansze(pola, opcje) {
       var znak = pola.charAt(pole);
       var kratka = document.createElement("div");
       kratka.className = "kratka " + KLASY_POL[znak];
-      // Która to kratka. Dzięki temu fala leci dalej na sąsiednim polu.
-      kratka.style.setProperty("--kol", String(kk));
-      kratka.style.setProperty("--wiersz", String(w));
       // Ramka dookoła całego statku, nie dookoła każdej kratki z osobna.
       if (jestKawalkiemStatku(znak)) {
         if (w === 0 || !jestKawalkiemStatku(pola.charAt(pole - rozmiar))) kratka.classList.add("krawedzGora");
@@ -580,6 +576,8 @@ function zrobPlansze(pola, opcje) {
       }
       if (opcje.klik) dodajKlik(kratka, opcje.klik, pole);
       if (opcje.najazd) dodajNajazd(kratka, opcje.najazd, pole);
+      // Fala jest pod statkiem. Na trafionym polu jej nie ma, żeby był widoczny znak.
+      if (fale[pole] && (znak === "0" || znak === "4")) wstawFale(kratka, fale[pole]);
       wstawStatek(kratka, opisKawalka(pola, rozmiar, w, kk));
       siatka.appendChild(kratka);
     }
@@ -590,6 +588,25 @@ function zrobPlansze(pola, opcje) {
     });
   }
   return siatka;
+}
+
+function mapaFal() {
+  var mapa = {};
+  var lista = stan && stan.fale ? stan.fale : [];
+  for (var i = 0; i < lista.length; i++) mapa[lista[i].pole] = lista[i].wielkosc;
+  return mapa;
+}
+
+// Mała fala jak na obrazku 🌊. Nie łapie kliknięć.
+var KLASY_WIELKOSCI_FAL = { mala: "falaMala", srednia: "falaSrednia", duza: "falaDuza" };
+
+function wstawFale(kratka, wielkosc) {
+  var klasa = KLASY_WIELKOSCI_FAL[wielkosc];
+  if (!klasa) return;
+  var ozdoba = document.createElement("span");
+  ozdoba.className = "falaOzdoba " + klasa;
+  ozdoba.setAttribute("aria-hidden", "true");
+  kratka.appendChild(ozdoba);
 }
 
 function dodajNajazd(element, funkcja, wartosc) {
