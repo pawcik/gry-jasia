@@ -40,11 +40,18 @@
     <button type="button" id="pobierzPaczke">Gotowe plansze</button>
     <div id="listaGotowych"></div>
     <div id="listaWlasnych"></div>
+    <label class="cicho ustawienie">
+      <input type="checkbox" class="pokazCzasPole" checked>
+      Pokaż czas
+    </label>
     <p class="cicho dlaKlawiatury">Klawiatura: strzałki, cyfry i litery, Backspace czyści, N przełącza notatki, H daje podpowiedź, Ctrl+Z cofa.</p>
   </section>
 
   <section class="ekran" id="ekranGra">
-    <p id="opisGry" class="cicho opis"></p>
+    <div id="opisGry" class="cicho opis">
+      <span id="opisGryTekst"></span>
+      <button type="button" id="czasGry" class="czas" hidden>0:00</button>
+    </div>
     <div id="plansza"></div>
     <div class="dol">
       <div id="pad" class="pad"></div>
