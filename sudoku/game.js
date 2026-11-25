@@ -209,7 +209,11 @@ function zbudujPlansze() {
   }
   var czysc = document.createElement("button");
   czysc.type = "button";
-  czysc.textContent = "czyść";
+  czysc.className = "gumka";
+  czysc.setAttribute("aria-label", "Wyczyść");
+  czysc.title = "Wyczyść";
+  // Mała gumka, tej samej wielkości co cyfra. Słowo „czyść” wylewało się z ramki na telefonie.
+  czysc.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3.8l5 5-9.7 9.7H5.2l-1.4-1.4 9.3-9.3 2.1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 13.4l5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 21.2h17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
   czysc.addEventListener("click", wyczyscWybrane);
   pad.appendChild(czysc);
   zbudowanyDla = ekran + ":" + opis.n;
