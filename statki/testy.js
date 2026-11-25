@@ -3,6 +3,8 @@
 // Uruchom: node testy.js   (albo: mise run testy)
 
 var http = require("http");
+var fs = require("fs");
+var path = require("path");
 var child_process = require("child_process");
 var zasady = require("./zasady.js");
 
@@ -126,13 +128,60 @@ function ludziki(stan) {
   return lista;
 }
 
-function pobierz(sciezka) {
+function pobierzHost(sciezka, host) {
   return new Promise(function (resolve, reject) {
-    http.get({ host: "127.0.0.1", port: PORT, path: sciezka }, function (res) {
-      res.resume();
-      resolve({ kod: res.statusCode, typ: res.headers["content-type"] });
+    var opcje = { host: "127.0.0.1", port: PORT, path: sciezka };
+    if (host) opcje.headers = { Host: host };
+    http.get(opcje, function (res) {
+      var tresc = "";
+      res.on("data", function (kawalek) { tresc += kawalek; });
+      res.on("end", function () {
+        resolve({ kod: res.statusCode, typ: res.headers["content-type"] || "", tresc: tresc });
+      });
     }).on("error", reject);
   });
+}
+
+function pobierz(sciezka) {
+  return pobierzHost(sciezka);
+}
+
+var PULAPKI = ["link-testowy.html", "test.local.html"];
+
+function usunPulapki() {
+  for (var i = 0; i < PULAPKI.length; i++) {
+    try { fs.unlinkSync(path.join(__dirname, PULAPKI[i])); } catch (e) {}
+  }
+}
+
+async function sprawdzPliki() {
+  usunPulapki();
+  var ikonaSvg = await pobierz("/ikona.svg");
+  var ikonaPng = await pobierz("/ikona-32.png");
+  var ikonaDuza = await pobierz("/ikona-180.png");
+  var ikonaIco = await pobierz("/favicon.ico");
+  sprawdz(ikonaSvg.kod === 200 && ikonaSvg.typ === "image/svg+xml", "ikonka svg: " + ikonaSvg.typ);
+  sprawdz(ikonaPng.kod === 200 && ikonaPng.typ === "image/png", "ikonka png: " + ikonaPng.typ);
+  sprawdz(ikonaDuza.kod === 200 && ikonaDuza.typ === "image/png", "ikonka 180: " + ikonaDuza.typ);
+  sprawdz(ikonaIco.kod === 200 && ikonaIco.typ === "image/x-icon", "ikonka ico: " + ikonaIco.typ);
+
+  var tajne = await pobierz("/CLAUDE.local.md");
+  sprawdz(tajne.kod === 404, "tajna notatka: " + tajne.kod);
+  var toml = await pobierz("/mise.toml");
+  sprawdz(toml.kod === 404, "mise.toml: " + toml.kod);
+  var ukryty = await pobierz("/.git/config");
+  sprawdz(ukryty.kod === 404, "ukryty plik: " + ukryty.kod);
+  fs.writeFileSync(path.join(__dirname, "test.local.html"), "sekret-lokalny");
+  var lokalny = await pobierz("/test.local.html");
+  sprawdz(lokalny.kod === 404 && lokalny.tresc.indexOf("sekret-lokalny") === -1, "plik local: " + lokalny.kod);
+  fs.symlinkSync("/etc/passwd", path.join(__dirname, "link-testowy.html"));
+  var link = await pobierz("/link-testowy.html");
+  sprawdz(link.kod === 404 && link.tresc.indexOf("root:") === -1, "skrót na zewnątrz: " + link.kod + " " + link.tresc.slice(0, 40));
+  var obcy = await pobierzHost("/index.html", "zla-strona.example");
+  sprawdz(obcy.kod === 403, "obcy adres: " + obcy.kod);
+  var swoj = await pobierz("/index.html");
+  sprawdz(swoj.kod === 200 && swoj.typ.indexOf("text/html") === 0, "swoja strona: " + swoj.kod);
+  usunPulapki();
 }
 
 async function dolacz(sl, imie, awatar) {
@@ -445,7 +494,12 @@ async function sprawdzDwieGryDoKonca() {
 function uruchom() {
   dziecko = child_process.spawn(process.execPath, ["serwer.js"], {
     cwd: __dirname,
-    env: Object.assign({}, process.env, { PORT: String(PORT), SEKUNDY_PUSTEGO_LOBBY: "3" }),
+    env: Object.assign({}, process.env, {
+      PORT: String(PORT),
+      SEKUNDY_PUSTEGO_LOBBY: "3",
+      LIMIT_PROB_KODU: "1000",
+      PUBLICZNY_ADRES: "https://gra.example:443"
+    }),
     stdio: ["ignore", "pipe", "pipe"]
   });
   dziecko.stdout.on("data", function (buf) {
@@ -473,6 +527,7 @@ function uruchom() {
 }
 
 function zatrzymaj() {
+  usunPulapki();
   for (var i = 0; i < polaczenia.length; i++) {
     try { polaczenia[i].zamknij(); } catch (e) {}
   }
@@ -484,15 +539,7 @@ function zatrzymaj() {
 
 async function main() {
   await uruchom();
-
-  var ikonaSvg = await pobierz("/ikona.svg");
-  var ikonaPng = await pobierz("/ikona-32.png");
-  var ikonaDuza = await pobierz("/ikona-180.png");
-  var ikonaIco = await pobierz("/favicon.ico");
-  sprawdz(ikonaSvg.kod === 200 && ikonaSvg.typ === "image/svg+xml", "ikonka svg: " + ikonaSvg.typ);
-  sprawdz(ikonaPng.kod === 200 && ikonaPng.typ === "image/png", "ikonka png: " + ikonaPng.typ);
-  sprawdz(ikonaDuza.kod === 200 && ikonaDuza.typ === "image/png", "ikonka 180: " + ikonaDuza.typ);
-  sprawdz(ikonaIco.kod === 200 && ikonaIco.typ === "image/x-icon", "ikonka ico: " + ikonaIco.typ);
+  await sprawdzPliki();
 
   function kodZeSlowa(kod) {
     if (!/^[a-z]{3,6}[1-9]$/.test(kod)) return false;
@@ -527,6 +574,7 @@ async function main() {
   var b3 = await sluchaj("okno3", kodB);
   await czekajAz(a1, function (s) { return s.etap === "poczekalnia" && s.kod === kodA; }, "początek A");
   await czekajAz(b1, function (s) { return s.etap === "poczekalnia" && s.kod === kodB; }, "początek B");
+  sprawdz(JSON.stringify(a1.ostatni().adresy) === JSON.stringify(["https://gra.example:443"]), "adres w internecie: " + JSON.stringify(a1.ostatni().adresy));
 
   await dolacz(a1, "Ala", "spioch");
   await dolacz(a2, "Ola", "lasuch");
