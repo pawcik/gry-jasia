@@ -22,6 +22,7 @@ Jaś decides what each game becomes; you help him build it.
 - `monkey/` - Monkey World, a 3D adventure with the monkey Kiko (Three.js).
 - `kraina-wisni/` - Kraina Wiśni, a 3D open world in old Japan with a fox-spirit kid and a sword, made for a phone in landscape with two touch sticks (Three.js). Multiplayer server on port 8080.
 - `statki/` - Statki, battleship for the whole family (2+ players on phones and computers in the same Wi-Fi). Multiplayer server on port 8081; can also be deployed to a home server over HTTPS (`mise run wdroz`).
+- `sudoku/` - Sudoku on paper, one player, works offline after the first open (PWA). Sizes 4×4 up to 16×16. Static files behind Caddy, suggested public port 50082 (`mise run wdroz`).
 - `szablon/` - the starter every new game is copied from. Not a game itself; change it only to improve the starting point for future games.
 - every other folder - one game.
 
