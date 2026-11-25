@@ -1,5 +1,5 @@
 // Pamięta pliki gry, żeby po pierwszym otwarciu działała bez sieci.
-var CACHE = "sudoku-v3";
+var CACHE = "sudoku-v4";
 var PLIKI = [
   "./",
   "./index.html",

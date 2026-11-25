@@ -29,6 +29,7 @@ var CZAS_PRZYTRZYMANIA = 450;
 var PROG_RUCHU = 10;
 var przytrzymanie = null;
 var szybkieEl = null;
+var szybkieNotatki = false;
 var ignorujNastepnyKlik = false;
 var wyjasnienieEl = null;
 var podpowiedzZnacznik = null;
@@ -449,7 +450,7 @@ function planszaPelnaIDobra() {
   return true;
 }
 
-function wpiszCyfre(v) {
+function wpiszCyfre(v, jakoNotatka) {
   if (ekran === "edytor") {
     wpiszWEdytorze(v);
     return;
@@ -461,7 +462,9 @@ function wpiszCyfre(v) {
     ustawKomunikat("Ta cyfra jest wydrukowana.");
     return;
   }
-  if (trybNotatek) {
+  var notatki = trybNotatek;
+  if (typeof jakoNotatka === "boolean") notatki = jakoNotatka;
+  if (notatki) {
     var nowa = (gra.notatki[wybrany] ^ bit(v)) >>> 0;
     if (gra.wpisy[wybrany] < 0 && nowa === gra.notatki[wybrany]) return;
     zapamietaj();
@@ -469,7 +472,7 @@ function wpiszCyfre(v) {
     gra.notatki[wybrany] = nowa;
   } else {
     if (gra.wpisy[wybrany] === v && !gra.notatki[wybrany]) {
-      poEdycjiPola();
+      poEdycjiPola(notatki);
       return;
     }
     zapamietaj();
@@ -489,10 +492,10 @@ function wpiszCyfre(v) {
     dzwiek("klik");
   }
   zapisz();
-  poEdycjiPola();
+  poEdycjiPola(notatki);
 }
 
-function wyczyscWybrane() {
+function wyczyscWybrane(jakoNotatka) {
   if (ekran === "edytor") {
     if (!edytor || edytor.dane[wybrany] < 0) return;
     zapamietaj();
@@ -512,8 +515,10 @@ function wyczyscWybrane() {
     ustawKomunikat("Ta cyfra jest wydrukowana.");
     return;
   }
+  var notatki = trybNotatek;
+  if (typeof jakoNotatka === "boolean") notatki = jakoNotatka;
   if (gra.wpisy[wybrany] < 0 && !gra.notatki[wybrany]) {
-    poEdycjiPola();
+    poEdycjiPola(notatki);
     return;
   }
   zapamietaj();
@@ -525,7 +530,7 @@ function wyczyscWybrane() {
   odswiezPad();
   ustawKomunikat("");
   zapisz();
-  poEdycjiPola();
+  poEdycjiPola(notatki);
 }
 
 function wpiszWEdytorze(v) {
@@ -808,6 +813,8 @@ function przelaczNotatki() {
 // ===== Szybkie wpisywanie =====
 // Długie przytrzymanie kratki (albo prawy przycisk myszy) otwiera małą kartkę obok.
 // Zwykłe stuknięcie tylko wybiera kratkę, tak jak wcześniej.
+// Kartka ma własny tryb. Nie rusza przycisku Notatki na dole.
+// Otwiera się odwrotnie: na dole wpis -> kartka w notatce, i odwrotnie.
 
 function naWciskPola(e) {
   if (e.button !== 0) return;
@@ -900,6 +907,7 @@ function widokDoDymka() {
 function zamknijSzybkie() {
   if (szybkieEl && szybkieEl.parentNode) szybkieEl.parentNode.removeChild(szybkieEl);
   szybkieEl = null;
+  szybkieNotatki = false;
 }
 
 function otworzSzybkie(i) {
@@ -919,6 +927,7 @@ function otworzSzybkie(i) {
 
 function zbudujSzybkie(i) {
   zamknijSzybkie();
+  szybkieNotatki = notatkaNaStarcieOkienka(trybNotatek);
   var opis = opisRozmiaru(gra.rozmiar);
   var widok = widokDoDymka();
   var bok = rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, widok.right - widok.left, widok.bottom - widok.top);
@@ -954,7 +963,7 @@ function zbudujSzybkie(i) {
     znak.addEventListener("click", function () {
       if (czyPolknacKlik()) return;
       ustawWybraneZSzybkiego();
-      wpiszCyfre(Number(this.dataset.v));
+      wpiszCyfre(Number(this.dataset.v), szybkieNotatki);
     });
     siatka.appendChild(znak);
   }
@@ -969,7 +978,7 @@ function zbudujSzybkie(i) {
   gumka.addEventListener("click", function () {
     if (czyPolknacKlik()) return;
     ustawWybraneZSzybkiego();
-    wyczyscWybrane();
+    wyczyscWybrane(szybkieNotatki);
   });
   el.appendChild(gumka);
 
@@ -989,28 +998,34 @@ function przyciskTrybu(tekst, notatka) {
   b.dataset.notatka = notatka ? "1" : "0";
   b.addEventListener("click", function () {
     if (czyPolknacKlik()) return;
-    ustawTrybNotatek(this.dataset.notatka === "1");
+    ustawTrybSzybki(this.dataset.notatka === "1");
   });
   return b;
 }
 
+function ustawTrybSzybki(wyborNotatki) {
+  var stan = wyborTrybuOkienka(trybNotatek, wyborNotatki);
+  szybkieNotatki = stan.notatkaWOkienku;
+  odswiezSzybkie();
+}
+
 function odswiezSzybkie() {
   if (!szybkieEl || ekran !== "gra" || !gra) return;
-  szybkieEl.className = "szybkie" + (trybNotatek ? " notatkiWlaczone" : "");
+  szybkieEl.className = "szybkie" + (szybkieNotatki ? " notatkiWlaczone" : "");
   var tryby = szybkieEl.querySelectorAll(".szybkieTryb button");
   var t;
   for (t = 0; t < tryby.length; t++) {
-    var wlaczony = (tryby[t].dataset.notatka === "1") === trybNotatek;
+    var wlaczony = (tryby[t].dataset.notatka === "1") === szybkieNotatki;
     tryby[t].className = wlaczony ? "wcisniety" : "";
     tryby[t].setAttribute("aria-pressed", wlaczony ? "true" : "false");
   }
   var wartosc = wartoscWidoczna(wybrany);
-  var maska = trybNotatek ? (gra.notatki[wybrany] || 0) : 0;
+  var maska = szybkieNotatki ? (gra.notatki[wybrany] || 0) : 0;
   var przyciski = szybkieEl.querySelectorAll("button.znak");
   var i;
   for (i = 0; i < przyciski.length; i++) {
     var wart = Number(przyciski[i].dataset.v);
-    var on = trybNotatek ? (maska & bit(wart)) !== 0 : wartosc === wart;
+    var on = szybkieNotatki ? (maska & bit(wart)) !== 0 : wartosc === wart;
     przyciski[i].className = "znak" + (on ? " wcisniety" : "");
     przyciski[i].setAttribute("aria-pressed", on ? "true" : "false");
   }
@@ -1061,9 +1076,11 @@ function ustawWybraneZSzybkiego() {
   if (!isNaN(i)) wybrany = i;
 }
 
-function poEdycjiPola() {
+function poEdycjiPola(jakoNotatka) {
   if (!szybkieEl) return;
-  if (trybNotatek) zsynchronizujSzybkie();
+  var notatki = trybNotatek;
+  if (typeof jakoNotatka === "boolean") notatki = jakoNotatka;
+  if (okienkoZostaje(notatki)) zsynchronizujSzybkie();
   else zamknijSzybkie();
 }
 

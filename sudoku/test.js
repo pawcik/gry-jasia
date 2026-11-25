@@ -285,6 +285,26 @@ test("okienko szybkiego wpisu zostaje na ekranie i przewraca się obok komórki"
   assert.equal(zWcieciem.top, 48);
 });
 
+test("okienko ma własny tryb, odwrotny do przycisku Notatki na dole", function () {
+  assert.equal(silnik.notatkaNaStarcieOkienka(false), true);
+  assert.equal(silnik.notatkaNaStarcieOkienka(true), false);
+
+  var zWpisu = silnik.wyborTrybuOkienka(false, true);
+  assert.equal(zWpisu.notatkiNaDole, false);
+  assert.equal(zWpisu.notatkaWOkienku, true);
+
+  var zNotatek = silnik.wyborTrybuOkienka(true, false);
+  assert.equal(zNotatek.notatkiNaDole, true);
+  assert.equal(zNotatek.notatkaWOkienku, false);
+
+  var tenSam = silnik.wyborTrybuOkienka(true, true);
+  assert.equal(tenSam.notatkiNaDole, true);
+  assert.equal(tenSam.notatkaWOkienku, true);
+
+  assert.equal(silnik.okienkoZostaje(true), true);
+  assert.equal(silnik.okienkoZostaje(false), false);
+});
+
 test("drgnięcie palca nie kasuje przytrzymania, wyraźny ruch tak", function () {
   assert.equal(silnik.ruchAnulujePrzytrzymanie(0, 0, 10), false);
   assert.equal(silnik.ruchAnulujePrzytrzymanie(9, 0, 10), false);
