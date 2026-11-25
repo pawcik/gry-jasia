@@ -1542,8 +1542,28 @@ function dekoduj(tekst) {
 }
 
 // Małe okienko z cyframi (długie przytrzymanie na telefonie).
-// Te trzy funkcje tylko liczą: gdzie postawić okienko, kiedy palec się ruszył
-// i jak duże mają być cyfry, żeby weszły na ekran. Nie rysują.
+// Te funkcje tylko liczą: jaki tryb ma okienko, gdzie je postawić,
+// kiedy palec się ruszył i jak duże mają być cyfry. Nie rysują.
+
+// Długie przytrzymanie daje od razu drugi sposób pisania.
+// Notatki na dole wyłączone -> okienko startuje w notatce.
+// Notatki na dole włączone -> okienko startuje we wpisie.
+function notatkaNaStarcieOkienka(notatkiNaDole) {
+  return !notatkiNaDole;
+}
+
+// Klik „Wpis” albo „Notatka” w okienku. Przycisk Notatki na dole zostaje.
+function wyborTrybuOkienka(notatkiNaDole, wyborNotatki) {
+  return {
+    notatkiNaDole: !!notatkiNaDole,
+    notatkaWOkienku: !!wyborNotatki
+  };
+}
+
+// W notatce okienko zostaje, żeby dopisać kolejne. We wpisie znika po jednej cyfrze.
+function okienkoZostaje(notatka) {
+  return !!notatka;
+}
 
 function przytnijDoEkranu(v, min, max, rozmiar) {
   var limit = max - rozmiar;
@@ -1663,6 +1683,9 @@ if (typeof module !== "undefined" && module.exports) {
     krokLosowania: krokLosowania,
     koduj: koduj,
     dekoduj: dekoduj,
+    notatkaNaStarcieOkienka: notatkaNaStarcieOkienka,
+    wyborTrybuOkienka: wyborTrybuOkienka,
+    okienkoZostaje: okienkoZostaje,
     polozenieSzybkiego: polozenieSzybkiego,
     ruchAnulujePrzytrzymanie: ruchAnulujePrzytrzymanie,
     rozmiarKlawiszaSzybkiego: rozmiarKlawiszaSzybkiego
