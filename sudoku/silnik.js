@@ -1324,6 +1324,43 @@ function podpowiedz(opis, dane, wpisy, rozwiazanie, wybrane) {
   return odkrycie(opis, widok, rozwiazanie, wybrane);
 }
 
+// Podpowiedź ma dwa kroki.
+// Najpierw tylko podświetlamy kratkę. Drugie stuknięcie pokazuje cyfrę i wyjaśnienie.
+// Inna kratka gasi podświetlenie, więc następne stuknięcie znowu jest pierwsze.
+
+function stanSpojzenia(pole) {
+  return { krok: "kratka", pole: pole };
+}
+
+function nastepneStukniecie(stan) {
+  if (stan && stan.krok === "kratka" && typeof stan.pole === "number") return "pelna";
+  return "kratka";
+}
+
+function etykietaPodpowiedzi(stan) {
+  if (nastepneStukniecie(stan) === "pelna") return "Pokaż więcej";
+  return "Podpowiedź";
+}
+
+function tytulPodpowiedzi(stan) {
+  if (nastepneStukniecie(stan) === "pelna") return "Pokaż cyfrę i skąd ona wynika";
+  return "Pokaż, na którą kratkę spojrzeć";
+}
+
+function tekstSpojzenia(wiersz, kolumna) {
+  var w = Number(wiersz);
+  var k = Number(kolumna);
+  if (!isFinite(w) || !isFinite(k) || w < 1 || k < 1) return "Spójrz na tę kratkę.";
+  return "Spójrz na kratkę: wiersz " + w + ", kolumna " + k + ".";
+}
+
+// Ta sama kratka zostawia podświetlenie. Inna je gasi.
+function podpowiedzPoWyborze(stan, pole) {
+  if (!stan || stan.krok !== "kratka") return null;
+  if (pole === stan.pole) return stan;
+  return null;
+}
+
 // Ile cyfr zostaje na planszy i jak trudny krok wolno użyć.
 // Małe plansze różnią się głównie liczbą cyfr. Duże, przy ekspercie, schodzą do samego dna.
 var PASMA = {
@@ -1708,6 +1745,12 @@ if (typeof module !== "undefined" && module.exports) {
     sprawdz: sprawdz,
     podpowiedz: podpowiedz,
     wyjasnijPodpowiedz: wyjasnijPodpowiedz,
+    stanSpojzenia: stanSpojzenia,
+    nastepneStukniecie: nastepneStukniecie,
+    etykietaPodpowiedzi: etykietaPodpowiedzi,
+    tytulPodpowiedzi: tytulPodpowiedzi,
+    tekstSpojzenia: tekstSpojzenia,
+    podpowiedzPoWyborze: podpowiedzPoWyborze,
     polaObok: polaObok,
     PASMA: PASMA,
     generuj: generuj,
