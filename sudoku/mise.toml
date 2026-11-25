@@ -16,16 +16,16 @@ run = "node --check silnik.js && node --check game.js && node --check sw.js && n
 
 # Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
 # są w mise.local.toml, który nie trafia do gita.
-# PORT_SUDOKU jest opcjonalny (domyślnie 18442).
+# PORT_SUDOKU też jest w mise.local.toml. Nie wpisuj tu liczby.
 [tasks.wdroz]
 description = "Wyślij sudoku na domowy serwer (https, pliki statyczne)"
 run = """
 set -e
-if [ -z "$SERWER" ] || [ -z "$DOMENA" ]; then
-  echo "❌ Brak SERWER albo DOMENA w mise.local.toml"
+if [ -z "$SERWER" ] || [ -z "$DOMENA" ] || [ -z "$PORT_SUDOKU" ]; then
+  echo "❌ Brak SERWER, DOMENA albo PORT_SUDOKU w mise.local.toml"
   exit 1
 fi
-PORT_SUDOKU="${PORT_SUDOKU:-18442}"
+case "$PORT_SUDOKU" in *[!0-9]*) echo "❌ PORT_SUDOKU ma być liczbą"; exit 1;; esac
 
 # 1. Pliki gry. Caddy czyta je z /srv/sudoku. Testy i opis zostają, wdrozenie nie.
 COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/sudoku && tar -xzf - -C /srv/sudoku'
@@ -68,6 +68,6 @@ echo "Sudoku: pliki w /srv/sudoku, blok na porcie ${PORT_SUDOKU}."
 echo "Jednorazowo kontener caddy potrzebuje:"
 echo "  -v /srv/sudoku:/srv/sudoku:ro"
 echo "  -p ${PORT_SUDOKU}:${PORT_SUDOKU}"
-echo "oraz -e PORT_SUDOKU=${PORT_SUDOKU}, jeśli port ma być inny niż 18442."
+echo "oraz -e PORT_SUDOKU=${PORT_SUDOKU}."
 echo "Nie uruchamiam kontenera od nowa, żeby nie przerywać innych gier."
 """

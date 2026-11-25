@@ -22,8 +22,8 @@ Jaś decides what each game becomes; you help him build it.
 - `monkey/` - Monkey World, a 3D adventure with the monkey Kiko (Three.js).
 - `kraina-wisni/` - Kraina Wiśni, a 3D open world in old Japan with a fox-spirit kid and a sword, made for a phone in landscape with two touch sticks (Three.js). Multiplayer server on port 8080.
 - `statki/` - Statki, battleship for the whole family (2+ players on phones and computers in the same Wi-Fi). Multiplayer server on port 8081; can also be deployed to a home server over HTTPS (`mise run wdroz`).
-- `sudoku/` - Sudoku on paper, one player, works offline after the first open (PWA). Sizes 4×4 up to 16×16. Static files behind Caddy, suggested public port 18442 (`mise run wdroz`).
-- `start/` - the family landing page: a static grid of tiles that links to the games. Not a game. Suggested public port 18440 (`mise run wdroz`). Add a game with one line in `start/gry.js`.
+- `sudoku/` - Sudoku on paper, one player, works offline after the first open (PWA). Sizes 4×4 up to 16×16. Static files behind Caddy (`mise run wdroz`). The public port stays in `mise.local.toml`.
+- `start/` - the family landing page: a static grid of tiles that links to the games. Not a game. The public port stays in `mise.local.toml` (`mise run wdroz`). Add a game with one line in `start/gry.js`.
 - `szablon/` - the starter every new game is copied from. Not a game itself; change it only to improve the starting point for future games.
 - every other folder - one game.
 

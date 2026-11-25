@@ -1,12 +1,12 @@
 # Strona startowa — sam ten blok, do wspólnego Caddyfile (obok gier).
 # Nie zastępuj całego pliku. mise run wdroz dopisuje go między znacznikami.
-# Proponowany port publiczny: 18440. Inny: zmienna PORT_START w kontenerze.
+# Port jest w PORT_START (mise.local.toml), nie w tym pliku.
 # Pliki strony muszą być w kontenerze pod /srv/start (wolumin z hosta).
 
-{$DOMENA}:{$PORT_START:18440} {
+{$DOMENA}:{$PORT_START} {
 	encode gzip
 	root * /srv/start
-	@bezcache path / /index.html /gry.js /strona.js /style.css
+	@bezcache path / /index.html /gry.js /porty.js /strona.js /style.css
 	header @bezcache Cache-Control "no-cache"
 	file_server
 }

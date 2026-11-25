@@ -1,6 +1,7 @@
 # Prywatne rzeczy i pliki narzędzi: nie trafiają do publicznego repo
 CLAUDE.local.md
 mise.local.toml
+start/porty.js
 .DS_Store
 .TODO.md
 .todo/

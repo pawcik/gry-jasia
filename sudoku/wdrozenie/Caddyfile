@@ -1,9 +1,9 @@
 # Sudoku — sam ten blok, do wspólnego Caddyfile (obok Statków).
 # Nie zastępuj całego pliku. mise run wdroz dopisuje go między znacznikami.
-# Proponowany port publiczny: 18442. Inny: zmienna PORT_SUDOKU w kontenerze.
+# Port jest w PORT_SUDOKU (mise.local.toml), nie w tym pliku.
 # Pliki gry muszą być w kontenerze pod /srv/sudoku (wolumin z hosta).
 
-{$DOMENA}:{$PORT_SUDOKU:18442} {
+{$DOMENA}:{$PORT_SUDOKU} {
 	encode gzip
 	root * /srv/sudoku
 	@bezcache path /sw.js /manifest.webmanifest

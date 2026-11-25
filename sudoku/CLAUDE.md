@@ -23,15 +23,15 @@ There is no Node game server. Caddy serves the files. `mise run wdroz` copies th
 - `mise run serwer` - live reload on port 8082 (Kraina Wiśni uses 8080, Statki 8081).
 - `mise run graj` - opens `index.html`. The generator works from a file too. The installable offline copy needs http or https, because a service worker does not run from `file://`.
 - `mise run test` - generator, unique-solution check, Sprawdź, hints and the code format.
-- `mise run wdroz` - copies the game to the home server. `SERWER` and `DOMENA` live in `mise.local.toml` (not in git). `PORT_SUDOKU` is optional and defaults to 18442. The task uploads `/srv/sudoku`, writes `/srv/caddy/sudoku.Caddyfile`, and splices that block into `/srv/caddy/Caddyfile` between `# BEGIN sudoku` and `# END sudoku`. It reloads Caddy when the container is already running and does not deploy by itself in the sense of recreating containers.
+- `mise run wdroz` - copies the game to the home server. `SERWER`, `DOMENA` and `PORT_SUDOKU` live in `mise.local.toml` (not in git). The task uploads `/srv/sudoku`, writes `/srv/caddy/sudoku.Caddyfile`, and splices that block into `/srv/caddy/Caddyfile` between `# BEGIN sudoku` and `# END sudoku`. It reloads Caddy when the container is already running and does not deploy by itself in the sense of recreating containers.
 
 One-time change on the shared `caddy` container, when a quiet moment is fine (it briefly drops the other games):
 
 - mount `-v /srv/sudoku:/srv/sudoku:ro`
-- publish `-p 18442:18442` (or whatever `PORT_SUDOKU` is)
-- if the port is not 18442, also `-e PORT_SUDOKU=...` (the site block is `{$DOMENA}:{$PORT_SUDOKU:18442}`)
+- publish the port from `PORT_SUDOKU` (`-p` that port to itself)
+- pass `-e PORT_SUDOKU=...` (the site block is `{$DOMENA}:{$PORT_SUDOKU}`)
 
-`DOMENA` is already the environment variable Statki's Caddy uses. Do not put the real domain or the forwarded port's private notes in git. Suggested public port: 18442.
+`DOMENA` is already the environment variable Statki's Caddy uses. Do not put the real domain or the forwarded port in git.
 
 ## Code structure
 

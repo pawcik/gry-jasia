@@ -46,11 +46,13 @@ function zrobKafelek(gra) {
   return punkt;
 }
 
-// Adres gry: podany wprost albo ta sama domena co strona i port z listy.
+// Adres gry: podany wprost, albo ta sama domena i port z porty.js.
 function adresGry(gra) {
+  var port = gra.port;
+  if (!port && typeof PORTY !== "undefined" && gra.klucz) port = PORTY[gra.klucz];
   if (gra.adres) return gra.adres;
-  if (!location.hostname || !gra.port) return "#";
-  return location.protocol + "//" + location.hostname + ":" + gra.port + "/";
+  if (!location.hostname || !port) return "#";
+  return location.protocol + "//" + location.hostname + ":" + port + "/";
 }
 
 rysujGry();

@@ -10,21 +10,25 @@ run = "open index.html"
 description = "Uruchom stronę startową z automatycznym odświeżaniem"
 run = "live-server --port=8083 --open=index.html"
 
-# Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
-# są w mise.local.toml, który nie trafia do gita.
-# PORT_START jest opcjonalny (domyślnie 18440).
+# Wdrożenie na domowy serwer. SERWER, DOMENA i porty publiczne
+# (PORT_START, PORT_STATKI, PORT_SUDOKU) są w mise.local.toml.
+# Nie wpisuj ich tutaj: ten plik trafia do gita.
 [tasks.wdroz]
 description = "Wyślij stronę startową na domowy serwer (https, pliki statyczne)"
 run = """
 set -e
-if [ -z "$SERWER" ] || [ -z "$DOMENA" ]; then
-  echo "❌ Brak SERWER albo DOMENA w mise.local.toml"
+if [ -z "$SERWER" ] || [ -z "$DOMENA" ] || [ -z "$PORT_START" ] || [ -z "$PORT_STATKI" ] || [ -z "$PORT_SUDOKU" ]; then
+  echo "❌ Brak SERWER, DOMENA, PORT_START, PORT_STATKI albo PORT_SUDOKU w mise.local.toml"
   exit 1
 fi
-PORT_START="${PORT_START:-18440}"
+case "$PORT_START" in *[!0-9]*) echo "❌ PORT_START ma być liczbą"; exit 1;; esac
+case "$PORT_STATKI" in *[!0-9]*) echo "❌ PORT_STATKI ma być liczbą"; exit 1;; esac
+case "$PORT_SUDOKU" in *[!0-9]*) echo "❌ PORT_SUDOKU ma być liczbą"; exit 1;; esac
 
 # 1. Pliki strony. Caddy czyta je z /srv/start. Opis zostaje, wdrozenie nie.
-COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/start && tar -xzf - -C /srv/start'
+# porty.js powstaje dopiero na serwerze, z liczb z mise.local.toml.
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml --exclude=porty.js -czf - . | ssh "$SERWER" 'mkdir -p /srv/start && tar -xzf - -C /srv/start'
+ssh "$SERWER" "printf '%s\n' 'var PORTY = { statki: ${PORT_STATKI}, sudoku: ${PORT_SUDOKU} };' > /srv/start/porty.js"
 
 # 2. Blok strony. Dopisujemy go do wspólnego Caddyfile, nie kasujemy innych gier.
 ssh "$SERWER" "mkdir -p /srv/caddy && cat > /srv/caddy/start.Caddyfile" < wdrozenie/Caddyfile
@@ -64,6 +68,6 @@ echo "Strona startowa: pliki w /srv/start, blok na porcie ${PORT_START}."
 echo "Jednorazowo kontener caddy potrzebuje:"
 echo "  -v /srv/start:/srv/start:ro"
 echo "  -p ${PORT_START}:${PORT_START}"
-echo "oraz -e PORT_START=${PORT_START}, jeśli port ma być inny niż 18440."
+echo "  -e PORT_START=${PORT_START}"
 echo "Nie uruchamiam kontenera od nowa, żeby nie przerywać gier."
 """

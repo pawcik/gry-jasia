@@ -177,7 +177,7 @@ test("kod planszy przeżywa wklejenie i link", function () {
   assert.equal(zKodu.trudnosc, "latwy");
   assert.ok(taSama(zKodu.dane, gra.dane));
 
-  var link = "https://przyklad.invalid:18442/?p=" + encodeURIComponent(kod);
+  var link = "https://przyklad.invalid:9/?p=" + encodeURIComponent(kod);
   var zLinku = silnik.dekoduj(link);
   assert.ok(taSama(zLinku.dane, gra.dane));
 
