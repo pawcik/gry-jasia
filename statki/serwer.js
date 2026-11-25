@@ -17,7 +17,7 @@ var ID_ROBOTA = "robotplanszy";
 var IMIE_ROBOTA = "Robot";
 var AWATAR_ROBOTA = "madrala";
 
-// Port i publiczny adres można podać z zewnątrz (tak gra działa w internecie)
+// Port i publiczny adres można podać z zewnątrz, gdy gra jest w internecie.
 var PORT = Number(process.env.PORT) || 8081;
 var PUBLICZNY_ADRES = process.env.PUBLICZNY_ADRES || "";
 var FOLDER = __dirname;
@@ -28,6 +28,10 @@ if (!SEKUNDY_PUSTEJ_GRY || SEKUNDY_PUSTEJ_GRY < 1) SEKUNDY_PUSTEJ_GRY = 15 * 60;
 var CZAS_PUSTEJ_GRY = SEKUNDY_PUSTEJ_GRY * 1000;
 var CO_ILE_SPRZATAMY = Math.min(30000, Math.max(1000, Math.floor(CZAS_PUSTEJ_GRY / 2)));
 var MAX_GIER = 40;
+var MAX_OTWARTYCH = 100; // tyle przeglądarek naraz, żeby ktoś z internetu nie zalał małego komputera
+// Tyle sprawdzeń kodu na 10 sekund. Testy podnoszą LIMIT_PROB_KODU.
+var MAX_PROB_KODU = Number(process.env.LIMIT_PROB_KODU);
+if (!MAX_PROB_KODU || MAX_PROB_KODU < 1) MAX_PROB_KODU = 30;
 // Takie kody da się wylosować, ale lepiej ich nie czytać przy obiedzie.
 var KODY_NIE = { kupa: 1, pupa: 1, dupa: 1, kaka: 1, siki: 1 };
 var RODZAJE_PLIKOW = {
@@ -57,6 +61,28 @@ for (var nazwaSieci in sieci) {
     if (!PUBLICZNY_ADRES && adres.family === "IPv4" && !adres.internal) ADRESY.push("http://" + adres.address + ":" + PORT);
   }
 }
+
+// Kto może otworzyć grę: ten komputer, telefony w domowym Wi-Fi i adres z PUBLICZNY_ADRES.
+// Inna nazwa (np. ze złośliwej strony) dostaje odmowę.
+var DOZWOLONE_HOSTY = Object.create(null);
+function dodajHost(nazwa) {
+  if (!nazwa) return;
+  DOZWOLONE_HOSTY[String(nazwa).toLowerCase()] = 1;
+}
+dodajHost("localhost");
+dodajHost("127.0.0.1");
+dodajHost("::1");
+for (var nazwaSieciHost in sieci) {
+  for (var h = 0; h < sieci[nazwaSieciHost].length; h++) dodajHost(sieci[nazwaSieciHost][h].address);
+}
+if (PUBLICZNY_ADRES) {
+  try {
+    dodajHost(new URL(PUBLICZNY_ADRES).hostname);
+  } catch (e) {}
+}
+
+var KORZEN = fs.realpathSync(FOLDER);
+var probyKodu = [];
 
 // ----- Jedna gra -----
 // Cały stan jednej rozgrywki siedzi w tym obiekcie. Druga gra to drugi obiekt.
@@ -110,7 +136,7 @@ function losujFale(gra) {
 }
 
 function idDobre(id) {
-  return /^[a-z0-9]+$/i.test(id) && id.length <= 40;
+  return typeof id === "string" && /^[a-z0-9]+$/i.test(id) && id.length <= 40;
 }
 
 // Zasady wybranego rodzaju gry (rozmiar planszy i statki)
@@ -240,7 +266,7 @@ function tylkoPolaczeni(gra) {
 
 // Podgląd gry (nie zwykły serwer w domu) może posadzić robota.
 function robotDostepny() {
-  return robotLogika.podgladZRobotem(process.env, PORT, PUBLICZNY_ADRES);
+  return robotLogika.podgladZRobotem(process.env, PORT);
 }
 
 // Ile robot czeka między strzałami, żeby było widać plusk. Testy dają 0.
@@ -881,7 +907,27 @@ function widokStatystyk(gra) {
 
 // ----- Co widzi gracz -----
 // Plansza to ciąg znaków: 0 woda, 1 pudło, 2 trafiony, 3 zatopiony, 4 cały statek (tylko swój albo na koniec gry)
-function widokDla(gra, id) {
+// Adres domowego Wi-Fi zostaje w domu. W internecie pokazujemy tylko PUBLICZNY_ADRES.
+function adresPrywatny(ip) {
+  var sam = String(ip || "").replace(/^::ffff:/, "");
+  if (sam === "127.0.0.1" || sam === "::1") return true;
+  if (sam.indexOf("10.") === 0 || sam.indexOf("192.168.") === 0) return true;
+  if (sam.indexOf("172.") === 0) {
+    var drugi = Number(sam.split(".")[1]);
+    if (drugi >= 16 && drugi <= 31) return true;
+  }
+  if (sam.indexOf("fc") === 0 || sam.indexOf("fd") === 0 || sam.indexOf("fe80:") === 0) return true;
+  return false;
+}
+
+function adresyDla(odpowiedz) {
+  if (PUBLICZNY_ADRES) return [PUBLICZNY_ADRES];
+  var ip = odpowiedz && odpowiedz.socket ? odpowiedz.socket.remoteAddress : "";
+  if (adresPrywatny(ip)) return ADRESY;
+  return [];
+}
+
+function widokDla(gra, id, odpowiedz) {
   var ja = znajdz(gra, id);
   var odkryj = gra.etap === "koniec";
   var teraz = Date.now();
@@ -928,7 +974,7 @@ function widokDla(gra, id) {
     dziennik: gra.dziennik.slice(-8),
     ostatni: gra.ostatni,
     statystyki: widokStatystyk(gra),
-    adresy: ADRESY,
+    adresy: adresyDla(odpowiedz),
     sekundyDoUsuniecia: SEKUNDY_DO_USUNIECIA,
     fale: gra.fale || [],
     gracze: gracze
@@ -938,7 +984,8 @@ function widokDla(gra, id) {
 // Każdy w TEJ grze dostaje swój widok. Inne gry milczą.
 function rozeslij(gra) {
   for (var id in gra.sluchacze) {
-    pisz(gra.sluchacze[id], "event: stan\ndata: " + JSON.stringify(widokDla(gra, id)) + "\n\n");
+    var odpowiedz = gra.sluchacze[id];
+    pisz(odpowiedz, "event: stan\ndata: " + JSON.stringify(widokDla(gra, id, odpowiedz)) + "\n\n");
   }
 }
 
@@ -1018,8 +1065,24 @@ function posprzataj() {
   }
 }
 
+// Zgadywanie kodów (jas1, ala3, ...) nie może lecieć setkami na sekundę.
+function zaDuzoKodow() {
+  var teraz = Date.now();
+  var swieze = [];
+  for (var i = 0; i < probyKodu.length; i++) {
+    if (teraz - probyKodu[i] < 10000) swieze.push(probyKodu[i]);
+  }
+  probyKodu = swieze;
+  if (probyKodu.length >= MAX_PROB_KODU) return true;
+  probyKodu.push(teraz);
+  return false;
+}
+
 function obsluz(akcja) {
   var typ = String(akcja.typ || "");
+  if (typ === "noweLobby" || typ === "sprawdzKod" || typ === "grajZRobotem") {
+    if (zaDuzoKodow()) return { blad: "Za dużo prób. Poczekaj chwilę." };
+  }
   if (typ === "noweLobby") return zalozLobby(akcja.kod);
   if (typ === "grajZRobotem") return grajZRobotem(akcja.kod);
   if (typ === "sprawdzKod") return sprawdzKod(akcja.kod);
@@ -1048,8 +1111,36 @@ function piszDoPolaczen(tresc) {
   for (var i = 0; i < goscie.length; i++) pisz(goscie[i], tresc);
 }
 
+function nazwaHosta(zadanie) {
+  var host = String(zadanie.headers.host || "").toLowerCase();
+  if (host.charAt(0) === "[") {
+    var koniec = host.indexOf("]");
+    return koniec === -1 ? "" : host.slice(1, koniec);
+  }
+  return host.replace(/:\d+$/, "");
+}
+
+function hostDozwolony(zadanie) {
+  var nazwa = nazwaHosta(zadanie);
+  return !!nazwa && !!DOZWOLONE_HOSTY[nazwa];
+}
+
+function odmow(odpowiedz) {
+  odpowiedz.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+  odpowiedz.end("Zły adres");
+}
+
+function ileOtwartych() {
+  var ile = goscie.length;
+  for (var kod in lobby) {
+    for (var id in lobby[kod].sluchacze) ile++;
+  }
+  return ile;
+}
+
 // ----- Serwer -----
 var serwer = http.createServer(function (zadanie, odpowiedz) {
+  if (!hostDozwolony(zadanie)) return odmow(odpowiedz);
   var adresStrony = new URL(zadanie.url, "http://localhost");
   if (adresStrony.pathname === "/wydarzenia") return polaczGracza(adresStrony, zadanie, odpowiedz);
   if (adresStrony.pathname === "/akcja" && zadanie.method === "POST") return odbierzAkcje(zadanie, odpowiedz);
@@ -1058,6 +1149,10 @@ var serwer = http.createServer(function (zadanie, odpowiedz) {
 
 // Przeglądarka otwiera stałe połączenie i czeka na wiadomości
 function polaczGracza(adresStrony, zadanie, odpowiedz) {
+  if (ileOtwartych() >= MAX_OTWARTYCH) {
+    odpowiedz.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+    return odpowiedz.end("Za dużo graczy. Spróbuj za chwilę.");
+  }
   var id = String(adresStrony.searchParams.get("id") || "");
   if (!idDobre(id)) {
     odpowiedz.writeHead(400);
@@ -1121,26 +1216,46 @@ function odbierzAkcje(zadanie, odpowiedz) {
   });
 }
 
-// Pliki gry: index.html, skrypty, style
-function wyslijPlik(sciezka, odpowiedz) {
+// Plik gry albo null. Notatki, hasła i skróty poza folder zostają na dysku.
+function sciezkaPliku(sciezka) {
   if (sciezka === "/") sciezka = "/index.html";
   try {
     sciezka = decodeURIComponent(sciezka);
   } catch (e) {
-    sciezka = "";
+    return null;
   }
+  if (sciezka.indexOf("\0") !== -1) return null;
   var czesci = sciezka.split("/");
   for (var i = 0; i < czesci.length; i++) {
+    var czesc = czesci[i];
+    if (!czesc) continue;
     // ukryte pliki (np. .git) i wychodzenie z folderu gry są zabronione
-    if (czesci[i].charAt(0) === ".") return nieMa(odpowiedz);
+    if (czesc.charAt(0) === ".") return null;
+    var mala = czesc.toLowerCase();
+    if (mala.indexOf(".local") !== -1) return null;
   }
-  var plik = path.join(FOLDER, sciezka);
-  if (plik.indexOf(FOLDER + path.sep) !== 0) return nieMa(odpowiedz);
-  fs.readFile(plik, function (blad, dane) {
-    if (blad) return nieMa(odpowiedz);
-    var rodzaj = RODZAJE_PLIKOW[path.extname(plik).toLowerCase()] || "application/octet-stream";
-    odpowiedz.writeHead(200, { "Content-Type": rodzaj, "Cache-Control": "no-store" });
-    odpowiedz.end(dane);
+  if (!RODZAJE_PLIKOW[path.extname(sciezka).toLowerCase()]) return null;
+  var plik = path.resolve(FOLDER, sciezka.replace(/^\/+/, ""));
+  if (plik !== KORZEN && plik.indexOf(KORZEN + path.sep) !== 0 && plik.indexOf(FOLDER + path.sep) !== 0) return null;
+  return plik;
+}
+
+function jestWFolderze(prawdziwy) {
+  return prawdziwy === KORZEN || prawdziwy.indexOf(KORZEN + path.sep) === 0;
+}
+
+// Pliki gry: index.html, skrypty, style, obrazki. Nic innego.
+function wyslijPlik(sciezka, odpowiedz) {
+  var plik = sciezkaPliku(sciezka);
+  if (!plik) return nieMa(odpowiedz);
+  fs.realpath(plik, function (bladSciezki, prawdziwy) {
+    if (bladSciezki || !jestWFolderze(prawdziwy)) return nieMa(odpowiedz);
+    fs.readFile(prawdziwy, function (blad, dane) {
+      if (blad) return nieMa(odpowiedz);
+      var rodzaj = RODZAJE_PLIKOW[path.extname(prawdziwy).toLowerCase()];
+      odpowiedz.writeHead(200, { "Content-Type": rodzaj, "Cache-Control": "no-store" });
+      odpowiedz.end(dane);
+    });
   });
 }
 

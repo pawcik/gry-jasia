@@ -23,11 +23,21 @@ if [ -z "$SERWER" ] || [ -z "$DOMENA" ] || [ -z "$PORT_PUBLICZNY" ]; then
   echo "❌ Brak SERWER, DOMENA albo PORT_PUBLICZNY w mise.local.toml"
   exit 1
 fi
+# Dziwny znak nie może stać się poleceniem na domowym serwerze.
+case "$PORT_PUBLICZNY" in
+  *[!0-9]*) echo "❌ PORT_PUBLICZNY ma być liczbą"; exit 1;;
+esac
+case "$DOMENA" in
+  *[!A-Za-z0-9.-]*) echo "❌ DOMENA ma tylko litery, cyfry, kropki i myślniki"; exit 1;;
+esac
+case "$SERWER" in
+  *[!A-Za-z0-9._@-]*) echo "❌ SERWER ma być nazwą z ssh, bez spacji i znaków specjalnych"; exit 1;;
+esac
 ADRES="https://$DOMENA:$PORT_PUBLICZNY"
 
 # 1. Pliki gry
 STARE=$(ssh "$SERWER" 'cat /srv/statki/serwer.js /srv/statki/zasady.js 2>/dev/null | md5sum')
-COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/statki && tar -xzf - -C /srv/statki'
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml --exclude='*.local.md' --exclude='*.local.toml' --exclude='*.pem' --exclude='*.key' --exclude='.env' -czf - . | ssh "$SERWER" 'mkdir -p /srv/statki && tar -xzf - -C /srv/statki'
 NOWE=$(ssh "$SERWER" 'cat /srv/statki/serwer.js /srv/statki/zasady.js | md5sum')
 
 # 2. Ustawienia Caddy i wspólna sieć dla gier i Caddy
@@ -37,7 +47,7 @@ ssh "$SERWER" 'docker network inspect gry >/dev/null 2>&1 || docker network crea
 # 3. Serwer gry (bez własnego portu: ruch przychodzi przez Caddy)
 if [ "$STARE" != "$NOWE" ] || ! ssh "$SERWER" "docker inspect statki 2>/dev/null | grep -q PUBLICZNY_ADRES=$ADRES" || ! ssh "$SERWER" 'docker ps -q -f name=^statki$ -f status=running | grep -q .'; then
   echo "🔄 Uruchamiam serwer gry od nowa (trwająca gra się kończy)"
-  ssh "$SERWER" "docker rm -f statki >/dev/null 2>&1; docker run -d --name statki --network gry --restart unless-stopped -e PORT=8081 -e PUBLICZNY_ADRES=$ADRES -v /srv/statki:/app:ro -w /app node:22-alpine node serwer.js >/dev/null"
+  ssh "$SERWER" "docker rm -f statki >/dev/null 2>&1; docker run -d --name statki --network gry --restart unless-stopped --read-only --tmpfs /tmp --cap-drop=ALL --security-opt no-new-privileges -u node -e PORT=8081 -e PUBLICZNY_ADRES=$ADRES -v /srv/statki:/app:ro -w /app node:22-alpine node serwer.js >/dev/null"
 else
   echo "✨ Zmieniły się tylko pliki gry: przeglądarki same się odświeżą, gra trwa dalej"
 fi
