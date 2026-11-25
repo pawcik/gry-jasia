@@ -1,0 +1,144 @@
+/* Jasna, spokojna strona z kafelkami. Działa na telefonie i na komputerze. */
+
+:root {
+  --papier: #f3efe6;
+  --kartka: #fffcf7;
+  --atrament: #2b2824;
+  --cicho: #5f584f;
+  --linia: #e4d9c8;
+  --kreska: #c4b49a;
+  --kolko: #f4ece0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--atrament);
+  font-family: "Iowan Old Style", Palatino, Georgia, "Times New Roman", serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+main {
+  width: min(800px, 100%);
+  margin: 0 auto;
+  padding:
+    calc(36px + env(safe-area-inset-top))
+    calc(18px + env(safe-area-inset-right))
+    calc(40px + env(safe-area-inset-bottom))
+    calc(18px + env(safe-area-inset-left));
+}
+
+header h1 {
+  margin: 0;
+  font-size: clamp(36px, 8vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+header p {
+  margin: 10px 0 0;
+  color: var(--cicho);
+  font-size: 19px;
+}
+
+#siatka {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.kafelek {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 96px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--kartka);
+  border: 1px solid var(--linia);
+  border-radius: 18px;
+  touch-action: manipulation;
+}
+
+.kafelek:hover {
+  border-color: var(--kreska);
+}
+
+.kafelek:active {
+  background: #f7f1e6;
+}
+
+.kafelek:focus-visible {
+  outline: 3px solid #8d6b3a;
+  outline-offset: 3px;
+}
+
+.ikona {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  font-size: 30px;
+  line-height: 1;
+  background: var(--kolko);
+  border-radius: 16px;
+}
+
+.tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.nazwa {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.opis {
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--cicho);
+}
+
+.pusto {
+  margin: 0;
+  color: var(--cicho);
+  font-size: 18px;
+}
+
+@media (min-width: 720px) {
+  main {
+    padding-top: calc(72px + env(safe-area-inset-top));
+  }
+
+  #siatka {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kafelek:active {
+    background: var(--kartka);
+  }
+}
