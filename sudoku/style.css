@@ -36,7 +36,8 @@ body {
 body {
   min-height: 100vh;
   min-height: 100dvh;
-  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  flex-direction: column;
 }
 
 header {
@@ -135,6 +136,17 @@ button:focus-visible {
 
 .banerAktualizacji button {
   margin: 2px;
+}
+
+/* Mały, blady numer na samym dole. Nie jest w menu. */
+.stopkaWersji {
+  margin: auto 0 0;
+  padding: 20px 16px calc(8px + env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: #b0aa9e;
 }
 
 #odswiezWersje {

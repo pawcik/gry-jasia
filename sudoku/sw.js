@@ -1,12 +1,15 @@
 // Pamięta pliki gry, żeby po pierwszym otwarciu działała bez sieci.
 // Nowa wersja czeka. Włącza się dopiero, gdy ktoś naciśnie Odśwież.
-var CACHE = "sudoku-v5";
+// W gicie nazwa to sudoku-dev. Przed wysłaniem wstaw-wersje.js
+// wpisuje sudoku- i datę commita, więc ten plik się zmienia i pasek się pojawia.
+var CACHE = "sudoku-dev";
 var PLIKI = [
   "./",
   "./index.html",
   "./style.css",
   "./silnik.js",
   "./game.js",
+  "./wersja.js",
   "./manifest.webmanifest",
   "./ikona.svg",
   "./ikona-32.png",

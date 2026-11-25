@@ -4,9 +4,12 @@
 var test = require("node:test");
 var assert = require("node:assert/strict");
 var fs = require("fs");
+var os = require("os");
 var path = require("path");
 var vm = require("vm");
+var child = require("child_process");
 var silnik = require("./silnik.js");
+var wstaw = require("./wstaw-wersje.js");
 
 var ROZMIARY = ["4", "6", "9", "12", "16"];
 var TRUDNOSCI = ["latwy", "sredni", "trudny", "ekspert"];
@@ -456,7 +459,7 @@ function nowyPracownik() {
         });
       },
       keys: function () {
-        return Promise.resolve(["sudoku-v4", "sudoku-v5", "inne"]);
+        return Promise.resolve(["sudoku-v4", "sudoku-v5", "sudoku-dev", "inne"]);
       },
       delete: function (klucz) {
         stan.skasowane.push(klucz);
@@ -486,14 +489,14 @@ function decyzjeAktualizacji() {
 
 test("nowa wersja czeka, aż ktoś naciśnie Odśwież", function () {
   var p = nowyPracownik();
-  assert.equal(p.CACHE, "sudoku-v5");
+  assert.equal(p.CACHE, "sudoku-dev");
   var gotowe;
   p.nasluch.install({
     waitUntil: function (obietnica) { gotowe = obietnica; }
   });
   return gotowe.then(function () {
     assert.equal(p.stan.skip, 0);
-    assert.deepEqual(p.stan.otwarte, ["sudoku-v5"]);
+    assert.deepEqual(p.stan.otwarte, ["sudoku-dev"]);
   });
 });
 
@@ -516,8 +519,10 @@ test("po włączeniu nowej wersji stara pamięć plików znika", function () {
   return gotowe.then(function () {
     assert.equal(p.stan.claim, 1);
     assert.ok(p.stan.skasowane.indexOf("sudoku-v4") >= 0);
+    assert.ok(p.stan.skasowane.indexOf("sudoku-v5") >= 0);
     assert.ok(p.stan.skasowane.indexOf("inne") >= 0);
-    assert.equal(p.stan.skasowane.indexOf("sudoku-v5"), -1);
+    assert.equal(p.stan.skasowane.indexOf(p.CACHE), -1);
+    assert.equal(p.CACHE, "sudoku-dev");
     assert.equal(p.stan.skip, 0);
   });
 });
@@ -556,6 +561,99 @@ test("pasek nowej wersji leży na stronie i nie zasłania planszy", function () 
   assert.ok(gra.indexOf("visibilitychange") >= 0);
   assert.ok(gra.indexOf("updatefound") >= 0);
   assert.ok(gra.indexOf(".update()") >= 0);
+});
+
+test("numer wersji jest na dole strony i nie wchodzi do menu ani do zapisu", function () {
+  var html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  var menuStart = html.indexOf('<section class="ekran" id="ekranMenu">');
+  var menuEnd = html.indexOf("</section>", menuStart);
+  var menu = html.slice(menuStart, menuEnd);
+  assert.equal(menu.indexOf("stopkaWersji"), -1);
+  assert.ok(html.lastIndexOf("</section>") < html.indexOf('id="stopkaWersji"'));
+  assert.ok(html.indexOf('src="wersja.js"') < html.indexOf('src="game.js"'));
+  assert.match(fs.readFileSync(path.join(__dirname, "wersja.js"), "utf8"), /var WERSJA_GRY = "dev";/);
+  assert.match(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8"), /var CACHE = "sudoku-dev";/);
+  assert.ok(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8").indexOf('"./wersja.js"') >= 0);
+  var css = fs.readFileSync(path.join(__dirname, "style.css"), "utf8");
+  var start = css.indexOf(".stopkaWersji {");
+  assert.ok(start >= 0);
+  var blok = css.slice(start, css.indexOf("}", start));
+  assert.equal(blok.indexOf("position: fixed"), -1);
+  assert.equal(blok.indexOf("position: absolute"), -1);
+  assert.ok(blok.indexOf("font-size: 11px") >= 0);
+  var gra = fs.readFileSync(path.join(__dirname, "game.js"), "utf8");
+  var od = gra.indexOf("function pokazWersje");
+  var doKonca = gra.indexOf("function zarejestrujPraceOffline");
+  assert.ok(od >= 0 && doKonca > od);
+  assert.equal(gra.slice(od, doKonca).indexOf("localStorage"), -1);
+  assert.ok(gra.indexOf('var KLUCZ = "sudoku"') >= 0);
+  assert.ok(gra.indexOf("wersja: 1") >= 0);
+});
+
+test("data wersji jest w strefie Asia/Bangkok", function () {
+  assert.equal(wstaw.STREF, "Asia/Bangkok");
+  var poludnie = Date.UTC(2026, 10, 25, 12, 0, 0) / 1000;
+  assert.equal(wstaw.formatujCzas(poludnie), "2026-11-25 19:00");
+  var przedPolnoca = Date.UTC(2026, 10, 25, 16, 59, 0) / 1000;
+  assert.equal(wstaw.formatujCzas(przedPolnoca), "2026-11-25 23:59");
+  var poPolnocy = Date.UTC(2026, 10, 25, 17, 0, 0) / 1000;
+  assert.equal(wstaw.formatujCzas(poPolnocy), "2026-11-26 00:00");
+  assert.equal(wstaw.wersjaZCommita(poludnie, "a2b0af3"), "2026-11-25 19:00 a2b0af3");
+});
+
+test("wstawienie wersji zmienia sw.js i zostawia dev w źródle", function () {
+  var katalog = fs.mkdtempSync(path.join(os.tmpdir(), "sudoku-wersja-"));
+  var swPrzed = fs.readFileSync(path.join(__dirname, "sw.js"), "utf8");
+  var werPrzed = fs.readFileSync(path.join(__dirname, "wersja.js"), "utf8");
+  try {
+    fs.copyFileSync(path.join(__dirname, "sw.js"), path.join(katalog, "sw.js"));
+    fs.copyFileSync(path.join(__dirname, "wersja.js"), path.join(katalog, "wersja.js"));
+    assert.equal(wstaw.wersjaDobra("2026-11-25 19:52"), true);
+    assert.equal(wstaw.wersjaDobra("2026-11-25 19:52 a2b0af3"), true);
+    assert.equal(wstaw.wersjaDobra("dev"), false);
+    assert.equal(wstaw.wersjaDobra('2026-11-25 19:52 "x'), false);
+    assert.throws(function () {
+      wstaw.wstawWersje(katalog, "nie-data");
+    });
+    assert.equal(fs.readFileSync(path.join(katalog, "sw.js"), "utf8"), swPrzed);
+    wstaw.wstawWersje(katalog, "2026-11-25 19:52 a2b0af3");
+    var swPo = fs.readFileSync(path.join(katalog, "sw.js"), "utf8");
+    var werPo = fs.readFileSync(path.join(katalog, "wersja.js"), "utf8");
+    assert.notEqual(swPo, swPrzed);
+    assert.match(swPo, /var CACHE = "sudoku-2026-11-25 19:52 a2b0af3";/);
+    assert.match(werPo, /var WERSJA_GRY = "2026-11-25 19:52 a2b0af3";/);
+    assert.equal(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8"), swPrzed);
+    assert.equal(fs.readFileSync(path.join(__dirname, "wersja.js"), "utf8"), werPrzed);
+    child.execFileSync(process.execPath, ["--check", path.join(katalog, "sw.js")]);
+    child.execFileSync(process.execPath, ["--check", path.join(katalog, "wersja.js")]);
+    wstaw.wstawWersje(katalog, "2026-11-25 19:53 bbbbbbb");
+    assert.match(fs.readFileSync(path.join(katalog, "sw.js"), "utf8"), /var CACHE = "sudoku-2026-11-25 19:53 bbbbbbb";/);
+    assert.match(fs.readFileSync(path.join(katalog, "wersja.js"), "utf8"), /var WERSJA_GRY = "2026-11-25 19:53 bbbbbbb";/);
+    var sandbox = { self: { addEventListener: function () {}, location: { origin: "https://przyklad.invalid" } } };
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(katalog, "sw.js"), "utf8"), sandbox);
+    assert.equal(sandbox.CACHE, "sudoku-2026-11-25 19:53 bbbbbbb");
+  } finally {
+    fs.rmSync(katalog, { recursive: true, force: true });
+  }
+});
+
+test("wypisana wersja to data commita w Bangkoku i krótki sha", function () {
+  var wynik = child.execFileSync(process.execPath, ["wstaw-wersje.js", "--wypisz"], {
+    cwd: __dirname,
+    encoding: "utf8"
+  }).trim();
+  var unix = child.execFileSync("git", ["log", "-1", "--format=%ct"], {
+    cwd: __dirname,
+    encoding: "utf8"
+  }).trim();
+  var sha = child.execFileSync("git", ["rev-parse", "--short=7", "HEAD"], {
+    cwd: __dirname,
+    encoding: "utf8"
+  }).trim();
+  assert.equal(wynik, wstaw.wersjaZCommita(Number(unix), sha));
+  assert.equal(wynik, wstaw.wersjaZGita(__dirname));
+  assert.match(wynik, /^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} [0-9a-f]{7,}$/);
 });
 
 test("cyfry w okienku da się stuknąć na telefonie, także przy 16×16", function () {
