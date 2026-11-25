@@ -1,5 +1,6 @@
 // Pamięta pliki gry, żeby po pierwszym otwarciu działała bez sieci.
-var CACHE = "sudoku-v4";
+// Nowa wersja czeka. Włącza się dopiero, gdy ktoś naciśnie Odśwież.
+var CACHE = "sudoku-v5";
 var PLIKI = [
   "./",
   "./index.html",
@@ -20,10 +21,14 @@ self.addEventListener("install", function (zdarzenie) {
   zdarzenie.waitUntil(
     caches.open(CACHE).then(function (cache) {
       return cache.addAll(PLIKI);
-    }).then(function () {
-      return self.skipWaiting();
     })
   );
+});
+
+self.addEventListener("message", function (zdarzenie) {
+  var dane = zdarzenie.data;
+  if (!dane || dane.type !== "SKIP_WAITING") return;
+  self.skipWaiting();
 });
 
 self.addEventListener("activate", function (zdarzenie) {

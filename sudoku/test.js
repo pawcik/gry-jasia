@@ -5,6 +5,7 @@ var test = require("node:test");
 var assert = require("node:assert/strict");
 var fs = require("fs");
 var path = require("path");
+var vm = require("vm");
 var silnik = require("./silnik.js");
 
 var ROZMIARY = ["4", "6", "9", "12", "16"];
@@ -424,6 +425,137 @@ test("wyjaśnienie podpowiedzi mówi, skąd wzięła się cyfra", function () {
   assert.ok(para.tekst.indexOf("dwie kratki mają tylko") >= 0);
   assert.ok(para.dowody.length === 2);
   assert.equal(para.wartosc, trudna.rozwiazanie[para.pole]);
+});
+
+function nowyPracownik() {
+  var stan = { skip: 0, claim: 0, otwarte: [], skasowane: [] };
+  var nasluch = {};
+  var sandbox = {
+    self: {
+      skipWaiting: function () {
+        stan.skip++;
+        return Promise.resolve();
+      },
+      clients: {
+        claim: function () {
+          stan.claim++;
+          return Promise.resolve();
+        }
+      },
+      addEventListener: function (nazwa, fn) {
+        nasluch[nazwa] = fn;
+      },
+      location: { origin: "https://przyklad.invalid" }
+    },
+    caches: {
+      open: function (nazwa) {
+        stan.otwarte.push(nazwa);
+        return Promise.resolve({
+          addAll: function () { return Promise.resolve(); },
+          put: function () { return Promise.resolve(); }
+        });
+      },
+      keys: function () {
+        return Promise.resolve(["sudoku-v4", "sudoku-v5", "inne"]);
+      },
+      delete: function (klucz) {
+        stan.skasowane.push(klucz);
+        return Promise.resolve(true);
+      },
+      match: function () { return Promise.resolve(undefined); }
+    },
+    fetch: function () { return Promise.reject(new Error("brak sieci")); },
+    URL: URL,
+    Promise: Promise
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8"), sandbox);
+  return { stan: stan, nasluch: nasluch, CACHE: sandbox.CACHE };
+}
+
+function decyzjeAktualizacji() {
+  var kod = fs.readFileSync(path.join(__dirname, "game.js"), "utf8");
+  var start = kod.indexOf("function czyCzekaNowaWersja");
+  var koniec = kod.indexOf("function zarejestrujPraceOffline");
+  assert.ok(start >= 0 && koniec > start);
+  var ctx = {};
+  vm.createContext(ctx);
+  vm.runInContext(kod.slice(start, koniec), ctx);
+  return ctx;
+}
+
+test("nowa wersja czeka, aż ktoś naciśnie Odśwież", function () {
+  var p = nowyPracownik();
+  assert.equal(p.CACHE, "sudoku-v5");
+  var gotowe;
+  p.nasluch.install({
+    waitUntil: function (obietnica) { gotowe = obietnica; }
+  });
+  return gotowe.then(function () {
+    assert.equal(p.stan.skip, 0);
+    assert.deepEqual(p.stan.otwarte, ["sudoku-v5"]);
+  });
+});
+
+test("Odśwież budzi tylko czekającą wersję", function () {
+  var p = nowyPracownik();
+  p.nasluch.message({ data: { type: "SKIP_WAITING" } });
+  assert.equal(p.stan.skip, 1);
+  p.nasluch.message({ data: { type: "cos-innego" } });
+  p.nasluch.message({ data: null });
+  p.nasluch.message({});
+  assert.equal(p.stan.skip, 1);
+});
+
+test("po włączeniu nowej wersji stara pamięć plików znika", function () {
+  var p = nowyPracownik();
+  var gotowe;
+  p.nasluch.activate({
+    waitUntil: function (obietnica) { gotowe = obietnica; }
+  });
+  return gotowe.then(function () {
+    assert.equal(p.stan.claim, 1);
+    assert.ok(p.stan.skasowane.indexOf("sudoku-v4") >= 0);
+    assert.ok(p.stan.skasowane.indexOf("inne") >= 0);
+    assert.equal(p.stan.skasowane.indexOf("sudoku-v5"), -1);
+    assert.equal(p.stan.skip, 0);
+  });
+});
+
+test("pierwsze otwarcie nie prosi o odświeżenie i nie ładuje strony w kółko", function () {
+  var d = decyzjeAktualizacji();
+  assert.equal(d.czyCzekaNowaWersja(false, true), false);
+  assert.equal(d.czyCzekaNowaWersja(true, false), false);
+  assert.equal(d.czyCzekaNowaWersja(null, { state: "installed" }), false);
+  assert.equal(d.czyCzekaNowaWersja(true, true), true);
+  assert.equal(d.czyCzekaNowaWersja({ state: "activated" }, { state: "installed" }), true);
+  assert.equal(d.czyPrzeladowacStrone(false, false), false);
+  assert.equal(d.czyPrzeladowacStrone(true, false), true);
+  assert.equal(d.czyPrzeladowacStrone(true, true), false);
+  assert.equal(d.czyPrzeladowacStrone(false, true), false);
+});
+
+test("pasek nowej wersji leży na stronie i nie zasłania planszy", function () {
+  var html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  assert.match(html, /id="banerAktualizacji"[^>]*hidden/);
+  assert.ok(html.indexOf("Jest nowa wersja") >= 0);
+  assert.ok(html.indexOf(">Odśwież<") >= 0);
+  assert.ok(html.indexOf("Nie teraz") >= 0);
+  var css = fs.readFileSync(path.join(__dirname, "style.css"), "utf8");
+  var start = css.indexOf(".banerAktualizacji {");
+  assert.ok(start >= 0);
+  var blok = css.slice(start, css.indexOf("}", start));
+  assert.equal(blok.indexOf("position: fixed"), -1);
+  assert.equal(blok.indexOf("position: absolute"), -1);
+  var gra = fs.readFileSync(path.join(__dirname, "game.js"), "utf8");
+  assert.ok(gra.indexOf('var KLUCZ = "sudoku"') >= 0);
+  assert.equal(gra.indexOf("localStorage.clear"), -1);
+  assert.equal(gra.indexOf("localStorage.removeItem"), -1);
+  assert.ok(gra.indexOf('postMessage({ type: "SKIP_WAITING" })') >= 0);
+  assert.ok(gra.indexOf("controllerchange") >= 0);
+  assert.ok(gra.indexOf("visibilitychange") >= 0);
+  assert.ok(gra.indexOf("updatefound") >= 0);
+  assert.ok(gra.indexOf(".update()") >= 0);
 });
 
 test("cyfry w okienku da się stuknąć na telefonie, także przy 16×16", function () {

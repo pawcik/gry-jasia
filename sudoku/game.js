@@ -1623,11 +1623,84 @@ function wczytajZLinku() {
   }, 30);
 }
 
+var rejestracjaPracownika = null;
+var odswiezanieWToku = false;
+
+function pokazBanerAktualizacji() {
+  var baner = document.getElementById("banerAktualizacji");
+  if (!baner) return;
+  baner.hidden = false;
+}
+
+function ukryjBanerAktualizacji() {
+  var baner = document.getElementById("banerAktualizacji");
+  if (!baner) return;
+  baner.hidden = true;
+}
+
+function odswiezDoNowejWersji() {
+  zapiszTeraz();
+  if (!rejestracjaPracownika || !rejestracjaPracownika.waiting) return;
+  rejestracjaPracownika.waiting.postMessage({ type: "SKIP_WAITING" });
+}
+
+function sprawdzCzekajacaWersje(rejestracja) {
+  if (!rejestracja) return;
+  var czeka = rejestracja.waiting;
+  if (czyCzekaNowaWersja(navigator.serviceWorker.controller, czeka)) pokazBanerAktualizacji();
+}
+
+function sluchajNowejWersji(rejestracja) {
+  rejestracja.addEventListener("updatefound", function () {
+    var nowy = rejestracja.installing;
+    if (!nowy) return;
+    nowy.addEventListener("statechange", function () {
+      if (nowy.state !== "installed") return;
+      var czeka = rejestracja.waiting || nowy;
+      if (czyCzekaNowaWersja(navigator.serviceWorker.controller, czeka)) pokazBanerAktualizacji();
+    });
+  });
+}
+
+// Pasek tylko wtedy, gdy stara wersja już trzyma stronę, a nowa czeka.
+// Pierwsze otwarcie paska nie pokazuje.
+function czyCzekaNowaWersja(jestKontroler, czeka) {
+  return !!jestKontroler && !!czeka;
+}
+
+// Po Odśwież strona ładuje się raz. Pierwsze włączenie nie ładuje w kółko.
+function czyPrzeladowacStrone(mialKontroler, juzPrzeladowano) {
+  if (!mialKontroler) return false;
+  if (juzPrzeladowano) return false;
+  return true;
+}
+
 function zarejestrujPraceOffline() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol === "file:") return;
+  var mialKontroler = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (!czyPrzeladowacStrone(mialKontroler, odswiezanieWToku)) {
+      mialKontroler = true;
+      return;
+    }
+    odswiezanieWToku = true;
+    zapiszTeraz();
+    window.location.reload();
+  });
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("sw.js").catch(function () {});
+    navigator.serviceWorker.register("sw.js").then(function (rejestracja) {
+      rejestracjaPracownika = rejestracja;
+      sluchajNowejWersji(rejestracja);
+      sprawdzCzekajacaWersje(rejestracja);
+      rejestracja.update().catch(function () {});
+    }).catch(function () {});
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible") return;
+    if (!rejestracjaPracownika) return;
+    sprawdzCzekajacaWersje(rejestracjaPracownika);
+    rejestracjaPracownika.update().catch(function () {});
   });
 }
 
@@ -1681,6 +1754,10 @@ document.getElementById("edytorZapisz").addEventListener("click", zapiszEdytorUS
 document.getElementById("edytorCzysc").addEventListener("click", wyczyscEdytor);
 document.getElementById("kopiujKod").addEventListener("click", kopiujKod);
 document.getElementById("wczytajKod").addEventListener("click", wczytajKodZPola);
+var odswiezBtn = document.getElementById("odswiezWersje");
+if (odswiezBtn) odswiezBtn.addEventListener("click", odswiezDoNowejWersji);
+var zamknijBtn = document.getElementById("zamknijBaner");
+if (zamknijBtn) zamknijBtn.addEventListener("click", ukryjBanerAktualizacji);
 document.addEventListener("keydown", naKlawisz);
 document.addEventListener("pointermove", naRuchPrzytrzymania);
 document.addEventListener("pointerup", naKoniecPrzytrzymania);

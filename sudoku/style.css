@@ -110,6 +110,38 @@ button:focus-visible {
   display: block;
 }
 
+/* Pasek nowej wersji. Leży pod tytułem, nie na planszy. */
+.banerAktualizacji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0 8px;
+  margin: 8px calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left));
+  padding: 0 8px;
+  border: 1px solid var(--linia);
+  background: var(--papier);
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.banerAktualizacji[hidden] {
+  display: none;
+}
+
+.banerAktualizacji p {
+  margin: 0;
+}
+
+.banerAktualizacji button {
+  margin: 2px;
+}
+
+#odswiezWersje {
+  background: var(--atrament);
+  color: var(--papier);
+}
+
 #komunikat {
   min-height: 2.6em;
   margin: 8px auto 0;
