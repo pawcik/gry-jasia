@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#f3efe4"/>
+  <g stroke="#c9c3b4" stroke-width="1">
+    <path d="M20 8v48M44 8v48M8 20h48M8 44h48"/>
+  </g>
+  <g stroke="#1c1c1c" stroke-width="2" fill="none">
+    <rect x="8" y="8" width="48" height="48"/>
+    <path d="M32 8v48M8 32h48"/>
+  </g>
+  <text x="20" y="26" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" fill="#1c1c1c">5</text>
+  <text x="44" y="50" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="14" fill="#2a3b56">3</text>
+</svg>
