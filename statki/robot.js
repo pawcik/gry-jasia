@@ -3,17 +3,10 @@
 // Nie zagląda pod statki, więc dziecko wygrywa częściej niż robot.
 
 // Podgląd (nie zwykła gra w domu) włącza grę z robotem.
-// STATKI_PODGLAD=1, albo port 8090, albo adres kończący się na :18443.
-function podgladZRobotem(env, port, adres) {
+// STATKI_PODGLAD=1 albo port 8090. Adres strony nic tu nie włącza.
+function podgladZRobotem(env, port) {
   if (env && String(env.STATKI_PODGLAD) === "1") return true;
-  if (String(port) === "8090") return true;
-  adres = String(adres || "");
-  var znacznik = ":18443";
-  if (adres.length >= znacznik.length && adres.slice(-znacznik.length) === znacznik) return true;
-  var gdzie = adres.lastIndexOf(znacznik);
-  if (gdzie === -1) return false;
-  var dalej = adres.charAt(gdzie + znacznik.length);
-  return dalej === "/" || dalej === "?" || dalej === "#";
+  return String(port) === "8090";
 }
 
 function wGranicach(w, k, rozmiar) {
