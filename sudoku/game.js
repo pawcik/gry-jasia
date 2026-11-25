@@ -1682,6 +1682,7 @@ function pokazWersje() {
   var numer = "dev";
   if (typeof WERSJA_GRY === "string" && WERSJA_GRY) numer = WERSJA_GRY;
   stopka.textContent = "wersja " + numer;
+  stopka.setAttribute("aria-label", "Wersja " + numer + ". Otwiera listę zmian.");
 }
 
 function zarejestrujPraceOffline() {

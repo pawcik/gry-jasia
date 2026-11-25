@@ -574,6 +574,8 @@ test("numer wersji jest na dole strony i nie wchodzi do menu ani do zapisu", fun
   assert.match(fs.readFileSync(path.join(__dirname, "wersja.js"), "utf8"), /var WERSJA_GRY = "dev";/);
   assert.match(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8"), /var CACHE = "sudoku-dev";/);
   assert.ok(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8").indexOf('"./wersja.js"') >= 0);
+  assert.ok(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8").indexOf('"./zmiany.html"') >= 0);
+  assert.match(html, /id="stopkaWersji"[^>]*href="zmiany.html"/);
   var css = fs.readFileSync(path.join(__dirname, "style.css"), "utf8");
   var start = css.indexOf(".stopkaWersji {");
   assert.ok(start >= 0);
@@ -588,6 +590,33 @@ test("numer wersji jest na dole strony i nie wchodzi do menu ani do zapisu", fun
   assert.equal(gra.slice(od, doKonca).indexOf("localStorage"), -1);
   assert.ok(gra.indexOf('var KLUCZ = "sudoku"') >= 0);
   assert.ok(gra.indexOf("wersja: 1") >= 0);
+});
+
+test("lista zmian jest po polsku, od najnowszej, i wraca do gry", function () {
+  var html = fs.readFileSync(path.join(__dirname, "zmiany.html"), "utf8");
+  assert.ok(html.indexOf('href="index.html"') >= 0);
+  assert.ok(html.indexOf("Wróć do gry") >= 0);
+  assert.ok(html.indexOf('class="zmiany"') >= 0);
+  var czasy = [];
+  var re = /datetime="([^"]+)"/g;
+  var m;
+  while ((m = re.exec(html))) czasy.push(m[1]);
+  assert.deepEqual(czasy, [
+    "2026-11-25T20:01+07:00",
+    "2026-11-25T19:48+07:00",
+    "2026-11-25T19:43+07:00",
+    "2026-11-25T19:22+07:00",
+    "2026-11-25T11:33+07:00"
+  ]);
+  assert.ok(html.indexOf("listę zmian") >= 0);
+  assert.ok(html.indexOf("Jest nowa wersja") >= 0);
+  assert.ok(html.indexOf("Notatki") >= 0);
+  assert.ok(html.indexOf("skąd wzięła się cyfra") >= 0);
+  assert.ok(html.indexOf("bez sieci") >= 0);
+  assert.ok(html.indexOf("gumka") >= 0);
+  var claude = fs.readFileSync(path.join(__dirname, "CLAUDE.md"), "utf8");
+  assert.ok(claude.indexOf("zmiany.html") >= 0);
+  assert.ok(claude.indexOf("Every future player-visible change must add an entry") >= 0);
 });
 
 test("data wersji jest w strefie Asia/Bangkok", function () {

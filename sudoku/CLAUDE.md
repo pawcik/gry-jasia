@@ -10,7 +10,7 @@ Once the page has been opened from the server, a service worker keeps every file
 
 A newer copy does not take over by itself. When one is waiting, a slim paper strip under the title says „Jest nowa wersja”, with Odśwież and Nie teraz. It does not cover the board. Odśwież posts `{type:'SKIP_WAITING'}` to the waiting worker, that worker calls `skipWaiting()`, and the page reloads once (`controllerchange`, with a guard so it does not reload in a loop). The strip stays hidden on the first install, when nothing was controlling the page yet. Opening the app and coming back to it (`visibilitychange`) calls `registration.update()`. The reload does not clear the `sudoku` save.
 
-A faint line at the bottom of the page shows the copy's version, for example „wersja 2026-11-25 19:52 a2b0af3”. It sits under every screen and is not a menu entry. Locally it says „wersja dev”. The number is the commit time of `HEAD` in Asia/Bangkok (`YYYY-MM-DD HH:MM`) plus the short git sha. Bangkok does not change its clock for summer, so one commit always prints the same text. The `wersja: 1` field inside the `sudoku` localStorage save is the save format and stays as it is.
+A faint line at the bottom of the page shows the copy's version, for example „wersja 2026-11-25 19:52 a2b0af3”. It sits under every screen and is not a menu entry. A tap opens `zmiany.html`, the list of what the player can see, newest first, with „Wróć do gry” back to the board. Locally the line says „wersja dev”. The number is the commit time of `HEAD` in Asia/Bangkok (`YYYY-MM-DD HH:MM`) plus the short git sha. Bangkok does not change its clock for summer, so one commit always prints the same text. The `wersja: 1` field inside the `sudoku` localStorage save is the save format and stays as it is.
 
 Sizes: 4×4 (boxes 2×2), 6×6 (2×3), 9×9 (3×3), 12×12 (3×4) and 16×16 (4×4). Symbols are `1-4`, `1-6`, `1-9`, `1-9` plus `A-C`, and `1-9` plus `A-G`. Difficulties are Łatwy, Średni, Trudny and Ekspert. Easy boards keep many givens and only need a naked single. Harder boards leave fewer givens and, from 9×9 up, need a hidden single or a harder step (naked pair, pointing, box-line, hidden pair, naked triple). 4×4 and 6×6 mostly differ by how many givens remain, because those grids stay solvable by simple steps. The bands live in `PASMA` in `silnik.js`.
 
@@ -63,6 +63,12 @@ rm -rf "$STAGE"
 
 `node wstaw-wersje.js --wypisz` only prints the version (date, time, short sha). `node wstaw-wersje.js <folder> [version]` rewrites `sw.js` and `wersja.js` in that folder. With no version it reads `HEAD` from the current directory, so run it in the git checkout and pass the staging folder. A version by hand looks like `2026-11-25 19:52` or `2026-11-25 19:52 a2b0af3`. The short sha is what makes two commits in the same minute still change `sw.js`. After the files are on the server, the Caddy steps are the same ones inside `mise run wdroz`.
 
+## Changelog
+
+`zmiany.html` lists what the player can see. The newest entry is first. Each entry has the time that change landed on `main`, in Asia/Bangkok (`YYYY-MM-DD HH:MM`), and a short plain-Polish sentence. The faint version in the footer links here. „Wróć do gry” goes back to `index.html`. The service worker caches `./zmiany.html` with the other files, so the list works offline.
+
+Every future player-visible change must add an entry at the top of `zmiany.html` in the same change. A change only a developer sees (a refactor, a test, a comment) stays off the list.
+
 ## Code structure
 
 HTML buttons, not a canvas. There is no `krokGry` loop: nothing moves on its own. A new puzzle is built in small slices so a 16×16 board does not freeze the phone.
@@ -72,7 +78,8 @@ HTML buttons, not a canvas. There is no `krokGry` loop: nothing moves on its own
 - `wersja.js` - `WERSJA_GRY`. In git it is `"dev"`. Deploy writes the commit version into the staging copy.
 - `wstaw-wersje.js` - Node script that prints or writes that version. The page does not load it. `mise run wdroz` and a manual tar deploy both use it.
 - `sw.js` - caches the listed files on install under `CACHE`. In git that name is `sudoku-dev`. Deploy writes `sudoku-` plus the same version string, which changes the file bytes. Install does not call `skipWaiting`. A message `{type:'SKIP_WAITING'}` does. Activate deletes older caches and claims clients. While online it fetches fresh copies and updates the cache. When the network fails it serves the cache, including a puzzle opened with `?p=`.
-- `index.html` / `style.css` - paper look. The handwriting font is Patrick Hand in `czcionki/` (SIL OFL, `czcionki/OFL.txt`). Givens fall back to Georgia or Times. The tab icon is `ikona.svg`, plus `ikona-32.png`, `favicon.ico` and `ikona-180.png`. The footer `#stopkaWersji` is the faint version line.
+- `index.html` / `style.css` - paper look. The handwriting font is Patrick Hand in `czcionki/` (SIL OFL, `czcionki/OFL.txt`). Givens fall back to Georgia or Times. The tab icon is `ikona.svg`, plus `ikona-32.png`, `favicon.ico` and `ikona-180.png`. The footer link `#stopkaWersji` is the faint version line and opens the changelog.
+- `zmiany.html` - the changelog, newest first. Same paper look. „Wróć do gry” returns to `index.html`. Add a player-visible change at the top.
 - `manifest.webmanifest` - installable PWA, `standalone`, paper colour.
 - `paczki/zestaw-1.json` - a few ready puzzles. Play does not need them.
 - `test.js` - `mise run test`.

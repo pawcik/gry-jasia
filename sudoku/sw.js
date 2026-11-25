@@ -10,6 +10,7 @@ var PLIKI = [
   "./silnik.js",
   "./game.js",
   "./wersja.js",
+  "./zmiany.html",
   "./manifest.webmanifest",
   "./ikona.svg",
   "./ikona-32.png",
