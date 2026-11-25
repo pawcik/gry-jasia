@@ -237,16 +237,14 @@ test("dwie gry: inny kod, inny sposób, domyślnie klasycznie", async function (
   assert.equal(punkty.klienci[1].stan.sposob, "punkty");
 });
 
-test("flaga robota: podgląd, port 8090 albo adres :50090", function () {
-  assert.equal(robot.podgladZRobotem({}, 8081, ""), false);
-  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "1" }, 8081, ""), true);
-  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "0" }, 8081, ""), false);
-  assert.equal(robot.podgladZRobotem({}, "8090", ""), true);
-  assert.equal(robot.podgladZRobotem({}, 8090, "https://przyklad.dev:50081"), true);
-  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:50090"), true);
-  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:50090/"), true);
-  assert.equal(robot.podgladZRobotem({}, 8081, "https://przyklad.dev:50081"), false);
-  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:500901"), false);
+test("flaga robota: podgląd albo port 8090", function () {
+  assert.equal(robot.podgladZRobotem({}, 8081), false);
+  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "1" }, 8081), true);
+  assert.equal(robot.podgladZRobotem({ STATKI_PODGLAD: "0" }, 8081), false);
+  assert.equal(robot.podgladZRobotem({}, "8090"), true);
+  assert.equal(robot.podgladZRobotem({}, 8090, "https://podglad.example:443"), true);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:443"), false);
+  assert.equal(robot.podgladZRobotem({}, 8081, "https://podglad.example:8090"), false);
 });
 
 test("robot po trafieniu zwykle losuje i tylko czasem szuka obok", function () {
