@@ -1727,6 +1727,26 @@ function czyCzasIdzie(stronaWidoczna, ulozona) {
   return !!stronaWidoczna && !ulozona;
 }
 
+// Które cyfry są już na wszystkich miejscach.
+// Na planszy 9×9 szóstka jest gotowa, gdy widać ją 9 razy.
+// Liczą się cyfry z druku i te wpisane. Kropki w notatkach nie.
+function cyfryWypelnione(n, dane, wpisy) {
+  var ile = [];
+  var i;
+  var szerokosc = n > 0 ? n : 0;
+  for (i = 0; i < szerokosc; i++) ile.push(0);
+  var dlugosc = dane && dane.length ? dane.length : 0;
+  for (i = 0; i < dlugosc; i++) {
+    var v = -1;
+    if (dane[i] >= 0) v = dane[i];
+    else if (wpisy && wpisy[i] >= 0) v = wpisy[i];
+    if (v >= 0 && v < szerokosc) ile[v]++;
+  }
+  var gotowe = [];
+  for (i = 0; i < szerokosc; i++) gotowe.push(ile[i] >= szerokosc);
+  return gotowe;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ROZMIARY: ROZMIARY,
@@ -1766,6 +1786,7 @@ if (typeof module !== "undefined" && module.exports) {
     rozmiarKlawiszaSzybkiego: rozmiarKlawiszaSzybkiego,
     formatujCzas: formatujCzas,
     uplynelo: uplynelo,
-    czyCzasIdzie: czyCzasIdzie
+    czyCzasIdzie: czyCzasIdzie,
+    cyfryWypelnione: cyfryWypelnione
   };
 }

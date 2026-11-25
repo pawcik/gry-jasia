@@ -656,6 +656,7 @@ test("lista zmian jest po polsku, od najnowszej, i wraca do gry", function () {
   var m;
   while ((m = re.exec(html))) czasy.push(m[1]);
   assert.deepEqual(czasy, [
+    "2026-11-26T00:19+07:00",
     "2026-11-26T00:12+07:00",
     "2026-11-25T23:59+07:00",
     "2026-11-25T20:01+07:00",
@@ -664,6 +665,8 @@ test("lista zmian jest po polsku, od najnowszej, i wraca do gry", function () {
     "2026-11-25T19:22+07:00",
     "2026-11-25T11:33+07:00"
   ]);
+  assert.ok(html.indexOf("Wyszarzaj wpisane cyfry") >= 0);
+  assert.ok(html.indexOf("Zębatka") >= 0);
   assert.ok(html.indexOf("Pokaż czas") >= 0);
   assert.ok(html.indexOf("listę zmian") >= 0);
   assert.ok(html.indexOf("Jest nowa wersja") >= 0);
@@ -783,4 +786,95 @@ test("czas planszy: minuty, godzina i pauza", function () {
   assert.equal(silnik.czyCzasIdzie(false, false), false);
   assert.equal(silnik.czyCzasIdzie(true, true), false);
   assert.equal(silnik.czyCzasIdzie(false, true), false);
+});
+
+test("cyfra na wszystkich miejscach jest wypelniona, a brak jednej już nie", function () {
+  var n = 9;
+  var dane = [];
+  var wpisy = [];
+  var i;
+  for (i = 0; i < n * n; i++) {
+    dane.push(-1);
+    wpisy.push(-1);
+  }
+  for (i = 0; i < 8; i++) dane[i] = 5;
+  assert.equal(silnik.cyfryWypelnione(n, dane, wpisy)[5], false);
+  wpisy[20] = 5;
+  var pelne = silnik.cyfryWypelnione(n, dane, wpisy);
+  assert.equal(pelne[5], true);
+  assert.equal(pelne[0], false);
+  wpisy[20] = -1;
+  assert.equal(silnik.cyfryWypelnione(n, dane, wpisy)[5], false);
+  for (i = 0; i < 10; i++) dane[i] = 5;
+  assert.equal(silnik.cyfryWypelnione(n, dane, null)[5], true);
+  dane[0] = 1;
+  wpisy[0] = 2;
+  var raz = silnik.cyfryWypelnione(n, dane, wpisy);
+  assert.equal(raz[1], false);
+  assert.equal(raz[2], false);
+  var maleDane = [];
+  for (i = 0; i < 16; i++) maleDane.push(-1);
+  maleDane[0] = 0;
+  maleDane[1] = 0;
+  maleDane[2] = 0;
+  assert.equal(silnik.cyfryWypelnione(4, maleDane, null)[0], false);
+  maleDane[3] = 0;
+  assert.equal(silnik.cyfryWypelnione(4, maleDane, null)[0], true);
+});
+
+test("ustawienia są w okienku pod zębatką, a pełna cyfra tylko blednie", function () {
+  var html = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+  var menuStart = html.indexOf('<section class="ekran" id="ekranMenu">');
+  var menuEnd = html.indexOf("</section>", menuStart);
+  var menu = html.slice(menuStart, menuEnd);
+  assert.equal(menu.indexOf("Pokaż czas"), -1);
+  assert.equal(menu.indexOf("Wyszarzaj"), -1);
+  assert.ok(menu.indexOf('id="nowaPlansza"') >= 0);
+  assert.ok(menu.indexOf('id="doEdytora"') >= 0);
+  var graStart = html.indexOf('<section class="ekran" id="ekranGra">');
+  var graEnd = html.indexOf("</section>", graStart);
+  var gra = html.slice(graStart, graEnd);
+  assert.equal(gra.indexOf("Wymazuj"), -1);
+  assert.equal(gra.indexOf("Pytaj przed"), -1);
+  assert.equal(gra.indexOf("Wyszarzaj"), -1);
+  assert.ok(gra.indexOf('id="nowaZGry"') >= 0);
+  assert.ok(gra.indexOf('id="podpowiedz"') >= 0);
+  assert.ok(gra.indexOf('id="trybNotatek"') >= 0);
+  var ust = html.slice(html.indexOf('id="ustawienia"'), html.indexOf("<footer"));
+  assert.match(ust, /hidden/);
+  assert.ok(ust.indexOf("Pokaż czas") >= 0);
+  assert.ok(ust.indexOf("Wymazuj tę cyfrę z notatek obok") >= 0);
+  assert.ok(ust.indexOf("Pytaj przed podpowiedzią") >= 0);
+  assert.ok(ust.indexOf("Wyszarzaj wpisane cyfry") >= 0);
+  assert.ok(ust.indexOf('id="zamknijUstawienia"') >= 0);
+  assert.ok(ust.indexOf(">Zamknij<") >= 0);
+  assert.ok(ust.indexOf('id="wyszarzajCyfry"') >= 0);
+  assert.ok(html.indexOf('id="otworzUstawienia"') >= 0);
+  assert.ok(html.indexOf('aria-label="Ustawienia"') >= 0);
+  assert.ok(html.indexOf("&#9881;") >= 0);
+  assert.ok(html.indexOf("Nie pytaj więcej") >= 0);
+  assert.ok(html.indexOf('id="niePytajPodpowiedzi"') >= 0);
+  var css = fs.readFileSync(path.join(__dirname, "style.css"), "utf8");
+  assert.ok(css.indexOf(".wyczerpana") >= 0);
+  assert.ok(css.indexOf(".ustawienia") >= 0);
+  var js = fs.readFileSync(path.join(__dirname, "game.js"), "utf8");
+  assert.ok(js.indexOf("var wyszarzajCyfry = true") >= 0);
+  assert.ok(js.indexOf("wyszarzajCyfry: wyszarzajCyfry") >= 0);
+  assert.ok(js.indexOf("z.wyszarzajCyfry") >= 0);
+  assert.ok(js.indexOf("function ukryjUstawienia") >= 0);
+  assert.ok(js.indexOf("ustawieniaOtwarte") >= 0);
+  assert.ok(js.indexOf('e.key === "Escape"') >= 0);
+  assert.ok(js.indexOf("if (e.target === this) ukryjUstawienia") >= 0);
+  var odPad = js.indexOf("function odswiezPad");
+  var doZrzut = js.indexOf("function zrzut");
+  var pad = js.slice(odPad, doZrzut);
+  assert.ok(pad.indexOf("wyczerpana") >= 0);
+  assert.equal(pad.indexOf("disabled"), -1);
+  var odSzybkie = js.indexOf("function odswiezSzybkie");
+  var doPozycji = js.indexOf("function ustawPozycjeSzybkiego");
+  var szybkie = js.slice(odSzybkie, doPozycji);
+  assert.ok(szybkie.indexOf("wyczerpana") >= 0);
+  assert.equal(szybkie.indexOf("disabled"), -1);
+  var sw = fs.readFileSync(path.join(__dirname, "sw.js"), "utf8");
+  assert.match(sw, /var CACHE = "sudoku-dev";/);
 });

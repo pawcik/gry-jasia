@@ -19,7 +19,10 @@
 <body>
   <header>
     <h1>Sudoku</h1>
-    <button type="button" id="doMenu" class="tekstowy">Menu</button>
+    <div class="naglowekAkcje">
+      <button type="button" id="otworzUstawienia" class="ikonaUstawien" aria-label="Ustawienia" title="Ustawienia" aria-haspopup="dialog" aria-controls="ustawienia" aria-expanded="false">&#9881;&#65038;</button>
+      <button type="button" id="doMenu" class="tekstowy">Menu</button>
+    </div>
   </header>
   <div id="banerAktualizacji" class="banerAktualizacji" hidden>
     <p>Jest nowa wersja</p>
@@ -40,10 +43,6 @@
     <button type="button" id="pobierzPaczke">Gotowe plansze</button>
     <div id="listaGotowych"></div>
     <div id="listaWlasnych"></div>
-    <label class="cicho ustawienie">
-      <input type="checkbox" class="pokazCzasPole" checked>
-      Pokaż czas
-    </label>
     <p class="cicho dlaKlawiatury">Klawiatura: strzałki, cyfry i litery, Backspace czyści, N przełącza notatki, H najpierw podświetla kratkę, drugi raz daje podpowiedź, Ctrl+Z cofa.</p>
   </section>
 
@@ -63,14 +62,6 @@
         <button type="button" id="sprawdz">Sprawdź</button>
         <button type="button" id="nowaZGry">Nowa</button>
       </div>
-      <label class="cicho ustawienie">
-        <input type="checkbox" id="czyscNotatki">
-        Wymazuj tę cyfrę z notatek obok
-      </label>
-      <label class="cicho ustawienie">
-        <input type="checkbox" id="pytajPodpowiedz">
-        Pytaj przed podpowiedzią
-      </label>
     </div>
   </section>
 
@@ -106,6 +97,31 @@
       <div class="rzad">
         <button type="button" id="pytanieTak">Tak</button>
         <button type="button" id="pytanieNie">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="ustawienia" class="pytanie ustawienia" hidden>
+    <div class="pytanieKarta ustawieniaKarta" role="dialog" aria-modal="true" aria-labelledby="ustawieniaTytul" tabindex="-1">
+      <p id="ustawieniaTytul">Ustawienia</p>
+      <label class="ustawienie">
+        <input type="checkbox" class="pokazCzasPole" checked>
+        Pokaż czas
+      </label>
+      <label class="ustawienie">
+        <input type="checkbox" id="czyscNotatki" checked>
+        Wymazuj tę cyfrę z notatek obok
+      </label>
+      <label class="ustawienie">
+        <input type="checkbox" id="pytajPodpowiedz" checked>
+        Pytaj przed podpowiedzią
+      </label>
+      <label class="ustawienie">
+        <input type="checkbox" id="wyszarzajCyfry" checked>
+        Wyszarzaj wpisane cyfry
+      </label>
+      <div class="rzad">
+        <button type="button" id="zamknijUstawienia">Zamknij</button>
       </div>
     </div>
   </div>
