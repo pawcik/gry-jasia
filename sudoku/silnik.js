@@ -1658,6 +1658,38 @@ function rozmiarKlawiszaSzybkiego(kolumny, wiersze, szerokosc, wysokosc) {
   return z;
 }
 
+// Tekst czasu: 3:05, a po godzinie 1:02:03.
+function formatujCzas(ms) {
+  var calkowite = Math.floor(Number(ms) / 1000);
+  if (!isFinite(calkowite) || calkowite < 0) calkowite = 0;
+  var s = calkowite % 60;
+  var minuty = Math.floor(calkowite / 60);
+  var h = Math.floor(minuty / 60);
+  var m = minuty % 60;
+  function dwa(n) {
+    return (n < 10 ? "0" : "") + n;
+  }
+  if (h > 0) return h + ":" + dwa(m) + ":" + dwa(s);
+  return m + ":" + dwa(s);
+}
+
+// Ile już naliczono. Start 0 znaczy, że stoper stoi (kartka schowana albo sudoku ułożone).
+function uplynelo(baza, start, teraz) {
+  var b = Number(baza);
+  if (!isFinite(b) || b < 0) b = 0;
+  var s = Number(start);
+  var t = Number(teraz);
+  if (!isFinite(s) || s <= 0) return b;
+  if (!isFinite(t) || t < s) return b;
+  return b + (t - s);
+}
+
+// Liczy się, gdy stronę widać i plansza nie jest jeszcze ułożona.
+// Schowanie samych cyferek na ekranie tego nie zmienia.
+function czyCzasIdzie(stronaWidoczna, ulozona) {
+  return !!stronaWidoczna && !ulozona;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ROZMIARY: ROZMIARY,
@@ -1688,6 +1720,9 @@ if (typeof module !== "undefined" && module.exports) {
     okienkoZostaje: okienkoZostaje,
     polozenieSzybkiego: polozenieSzybkiego,
     ruchAnulujePrzytrzymanie: ruchAnulujePrzytrzymanie,
-    rozmiarKlawiszaSzybkiego: rozmiarKlawiszaSzybkiego
+    rozmiarKlawiszaSzybkiego: rozmiarKlawiszaSzybkiego,
+    formatujCzas: formatujCzas,
+    uplynelo: uplynelo,
+    czyCzasIdzie: czyCzasIdzie
   };
 }

@@ -14,6 +14,10 @@ var wybrany = 0;
 var trybNotatek = false;
 var czyscNotatki = true;
 var pytajPrzedPodpowiedzia = true;
+var pokazCzas = true;
+var czasBaza = 0;
+var czasStart = 0;
+var tikCzasu = 0;
 var cofanie = [];
 var ponawianie = [];
 var znaczniki = null;
@@ -106,6 +110,8 @@ function odswiezChipy() {
   notatki.setAttribute("aria-pressed", trybNotatek ? "true" : "false");
   document.getElementById("czyscNotatki").checked = czyscNotatki;
   document.getElementById("pytajPodpowiedz").checked = pytajPrzedPodpowiedzia;
+  var polaCzasu = document.querySelectorAll(".pokazCzasPole");
+  for (i = 0; i < polaCzasu.length; i++) polaCzasu[i].checked = pokazCzas;
 }
 
 function zrobChip(tekst, atrybut, wartosc, klik) {
@@ -145,13 +151,131 @@ function zbudujMenu() {
 }
 
 function odswiezOpisGry() {
-  var el = document.getElementById("opisGry");
-  if (!gra) {
-    el.textContent = "";
+  var el = document.getElementById("opisGryTekst");
+  if (!el) return;
+  if (!gra) el.textContent = "";
+  else {
+    var opis = opisRozmiaru(gra.rozmiar);
+    el.textContent = opis.nazwa + " · " + nazwaTrudnosci(gra.trudnosc);
+  }
+  odswiezCzasWidok();
+}
+
+// Czas tej planszy. Liczy, gdy widać stronę. Po ułożeniu staje.
+// Schowanie cyferek nie zatrzymuje liczenia.
+function liczbaCzasu(wartosc) {
+  if (typeof wartosc !== "number" || !isFinite(wartosc) || wartosc < 0) return 0;
+  return wartosc;
+}
+
+function msCzasu(teraz) {
+  return uplynelo(czasBaza, czasStart, teraz || Date.now());
+}
+
+function komunikatGotowe() {
+  return "Gotowe w " + formatujCzas(msCzasu()) + ".";
+}
+
+function czasMaIsc() {
+  if (!gra || !gra.rozwiazanie || gra.uklada) return false;
+  var widoczna = typeof document === "undefined" || !document.hidden;
+  return czyCzasIdzie(widoczna, planszaPelnaIDobra());
+}
+
+function odswiezCzasWidok() {
+  var btn = document.getElementById("czasGry");
+  if (!btn) return;
+  if (!gra || !gra.rozwiazanie || gra.uklada) {
+    btn.hidden = true;
     return;
   }
-  var opis = opisRozmiaru(gra.rozmiar);
-  el.textContent = opis.nazwa + " · " + nazwaTrudnosci(gra.trudnosc);
+  btn.hidden = false;
+  btn.setAttribute("aria-pressed", pokazCzas ? "true" : "false");
+  if (!pokazCzas) {
+    btn.textContent = "czas";
+    btn.className = "czas schowany";
+    btn.setAttribute("aria-label", "Pokaż czas");
+    btn.title = "Pokaż czas";
+    return;
+  }
+  var tekst = formatujCzas(msCzasu());
+  var etykieta = "Czas " + tekst + ". Schowaj.";
+  if (btn.textContent !== tekst) btn.textContent = tekst;
+  if (btn.getAttribute("aria-label") !== etykieta) btn.setAttribute("aria-label", etykieta);
+  btn.className = "czas";
+  btn.title = "Schowaj czas";
+}
+
+function ustawTikCzasu(maIsc) {
+  if (maIsc && !tikCzasu) tikCzasu = setInterval(odswiezCzasWidok, 250);
+  if (!maIsc && tikCzasu) {
+    clearInterval(tikCzasu);
+    tikCzasu = 0;
+  }
+}
+
+function zsynchronizujCzas() {
+  var maIsc = czasMaIsc();
+  if (maIsc) {
+    if (!czasStart) czasStart = Date.now();
+  } else if (czasStart) {
+    czasBaza = msCzasu();
+    czasStart = 0;
+    if (gra && gra.rozwiazanie && !gra.uklada) gra.czas = czasBaza;
+  }
+  ustawTikCzasu(maIsc);
+  odswiezCzasWidok();
+}
+
+function zamrozCzas() {
+  if (czasStart) {
+    czasBaza = msCzasu();
+    czasStart = 0;
+  }
+  if (gra && gra.rozwiazanie && !gra.uklada) gra.czas = czasBaza;
+  ustawTikCzasu(false);
+  odswiezCzasWidok();
+}
+
+function resetujCzas() {
+  czasBaza = 0;
+  czasStart = 0;
+  if (gra) gra.czas = 0;
+  zsynchronizujCzas();
+}
+
+function wczytajCzasZGry() {
+  czasBaza = gra ? liczbaCzasu(gra.czas) : 0;
+  czasStart = 0;
+  zsynchronizujCzas();
+}
+
+function zapiszCzasDoGry() {
+  if (!gra || !gra.rozwiazanie || gra.uklada) return;
+  if (czasStart) {
+    czasBaza = msCzasu();
+    czasStart = Date.now();
+  }
+  gra.czas = liczbaCzasu(czasBaza);
+}
+
+function poZmianieCzasu() {
+  zsynchronizujCzas();
+  return planszaPelnaIDobra();
+}
+
+function ustawPokazCzas(wlaczony) {
+  pokazCzas = !!wlaczony;
+  odswiezChipy();
+  odswiezCzasWidok();
+  zapisz();
+}
+
+function naWidocznoscCzasu() {
+  if (document.hidden) {
+    zamrozCzas();
+    zapiszTeraz();
+  } else zsynchronizujCzas();
 }
 
 function siatkaEl() {
@@ -418,7 +542,8 @@ function cofnijRuch() {
   var teraz = zrzut();
   if (teraz) ponawianie.push(teraz);
   przywroc(cofanie.pop());
-  ustawKomunikat("");
+  if (poZmianieCzasu()) ustawKomunikat(komunikatGotowe());
+  else ustawKomunikat("");
   zapisz();
 }
 
@@ -427,7 +552,8 @@ function ponowRuch() {
   var teraz = zrzut();
   if (teraz) cofanie.push(teraz);
   przywroc(ponawianie.pop());
-  ustawKomunikat("");
+  if (poZmianieCzasu()) ustawKomunikat(komunikatGotowe());
+  else ustawKomunikat("");
   zapisz();
 }
 
@@ -484,8 +610,8 @@ function wpiszCyfre(v, jakoNotatka) {
   odswiezWszystkiePola();
   odswiezKlasy();
   odswiezPad();
-  if (planszaPelnaIDobra()) {
-    ustawKomunikat("Gotowe.");
+  if (poZmianieCzasu()) {
+    ustawKomunikat(komunikatGotowe());
     dzwiek("koniec");
   } else {
     ustawKomunikat("");
@@ -528,6 +654,7 @@ function wyczyscWybrane(jakoNotatka) {
   odswiezPole(wybrany);
   odswiezKlasy();
   odswiezPad();
+  poZmianieCzasu();
   ustawKomunikat("");
   zapisz();
   poEdycjiPola(notatki);
@@ -554,7 +681,7 @@ function zapytajOPodpowiedz() {
   if (ekran !== "gra" || !gra || !gra.rozwiazanie || gra.uklada) return;
   if (pytanieOtwarte()) return;
   if (planszaPelnaIDobra()) {
-    ustawKomunikat("Plansza jest już ułożona.");
+    ustawKomunikat(komunikatGotowe());
     return;
   }
   if (!pytajPrzedPodpowiedzia) {
@@ -602,7 +729,7 @@ function dajPodpowiedz() {
   var opis = opisRozmiaru(gra.rozmiar);
   var h = podpowiedz(opis, gra.dane, gra.wpisy, gra.rozwiazanie, wybrany);
   if (!h) {
-    ustawKomunikat("Plansza jest już ułożona.");
+    ustawKomunikat(komunikatGotowe());
     return;
   }
   zapamietaj();
@@ -614,9 +741,11 @@ function dajPodpowiedz() {
   odswiezWszystkiePola();
   odswiezKlasy();
   odswiezPad();
-  ustawKomunikat(h.tekst);
+  if (poZmianieCzasu()) {
+    ustawKomunikat(komunikatGotowe());
+    dzwiek("koniec");
+  } else ustawKomunikat(h.tekst);
   pokazWyjasnienie(h);
-  if (planszaPelnaIDobra()) dzwiek("koniec");
   zapisz();
 }
 
@@ -695,7 +824,8 @@ function sprawdzGre() {
   for (i = 0; i < sp.zle.length; i++) znaczniki.zle[sp.zle[i]] = true;
   for (i = 0; i < sp.konflikty.length; i++) znaczniki.konflikt[sp.konflikty[i]] = true;
   odswiezKlasy();
-  if (sp.wszystkoDobrze) ustawKomunikat("Wszystko się zgadza.");
+  poZmianieCzasu();
+  if (sp.wszystkoDobrze) ustawKomunikat("Wszystko się zgadza. Czas: " + formatujCzas(msCzasu()) + ".");
   else if (!sp.zle.length && !sp.konflikty.length) {
     ustawKomunikat(sp.puste ? "Na razie nie widać błędu. Zostały puste pola." : "Na razie nie widać błędu.");
   } else {
@@ -1172,7 +1302,8 @@ function rozpocznijZDanymi(kluczRozmiaru, kluczTrudnosci, dane, rozwiazanie, poz
     wpisy: pustePola(opis),
     notatki: pusteNotatki(opis),
     poziom: poziom || 0,
-    uklada: false
+    uklada: false,
+    czas: 0
   };
   wybrany = 0;
   var i;
@@ -1187,6 +1318,7 @@ function rozpocznijZDanymi(kluczRozmiaru, kluczTrudnosci, dane, rozwiazanie, poz
   ponawianie = [];
   znaczniki = null;
   zbudowanyDla = "";
+  resetujCzas();
   ekran = "gra";
   pokazEkran();
   ustawKomunikat("");
@@ -1194,7 +1326,10 @@ function rozpocznijZDanymi(kluczRozmiaru, kluczTrudnosci, dane, rozwiazanie, poz
 }
 
 function losujNowa() {
-  if (!(gra && gra.uklada)) graPrzedLosowaniem = gra && gra.rozwiazanie ? gra : null;
+  if (!(gra && gra.uklada)) {
+    zamrozCzas();
+    graPrzedLosowaniem = gra && gra.rozwiazanie ? gra : null;
+  }
   var moj = ++numerLosowania;
   var opis = opisRozmiaru(rozmiar);
   var L = noweLosowanie(opis, trudnosc, Math.random);
@@ -1214,6 +1349,9 @@ function losujNowa() {
   ponawianie = [];
   znaczniki = null;
   zbudowanyDla = "";
+  czasBaza = 0;
+  czasStart = 0;
+  ustawTikCzasu(false);
   ekran = "gra";
   pokazEkran();
   ustawKomunikat("Układam planszę…");
@@ -1232,8 +1370,12 @@ function losujNowa() {
         graPrzedLosowaniem = null;
         zbudowanyDla = "";
         ekran = "gra";
+        wczytajCzasZGry();
         pokazEkran();
-      } else if (gra) gra.uklada = false;
+      } else if (gra) {
+        gra.uklada = false;
+        zsynchronizujCzas();
+      }
       ustawKomunikat("Nie udało się ułożyć planszy. Spróbuj jeszcze raz.");
       return;
     }
@@ -1507,6 +1649,11 @@ function pobierzPaczke() {
 
 function graDoZapisu(zrodlo) {
   if (!zrodlo || !zrodlo.rozwiazanie) return null;
+  var czas = liczbaCzasu(zrodlo.czas);
+  if (zrodlo === gra) {
+    zapiszCzasDoGry();
+    czas = liczbaCzasu(gra.czas);
+  }
   return {
     rozmiar: zrodlo.rozmiar,
     trudnosc: zrodlo.trudnosc,
@@ -1514,7 +1661,8 @@ function graDoZapisu(zrodlo) {
     rozwiazanie: zrodlo.rozwiazanie,
     wpisy: zrodlo.wpisy,
     notatki: zrodlo.notatki,
-    poziom: zrodlo.poziom
+    poziom: zrodlo.poziom,
+    czas: czas
   };
 }
 
@@ -1529,6 +1677,7 @@ function zbierzStan() {
     trudnosc: trudnosc,
     czyscNotatki: czyscNotatki,
     pytajPrzedPodpowiedzia: pytajPrzedPodpowiedzia,
+    pokazCzas: pokazCzas,
     trybNotatek: trybNotatek,
     ekran: ekranZapisu,
     wybrany: wybrany,
@@ -1578,6 +1727,7 @@ function wczytajZapis() {
     if (TRUDNOSCI[z.trudnosc]) trudnosc = z.trudnosc;
     if (typeof z.czyscNotatki === "boolean") czyscNotatki = z.czyscNotatki;
     if (typeof z.pytajPrzedPodpowiedzia === "boolean") pytajPrzedPodpowiedzia = z.pytajPrzedPodpowiedzia;
+    if (typeof z.pokazCzas === "boolean") pokazCzas = z.pokazCzas;
     if (typeof z.trybNotatek === "boolean") trybNotatek = z.trybNotatek;
     if (typeof z.wybrany === "number") wybrany = z.wybrany;
     if (graWygladaDobrze(z.gra)) gra = z.gra;
@@ -1719,6 +1869,7 @@ document.getElementById("doMenu").addEventListener("click", function () {
     anulujLosowanie();
     if (graPrzedLosowaniem) gra = graPrzedLosowaniem;
     graPrzedLosowaniem = null;
+    wczytajCzasZGry();
   }
   ekran = "menu";
   pokazEkran();
@@ -1731,6 +1882,7 @@ document.getElementById("wrocDoPlanszy").addEventListener("click", function () {
   if (!gra || !gra.rozwiazanie) return;
   ekran = "gra";
   pokazEkran();
+  if (planszaPelnaIDobra()) ustawKomunikat(komunikatGotowe());
   zapisz();
 });
 document.getElementById("doEdytora").addEventListener("click", function () {
@@ -1749,6 +1901,16 @@ document.getElementById("czyscNotatki").addEventListener("change", function () {
 document.getElementById("pytajPodpowiedz").addEventListener("change", function () {
   pytajPrzedPodpowiedzia = this.checked;
   zapisz();
+});
+var polaCzasuStart = document.querySelectorAll(".pokazCzasPole");
+var icCzas;
+for (icCzas = 0; icCzas < polaCzasuStart.length; icCzas++) {
+  polaCzasuStart[icCzas].addEventListener("change", function () {
+    ustawPokazCzas(this.checked);
+  });
+}
+document.getElementById("czasGry").addEventListener("click", function () {
+  ustawPokazCzas(!pokazCzas);
 });
 document.getElementById("pytanieTak").addEventListener("click", potwierdzPytanie);
 document.getElementById("pytanieNie").addEventListener("click", anulujPytanie);
@@ -1793,11 +1955,20 @@ if (window.visualViewport) {
     ustawPozycjeWyjasnienia();
   });
 }
-window.addEventListener("pagehide", zapiszTeraz);
+document.addEventListener("visibilitychange", naWidocznoscCzasu);
+window.addEventListener("pagehide", function () {
+  zamrozCzas();
+  zapiszTeraz();
+});
+window.addEventListener("pageshow", function () {
+  zsynchronizujCzas();
+});
 
 pokazWersje();
 zbudujMenu();
 wczytajZapis();
+wczytajCzasZGry();
 pokazEkran();
 wczytajZLinku();
+if (!komunikatEl.textContent && planszaPelnaIDobra()) ustawKomunikat(komunikatGotowe());
 zarejestrujPraceOffline();

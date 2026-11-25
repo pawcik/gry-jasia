@@ -238,7 +238,36 @@ a.powrot:visited {
 }
 
 .opis {
-  margin: 0 auto 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.85em;
+  row-gap: 0;
+  width: min(96vw, 640px);
+  margin: 0 auto 4px;
+}
+
+button.czas {
+  border: none;
+  background: transparent;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 4px;
+  font-size: 15px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: #3f3c36;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-decoration-color: #c9c3b4;
+  text-underline-offset: 3px;
+}
+
+button.czas.schowany {
+  letter-spacing: 0.08em;
+  text-decoration-color: currentColor;
 }
 
 .etykieta {

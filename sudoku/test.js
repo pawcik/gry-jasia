@@ -602,12 +602,14 @@ test("lista zmian jest po polsku, od najnowszej, i wraca do gry", function () {
   var m;
   while ((m = re.exec(html))) czasy.push(m[1]);
   assert.deepEqual(czasy, [
+    "2026-11-25T23:59+07:00",
     "2026-11-25T20:01+07:00",
     "2026-11-25T19:48+07:00",
     "2026-11-25T19:43+07:00",
     "2026-11-25T19:22+07:00",
     "2026-11-25T11:33+07:00"
   ]);
+  assert.ok(html.indexOf("Pokaż czas") >= 0);
   assert.ok(html.indexOf("listę zmian") >= 0);
   assert.ok(html.indexOf("Jest nowa wersja") >= 0);
   assert.ok(html.indexOf("Notatki") >= 0);
@@ -700,4 +702,30 @@ test("cyfry w okienku da się stuknąć na telefonie, także przy 16×16", funct
   var wPoziomie = silnik.rozmiarKlawiszaSzybkiego(4, 4, 568, 280);
   assert.ok(wPoziomie >= 28);
   assert.ok(wPoziomie <= 46);
+});
+
+test("czas planszy: minuty, godzina i pauza", function () {
+  assert.equal(silnik.formatujCzas(0), "0:00");
+  assert.equal(silnik.formatujCzas(999), "0:00");
+  assert.equal(silnik.formatujCzas(1000), "0:01");
+  assert.equal(silnik.formatujCzas(61 * 1000), "1:01");
+  assert.equal(silnik.formatujCzas(59 * 60 * 1000 + 59 * 1000), "59:59");
+  assert.equal(silnik.formatujCzas(60 * 60 * 1000), "1:00:00");
+  assert.equal(silnik.formatujCzas(60 * 60 * 1000 + 61 * 1000), "1:01:01");
+  assert.equal(silnik.formatujCzas(13 * 60 * 60 * 1000), "13:00:00");
+  assert.equal(silnik.formatujCzas(-50), "0:00");
+  assert.equal(silnik.formatujCzas(NaN), "0:00");
+
+  assert.equal(silnik.uplynelo(4000, 0, 9000), 4000);
+  assert.equal(silnik.uplynelo(4000, 1000, 3500), 6500);
+  assert.equal(silnik.uplynelo(4000, 8000, 7000), 4000);
+  assert.equal(silnik.uplynelo(-10, 0, 100), 0);
+  var poPauzie = silnik.uplynelo(6500, 0, 20000);
+  assert.equal(poPauzie, 6500);
+  assert.equal(silnik.uplynelo(poPauzie, 20000, 22500), 9000);
+
+  assert.equal(silnik.czyCzasIdzie(true, false), true);
+  assert.equal(silnik.czyCzasIdzie(false, false), false);
+  assert.equal(silnik.czyCzasIdzie(true, true), false);
+  assert.equal(silnik.czyCzasIdzie(false, true), false);
 });
