@@ -15,6 +15,7 @@ var trybNotatek = false;
 var czyscNotatki = true;
 var pytajPrzedPodpowiedzia = true;
 var pokazCzas = true;
+var wyszarzajCyfry = true;
 var czasBaza = 0;
 var czasStart = 0;
 var tikCzasu = 0;
@@ -111,6 +112,7 @@ function odswiezChipy() {
   notatki.setAttribute("aria-pressed", trybNotatek ? "true" : "false");
   document.getElementById("czyscNotatki").checked = czyscNotatki;
   document.getElementById("pytajPodpowiedz").checked = pytajPrzedPodpowiedzia;
+  document.getElementById("wyszarzajCyfry").checked = wyszarzajCyfry;
   var polaCzasu = document.querySelectorAll(".pokazCzasPole");
   for (i = 0; i < polaCzasu.length; i++) polaCzasu[i].checked = pokazCzas;
 }
@@ -474,6 +476,26 @@ function odswiezKlasy() {
   }
 }
 
+// Pełne cyfry (np. wszystkie dziewięć szóstek). Puste, gdy opcja jest wyłączona.
+function mapaWyczerpanych() {
+  var opis = aktualnyOpis();
+  var mapa = [];
+  var i;
+  if (!opis) return mapa;
+  for (i = 0; i < opis.n; i++) mapa.push(false);
+  if (!wyszarzajCyfry) return mapa;
+  var dane = null;
+  var wpisy = null;
+  if (ekran === "gra" && gra && !gra.uklada) {
+    dane = gra.dane;
+    wpisy = gra.wpisy;
+  } else if (ekran === "edytor" && edytor) {
+    dane = edytor.dane;
+  }
+  if (!dane) return mapa;
+  return cyfryWypelnione(opis.n, dane, wpisy);
+}
+
 function odswiezPad() {
   var pad = padEl();
   if (!pad) return;
@@ -481,6 +503,7 @@ function odswiezPad() {
   var v = wartoscWidoczna(wybrany);
   var maska = 0;
   if (ekran === "gra" && gra && trybNotatek) maska = gra.notatki[wybrany] || 0;
+  var wypelnione = mapaWyczerpanych();
   var przyciski = pad.querySelectorAll("button[data-v]");
   var i;
   for (i = 0; i < przyciski.length; i++) {
@@ -488,8 +511,12 @@ function odswiezPad() {
     var wlaczony = false;
     if (ekran === "gra" && trybNotatek) wlaczony = (maska & bit(wart)) !== 0;
     else wlaczony = v === wart;
-    przyciski[i].className = wlaczony ? "wcisniety" : "";
-    if (wart >= opis.n) przyciski[i].hidden = true;
+    // Blada cyfra dalej jest przyciskiem. Nie wyłączamy jej.
+    var klasy = [];
+    if (wlaczony) klasy.push("wcisniety");
+    if (wypelnione[wart]) klasy.push("wyczerpana");
+    przyciski[i].className = klasy.join(" ");
+    if (opis && wart >= opis.n) przyciski[i].hidden = true;
   }
 }
 
@@ -915,6 +942,13 @@ function wartoscZKlawisza(key) {
 }
 
 function naKlawisz(e) {
+  if (ustawieniaOtwarte()) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      ukryjUstawienia();
+    }
+    return;
+  }
   if (pytanieOtwarte()) {
     if (e.key === "Escape") {
       e.preventDefault();
@@ -1211,12 +1245,16 @@ function odswiezSzybkie() {
   }
   var wartosc = wartoscWidoczna(wybrany);
   var maska = szybkieNotatki ? (gra.notatki[wybrany] || 0) : 0;
+  var wypelnione = mapaWyczerpanych();
   var przyciski = szybkieEl.querySelectorAll("button.znak");
   var i;
   for (i = 0; i < przyciski.length; i++) {
     var wart = Number(przyciski[i].dataset.v);
     var on = szybkieNotatki ? (maska & bit(wart)) !== 0 : wartosc === wart;
-    przyciski[i].className = "znak" + (on ? " wcisniety" : "");
+    var klasy = ["znak"];
+    if (on) klasy.push("wcisniety");
+    if (wypelnione[wart]) klasy.push("wyczerpana");
+    przyciski[i].className = klasy.join(" ");
     przyciski[i].setAttribute("aria-pressed", on ? "true" : "false");
   }
   ustawPozycjeSzybkiego();
@@ -1738,6 +1776,7 @@ function zbierzStan() {
     czyscNotatki: czyscNotatki,
     pytajPrzedPodpowiedzia: pytajPrzedPodpowiedzia,
     pokazCzas: pokazCzas,
+    wyszarzajCyfry: wyszarzajCyfry,
     trybNotatek: trybNotatek,
     ekran: ekranZapisu,
     wybrany: wybrany,
@@ -1788,6 +1827,7 @@ function wczytajZapis() {
     if (typeof z.czyscNotatki === "boolean") czyscNotatki = z.czyscNotatki;
     if (typeof z.pytajPrzedPodpowiedzia === "boolean") pytajPrzedPodpowiedzia = z.pytajPrzedPodpowiedzia;
     if (typeof z.pokazCzas === "boolean") pokazCzas = z.pokazCzas;
+    if (typeof z.wyszarzajCyfry === "boolean") wyszarzajCyfry = z.wyszarzajCyfry;
     if (typeof z.trybNotatek === "boolean") trybNotatek = z.trybNotatek;
     if (typeof z.wybrany === "number") wybrany = z.wybrany;
     if (graWygladaDobrze(z.gra)) gra = z.gra;
@@ -1835,6 +1875,30 @@ function wczytajZLinku() {
 
 var rejestracjaPracownika = null;
 var odswiezanieWToku = false;
+
+function ustawieniaOtwarte() {
+  var el = document.getElementById("ustawienia");
+  return !!(el && !el.hidden);
+}
+
+function pokazUstawienia() {
+  var el = document.getElementById("ustawienia");
+  if (!el) return;
+  odswiezChipy();
+  el.hidden = false;
+  var przycisk = document.getElementById("otworzUstawienia");
+  if (przycisk) przycisk.setAttribute("aria-expanded", "true");
+  var karta = el.querySelector(".ustawieniaKarta");
+  if (karta) karta.focus();
+}
+
+function ukryjUstawienia() {
+  var el = document.getElementById("ustawienia");
+  if (!el) return;
+  el.hidden = true;
+  var przycisk = document.getElementById("otworzUstawienia");
+  if (przycisk) przycisk.setAttribute("aria-expanded", "false");
+}
 
 function pokazBanerAktualizacji() {
   var baner = document.getElementById("banerAktualizacji");
@@ -1954,12 +2018,26 @@ document.getElementById("cofnij").addEventListener("click", cofnijRuch);
 document.getElementById("ponow").addEventListener("click", ponowRuch);
 document.getElementById("podpowiedz").addEventListener("click", zapytajOPodpowiedz);
 document.getElementById("sprawdz").addEventListener("click", sprawdzGre);
+document.getElementById("otworzUstawienia").addEventListener("click", pokazUstawienia);
+document.getElementById("zamknijUstawienia").addEventListener("click", ukryjUstawienia);
+document.getElementById("ustawienia").addEventListener("click", function (e) {
+  if (e.target === this) ukryjUstawienia();
+});
+document.getElementById("ustawienia").addEventListener("contextmenu", function (e) {
+  e.preventDefault();
+});
 document.getElementById("czyscNotatki").addEventListener("change", function () {
   czyscNotatki = this.checked;
   zapisz();
 });
 document.getElementById("pytajPodpowiedz").addEventListener("change", function () {
   pytajPrzedPodpowiedzia = this.checked;
+  zapisz();
+});
+document.getElementById("wyszarzajCyfry").addEventListener("change", function () {
+  wyszarzajCyfry = this.checked;
+  odswiezPad();
+  odswiezSzybkie();
   zapisz();
 });
 var polaCzasuStart = document.querySelectorAll(".pokazCzasPole");
