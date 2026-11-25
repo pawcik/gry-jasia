@@ -11,6 +11,7 @@ Wszystko to zwykły HTML i JavaScript: bez instalowania, bez budowania.
 | [`kraina-wisni/`](kraina-wisni/) | Kraina Wiśni: lisi duszek z mieczem w dawnej Japonii, dwa drążki na telefonie, gra z innymi w tym samym Wi-Fi | `mise run serwer` albo otwórz `index.html` |
 | [`statki/`](statki/) | Statki dla całej rodziny: 2 i więcej graczy, telefony i komputery razem, wersja klasyczna i szybka | `mise run serwer` |
 | [`sudoku/`](sudoku/) | Sudoku jak na papierze: 4×4 do 16×16, też bez sieci po pierwszym otwarciu | otwórz `index.html` albo `mise run serwer` |
+| [`start/`](start/) | Strona startowa: kafelki do gier | `mise run serwer` |
 | [`szablon/`](szablon/) | Początek każdej nowej gry | |
 
 ## Uruchamianie

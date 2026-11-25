@@ -1,0 +1,69 @@
+[tools]
+node = "24"
+"npm:live-server" = "1.2.2"
+
+[tasks.graj]
+description = "Otwórz stronę startową w przeglądarce"
+run = "open index.html"
+
+[tasks.serwer]
+description = "Uruchom stronę startową z automatycznym odświeżaniem"
+run = "live-server --port=8083 --open=index.html"
+
+# Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
+# są w mise.local.toml, który nie trafia do gita.
+# PORT_START jest opcjonalny (domyślnie 18440).
+[tasks.wdroz]
+description = "Wyślij stronę startową na domowy serwer (https, pliki statyczne)"
+run = """
+set -e
+if [ -z "$SERWER" ] || [ -z "$DOMENA" ]; then
+  echo "❌ Brak SERWER albo DOMENA w mise.local.toml"
+  exit 1
+fi
+PORT_START="${PORT_START:-18440}"
+
+# 1. Pliki strony. Caddy czyta je z /srv/start. Opis zostaje, wdrozenie nie.
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/start && tar -xzf - -C /srv/start'
+
+# 2. Blok strony. Dopisujemy go do wspólnego Caddyfile, nie kasujemy innych gier.
+ssh "$SERWER" "mkdir -p /srv/caddy && cat > /srv/caddy/start.Caddyfile" < wdrozenie/Caddyfile
+ssh "$SERWER" 'sh -s' << 'EOF'
+set -e
+main=/srv/caddy/Caddyfile
+touch "$main"
+awk '
+  BEGIN { skip = 0 }
+  $0 == "# BEGIN start" { skip = 1; next }
+  $0 == "# END start" { skip = 0; next }
+  skip == 0 { print }
+' "$main" > "$main.tmp"
+{
+  cat "$main.tmp"
+  echo ""
+  echo "# BEGIN start"
+  cat /srv/caddy/start.Caddyfile
+  echo "# END start"
+} > "$main"
+rm -f "$main.tmp"
+EOF
+
+# 3. Przeładuj Caddy, jeśli już działa. Nie twórz kontenera od nowa.
+if ssh "$SERWER" 'docker ps -q -f name=^caddy$ -f status=running | grep -q .'; then
+  if ssh "$SERWER" 'docker exec caddy caddy reload --config /etc/caddy/Caddyfile'; then
+    echo "✨ Caddy wczytał ustawienia strony startowej"
+  else
+    echo "⚠️  Caddy nie przeładował ustawień. Stara konfiguracja została."
+    echo "    Najpewniej w kontenerze nie ma katalogu /srv/start albo portu."
+  fi
+else
+  echo "⚠️  Kontener caddy nie działa. Pliki są na serwerze, strona jeszcze nie."
+fi
+
+echo "Strona startowa: pliki w /srv/start, blok na porcie ${PORT_START}."
+echo "Jednorazowo kontener caddy potrzebuje:"
+echo "  -v /srv/start:/srv/start:ro"
+echo "  -p ${PORT_START}:${PORT_START}"
+echo "oraz -e PORT_START=${PORT_START}, jeśli port ma być inny niż 18440."
+echo "Nie uruchamiam kontenera od nowa, żeby nie przerywać gier."
+"""
