@@ -208,3 +208,217 @@ test("gotowy zestaw z pliku ma poprawne plansze", function () {
     assert.equal(ile.ile, 1, p.tytul);
   }
 });
+
+function widok(w, h) {
+  return { left: 0, top: 0, right: w, bottom: h };
+}
+
+test("okienko szybkiego wpisu zostaje na ekranie i przewraca się obok komórki", function () {
+  var obok = silnik.polozenieSzybkiego(
+    { left: 20, top: 100, width: 40, height: 40 },
+    { width: 120, height: 160 },
+    widok(400, 800),
+    8
+  );
+  assert.equal(obok.strona, "prawo");
+  assert.equal(obok.left, 68);
+  assert.equal(obok.top, 40);
+
+  var wLewo = silnik.polozenieSzybkiego(
+    { left: 300, top: 100, width: 40, height: 40 },
+    { width: 120, height: 160 },
+    widok(400, 800),
+    8
+  );
+  assert.equal(wLewo.strona, "lewo");
+  assert.equal(wLewo.left, 172);
+  assert.equal(wLewo.top, 40);
+
+  var pod = silnik.polozenieSzybkiego(
+    { left: 100, top: 40, width: 40, height: 40 },
+    { width: 200, height: 100 },
+    widok(320, 600),
+    8
+  );
+  assert.equal(pod.strona, "dol");
+  assert.equal(pod.left, 20);
+  assert.equal(pod.top, 88);
+
+  var nad = silnik.polozenieSzybkiego(
+    { left: 100, top: 480, width: 40, height: 40 },
+    { width: 200, height: 140 },
+    widok(320, 600),
+    8
+  );
+  assert.equal(nad.strona, "gora");
+  assert.equal(nad.left, 20);
+  assert.equal(nad.top, 332);
+
+  var zaDuze = silnik.polozenieSzybkiego(
+    { left: 10, top: 10, width: 20, height: 20 },
+    { width: 300, height: 500 },
+    widok(200, 400),
+    8
+  );
+  assert.equal(zaDuze.left, 8);
+  assert.equal(zaDuze.top, 8);
+
+  var dolEkranu = silnik.polozenieSzybkiego(
+    { left: 10, top: 760, width: 30, height: 30 },
+    { width: 100, height: 220 },
+    widok(390, 844),
+    8
+  );
+  assert.equal(dolEkranu.strona, "prawo");
+  assert.equal(dolEkranu.left, 48);
+  assert.equal(dolEkranu.top, 616);
+  assert.ok(dolEkranu.top + 220 <= 844 - 8);
+
+  var zWcieciem = silnik.polozenieSzybkiego(
+    { left: 0, top: 0, width: 40, height: 40 },
+    { width: 80, height: 80 },
+    { left: 20, top: 40, right: 300, bottom: 700 },
+    8
+  );
+  assert.equal(zWcieciem.strona, "prawo");
+  assert.equal(zWcieciem.left, 48);
+  assert.equal(zWcieciem.top, 48);
+});
+
+test("drgnięcie palca nie kasuje przytrzymania, wyraźny ruch tak", function () {
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(0, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(9, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(10, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(-7, 7, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(11, 0, 10), true);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(8, 8, 10), true);
+});
+
+test("wyjaśnienie podpowiedzi mówi, skąd wzięła się cyfra", function () {
+  var opis4 = silnik.ROZMIARY["4"];
+  var pelne = silnik.wymieszaj(opis4, silnik.losujZSeed(8));
+  var dane = pelne.slice();
+  dane[6] = -1;
+  var naga = silnik.podpowiedz(opis4, dane, silnik.pustePola(opis4), pelne, 6);
+  assert.equal(naga.technika, "naga");
+  assert.equal(naga.nazwa, "Naga pojedyncza");
+  assert.equal(naga.tekst, "W tej kratce pasuje tylko 3: w wierszu są już 1, 2 i 4.");
+  assert.ok(naga.definicja.indexOf("jedna cyfra") >= 0);
+  assert.ok(naga.obszar.indexOf(naga.pole) < 0);
+  assert.ok(naga.dowody.length > 0);
+  assert.ok(naga.dowody.indexOf(naga.pole) < 0);
+
+  var ukryte = pelne.slice();
+  var wyjmij = [0, 1, 2, 4, 5, 6, 8, 9];
+  var u;
+  for (u = 0; u < wyjmij.length; u++) ukryte[wyjmij[u]] = -1;
+  var ukryta = silnik.podpowiedz(opis4, ukryte, silnik.pustePola(opis4), pelne, -1);
+  assert.equal(ukryta.technika, "ukryta");
+  assert.equal(ukryta.nazwa, "Ukryta pojedyncza");
+  assert.equal(
+    ukryta.tekst,
+    "W tym wierszu 2 może stanąć tylko tutaj, bo w innych kratkach tego wiersza 2 jest już w ich kolumnie albo kwadracie."
+  );
+  assert.ok(ukryta.dowody.length > 0);
+
+  var puste = silnik.pustePola(opis4);
+  var brak = silnik.podpowiedz(opis4, puste, puste, pelne, 0);
+  assert.equal(brak.technika, "odkrycie");
+  assert.equal(brak.nazwa, "Bez prostego kroku");
+  assert.ok(brak.tekst.indexOf("Nie ma tu prostego kroku") === 0);
+  assert.ok(brak.tekst.indexOf(opis4.znaki.charAt(brak.wartosc)) >= 0);
+  assert.equal(brak.obszar.length, 0);
+  assert.equal(brak.dowody.length, 0);
+
+  var opis9 = silnik.ROZMIARY["9"];
+  var widok = silnik.pustePola(opis9);
+  var przypadki = [
+    {
+      technika: "para",
+      wartosc: 3,
+      slad: { technika: "para", dom: "wiersz", maska: (1 << 0) | (1 << 3), pola: [1, 2], jednostka: [0, 1, 2, 3, 4, 5, 6, 7, 8] },
+      nazwa: "Naga para",
+      kawalek: "dwie kratki mają tylko 1 i 4"
+    },
+    {
+      technika: "wskazanie",
+      wartosc: 6,
+      slad: { technika: "wskazanie", dom: "kolumna", wartosc: 8, pola: [10, 19], linia: [9, 10, 11, 12, 13, 14, 15, 16, 17] },
+      nazwa: "Wskazanie",
+      kawalek: "jest tylko w jednej kolumnie"
+    },
+    {
+      technika: "linia",
+      wartosc: 5,
+      slad: { technika: "linia", dom: "wiersz", wartosc: 5, pola: [1, 2], pudlo: [0, 1, 2, 9, 10, 11, 18, 19, 20] },
+      nazwa: "Linia kwadratu",
+      kawalek: "mieści się tylko w jednym kwadracie"
+    },
+    {
+      technika: "ukrytaPara",
+      wartosc: 8,
+      slad: { technika: "ukrytaPara", dom: "kwadrat", wartosci: [1, 6], pola: [0, 1], jednostka: [0, 1, 2, 9, 10, 11, 18, 19, 20] },
+      nazwa: "Ukryta para",
+      kawalek: "cyfry 2 i 7 mają tylko dwie kratki"
+    },
+    {
+      technika: "trojka",
+      wartosc: 6,
+      slad: { technika: "trojka", dom: "wiersz", maska: (1 << 0) | (1 << 3) | (1 << 7), pola: [1, 2, 3], jednostka: [0, 1, 2, 3, 4, 5, 6, 7, 8] },
+      nazwa: "Naga trójka",
+      kawalek: "trzy kratki dzielą tylko 1, 4 i 8"
+    }
+  ];
+  var p;
+  for (p = 0; p < przypadki.length; p++) {
+    var c = przypadki[p];
+    var w = silnik.wyjasnijPodpowiedz(opis9, widok, {
+      technika: c.technika,
+      pole: 0,
+      wartosc: c.wartosc,
+      slad: c.slad
+    });
+    assert.equal(w.nazwa, c.nazwa, c.technika);
+    assert.ok(w.definicja.length > 20, c.technika);
+    assert.ok(w.tekst.indexOf(c.kawalek) >= 0, w.tekst);
+    assert.ok(w.tekst.indexOf("Tutaj zostaje " + opis9.znaki.charAt(c.wartosc)) >= 0, w.tekst);
+    assert.ok(w.obszar.indexOf(0) < 0, c.technika);
+    assert.ok(w.dowody.indexOf(0) < 0, c.technika);
+  }
+
+  var trudna = silnik.generuj(opis9, "trudny", { los: silnik.losujZSeed(25) });
+  var wpisy = silnik.pustePola(opis9);
+  var para = null;
+  var guard = 0;
+  while (guard++ < 40) {
+    var h = silnik.podpowiedz(opis9, trudna.dane, wpisy, trudna.rozwiazanie, -1);
+    if (!h) break;
+    if (h.technika === "para") {
+      para = h;
+      break;
+    }
+    wpisy[h.pole] = h.wartosc;
+  }
+  assert.ok(para);
+  assert.equal(para.nazwa, "Naga para");
+  assert.ok(para.tekst.indexOf("dwie kratki mają tylko") >= 0);
+  assert.ok(para.dowody.length === 2);
+  assert.equal(para.wartosc, trudna.rozwiazanie[para.pole]);
+});
+
+test("cyfry w okienku da się stuknąć na telefonie, także przy 16×16", function () {
+  var i;
+  for (i = 0; i < ROZMIARY.length; i++) {
+    var opis = silnik.ROZMIARY[ROZMIARY[i]];
+    assert.equal(opis.szer * opis.wys, opis.n);
+    assert.equal(opis.znaki.length, opis.n);
+    var maly = silnik.rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, 320, 568);
+    var duzy = silnik.rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, 390, 844);
+    assert.ok(maly >= 32, opis.nazwa);
+    assert.ok(duzy >= 36, opis.nazwa);
+    assert.ok(maly <= 46 && duzy <= 46);
+  }
+  var wPoziomie = silnik.rozmiarKlawiszaSzybkiego(4, 4, 568, 280);
+  assert.ok(wPoziomie >= 28);
+  assert.ok(wPoziomie <= 46);
+});

@@ -35,7 +35,7 @@
     <button type="button" id="pobierzPaczke">Gotowe plansze</button>
     <div id="listaGotowych"></div>
     <div id="listaWlasnych"></div>
-    <p class="cicho dlaKlawiatury">Klawiatura: strzałki, cyfry i litery, Backspace czyści, N przełącza notatki, Ctrl+Z cofa.</p>
+    <p class="cicho dlaKlawiatury">Klawiatura: strzałki, cyfry i litery, Backspace czyści, N przełącza notatki, H daje podpowiedź, Ctrl+Z cofa.</p>
   </section>
 
   <section class="ekran" id="ekranGra">
@@ -54,6 +54,10 @@
       <label class="cicho ustawienie">
         <input type="checkbox" id="czyscNotatki">
         Wymazuj tę cyfrę z notatek obok
+      </label>
+      <label class="cicho ustawienie">
+        <input type="checkbox" id="pytajPodpowiedz">
+        Pytaj przed podpowiedzią
       </label>
     </div>
   </section>
@@ -79,6 +83,20 @@
       </div>
     </div>
   </section>
+
+  <div id="pytanie" class="pytanie" hidden>
+    <div class="pytanieKarta" role="dialog" aria-modal="true" aria-labelledby="pytanieTekst">
+      <p id="pytanieTekst">Na pewno chcesz podpowiedź?</p>
+      <label class="cicho pytanieOpcja">
+        <input type="checkbox" id="niePytajPodpowiedzi">
+        Nie pytaj więcej
+      </label>
+      <div class="rzad">
+        <button type="button" id="pytanieTak">Tak</button>
+        <button type="button" id="pytanieNie">Anuluj</button>
+      </div>
+    </div>
+  </div>
 
   <script src="silnik.js"></script>
   <script src="game.js"></script>

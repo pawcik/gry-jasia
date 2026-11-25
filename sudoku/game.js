@@ -13,6 +13,7 @@ var edytor = null;
 var wybrany = 0;
 var trybNotatek = false;
 var czyscNotatki = true;
+var pytajPrzedPodpowiedzia = true;
 var cofanie = [];
 var ponawianie = [];
 var znaczniki = null;
@@ -24,6 +25,14 @@ var zbudowanyDla = "";
 var polaPrzyciski = [];
 var timerZapisu = 0;
 var dzwiekCtx = null;
+var CZAS_PRZYTRZYMANIA = 450;
+var PROG_RUCHU = 10;
+var przytrzymanie = null;
+var szybkieEl = null;
+var ignorujNastepnyKlik = false;
+var wyjasnienieEl = null;
+var podpowiedzZnacznik = null;
+var SVG_GUMKI = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3.8l5 5-9.7 9.7H5.2l-1.4-1.4 9.3-9.3 2.1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 13.4l5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 21.2h17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
 var komunikatEl = document.getElementById("komunikat");
 
@@ -67,6 +76,11 @@ function pokazEkran() {
   edytorEl.className = "ekran" + (ekran === "edytor" ? " widoczne" : "");
   document.getElementById("doMenu").hidden = ekran === "menu";
   document.getElementById("wrocDoPlanszy").hidden = !(gra && gra.rozwiazanie);
+  if (ekran !== "gra") {
+    zamknijSzybkie();
+    zamknijWyjasnienie();
+    ukryjPytanie();
+  }
   odswiezChipy();
   if (ekran === "gra" || ekran === "edytor") upewnijPlansze();
   if (ekran === "gra") odswiezOpisGry();
@@ -90,6 +104,7 @@ function odswiezChipy() {
   notatki.className = trybNotatek ? "wcisniety" : "";
   notatki.setAttribute("aria-pressed", trybNotatek ? "true" : "false");
   document.getElementById("czyscNotatki").checked = czyscNotatki;
+  document.getElementById("pytajPodpowiedz").checked = pytajPrzedPodpowiedzia;
 }
 
 function zrobChip(tekst, atrybut, wartosc, klik) {
@@ -162,6 +177,8 @@ function ograniczWybor(opis) {
 }
 
 function zbudujPlansze() {
+  zamknijSzybkie();
+  zamknijWyjasnienie();
   var opis = aktualnyOpis();
   var siatka = siatkaEl();
   var pad = padEl();
@@ -194,6 +211,8 @@ function zbudujPlansze() {
       odswiezPad();
       zapisz();
     });
+    btn.addEventListener("pointerdown", naWciskPola);
+    btn.addEventListener("contextmenu", naMenuPola);
     siatka.appendChild(btn);
     polaPrzyciski.push(btn);
   }
@@ -213,7 +232,7 @@ function zbudujPlansze() {
   czysc.setAttribute("aria-label", "Wyczyść");
   czysc.title = "Wyczyść";
   // Mała gumka, tej samej wielkości co cyfra. Słowo „czyść” wylewało się z ramki na telefonie.
-  czysc.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3.8l5 5-9.7 9.7H5.2l-1.4-1.4 9.3-9.3 2.1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 13.4l5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 21.2h17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  czysc.innerHTML = SVG_GUMKI;
   czysc.addEventListener("click", wyczyscWybrane);
   pad.appendChild(czysc);
   zbudowanyDla = ekran + ":" + opis.n;
@@ -317,6 +336,11 @@ function odswiezKlasy() {
       if (znaczniki.zle[i]) klasy.push("zle");
       if (znaczniki.konflikt[i]) klasy.push("konflikt");
     }
+    if (podpowiedzZnacznik && ekran === "gra") {
+      if (i === podpowiedzZnacznik.pole) klasy.push("podpowiedzCel");
+      else if (podpowiedzZnacznik.dowody[i]) klasy.push("podpowiedzDowod");
+      else if (podpowiedzZnacznik.obszar[i]) klasy.push("podpowiedzObszar");
+    }
     btn.className = klasy.join(" ");
   }
 }
@@ -362,6 +386,7 @@ function zrzut() {
 function przywroc(snap) {
   if (!snap) return;
   wybrany = snap.wybrany;
+  zamknijWyjasnienie();
   if (snap.rodzaj === "edytor" && edytor) {
     edytor.dane = snap.dane.slice();
     edytor.rozwiazanie = snap.rozwiazanie ? snap.rozwiazanie.slice() : null;
@@ -376,6 +401,7 @@ function przywroc(snap) {
   odswiezWszystkiePola();
   odswiezKlasy();
   odswiezPad();
+  zsynchronizujSzybkie();
 }
 
 function zapamietaj() {
@@ -428,6 +454,7 @@ function wpiszCyfre(v) {
     wpiszWEdytorze(v);
     return;
   }
+  zamknijWyjasnienie();
   if (!gra || gra.uklada || !gra.rozwiazanie) return;
   if (v < 0 || v >= opisRozmiaru(gra.rozmiar).n) return;
   if (gra.dane[wybrany] >= 0) {
@@ -441,7 +468,10 @@ function wpiszCyfre(v) {
     gra.wpisy[wybrany] = -1;
     gra.notatki[wybrany] = nowa;
   } else {
-    if (gra.wpisy[wybrany] === v && !gra.notatki[wybrany]) return;
+    if (gra.wpisy[wybrany] === v && !gra.notatki[wybrany]) {
+      poEdycjiPola();
+      return;
+    }
     zapamietaj();
     gra.wpisy[wybrany] = v;
     gra.notatki[wybrany] = 0;
@@ -459,6 +489,7 @@ function wpiszCyfre(v) {
     dzwiek("klik");
   }
   zapisz();
+  poEdycjiPola();
 }
 
 function wyczyscWybrane() {
@@ -475,12 +506,16 @@ function wyczyscWybrane() {
     zapisz();
     return;
   }
+  zamknijWyjasnienie();
   if (!gra || gra.uklada) return;
   if (gra.dane[wybrany] >= 0) {
     ustawKomunikat("Ta cyfra jest wydrukowana.");
     return;
   }
-  if (gra.wpisy[wybrany] < 0 && !gra.notatki[wybrany]) return;
+  if (gra.wpisy[wybrany] < 0 && !gra.notatki[wybrany]) {
+    poEdycjiPola();
+    return;
+  }
   zapamietaj();
   gra.wpisy[wybrany] = -1;
   gra.notatki[wybrany] = 0;
@@ -490,6 +525,7 @@ function wyczyscWybrane() {
   odswiezPad();
   ustawKomunikat("");
   zapisz();
+  poEdycjiPola();
 }
 
 function wpiszWEdytorze(v) {
@@ -507,6 +543,53 @@ function wpiszWEdytorze(v) {
   odswiezEdytorPrzyciski();
   ustawKomunikat("");
   zapisz();
+}
+
+function zapytajOPodpowiedz() {
+  if (ekran !== "gra" || !gra || !gra.rozwiazanie || gra.uklada) return;
+  if (pytanieOtwarte()) return;
+  if (planszaPelnaIDobra()) {
+    ustawKomunikat("Plansza jest już ułożona.");
+    return;
+  }
+  if (!pytajPrzedPodpowiedzia) {
+    dajPodpowiedz();
+    return;
+  }
+  pokazPytanie();
+}
+
+function pytanieOtwarte() {
+  var el = document.getElementById("pytanie");
+  return !!(el && !el.hidden);
+}
+
+function pokazPytanie() {
+  var el = document.getElementById("pytanie");
+  document.getElementById("niePytajPodpowiedzi").checked = false;
+  el.hidden = false;
+  document.getElementById("pytanieTak").focus();
+}
+
+function ukryjPytanie() {
+  var el = document.getElementById("pytanie");
+  if (el) el.hidden = true;
+}
+
+function potwierdzPytanie() {
+  if (!pytanieOtwarte()) return;
+  var niePytaj = document.getElementById("niePytajPodpowiedzi").checked;
+  ukryjPytanie();
+  if (niePytaj) {
+    pytajPrzedPodpowiedzia = false;
+    odswiezChipy();
+    zapisz();
+  }
+  dajPodpowiedz();
+}
+
+function anulujPytanie() {
+  ukryjPytanie();
 }
 
 function dajPodpowiedz() {
@@ -527,11 +610,78 @@ function dajPodpowiedz() {
   odswiezKlasy();
   odswiezPad();
   ustawKomunikat(h.tekst);
+  pokazWyjasnienie(h);
   if (planszaPelnaIDobra()) dzwiek("koniec");
   zapisz();
 }
 
+function pokazWyjasnienie(h) {
+  zamknijSzybkie();
+  if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
+  wyjasnienieEl = null;
+  var obszar = {};
+  var dowody = {};
+  var i;
+  if (h.obszar) for (i = 0; i < h.obszar.length; i++) obszar[h.obszar[i]] = true;
+  if (h.dowody) for (i = 0; i < h.dowody.length; i++) dowody[h.dowody[i]] = true;
+  podpowiedzZnacznik = { pole: h.pole, obszar: obszar, dowody: dowody };
+  var el = document.createElement("div");
+  el.className = "wyjasnienie";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Wyjaśnienie podpowiedzi");
+  var nazwa = document.createElement("p");
+  nazwa.className = "wyjasnienieNazwa";
+  nazwa.textContent = h.nazwa || "Podpowiedź";
+  var def = document.createElement("p");
+  def.className = "wyjasnienieDef";
+  def.textContent = h.definicja || "";
+  var tekst = document.createElement("p");
+  tekst.className = "wyjasnienieTekst";
+  tekst.textContent = h.tekst || "";
+  var zamknij = document.createElement("button");
+  zamknij.type = "button";
+  zamknij.className = "tekstowy";
+  zamknij.textContent = "Zamknij";
+  zamknij.addEventListener("click", zamknijWyjasnienie);
+  el.appendChild(nazwa);
+  el.appendChild(def);
+  el.appendChild(tekst);
+  el.appendChild(zamknij);
+  el.addEventListener("contextmenu", function (zdarzenie) { zdarzenie.preventDefault(); });
+  el.style.visibility = "hidden";
+  document.body.appendChild(el);
+  wyjasnienieEl = el;
+  odswiezKlasy();
+  ustawPozycjeWyjasnienia();
+  el.style.visibility = "visible";
+}
+
+function ustawPozycjeWyjasnienia() {
+  if (!wyjasnienieEl || !podpowiedzZnacznik) return;
+  var komorka = polaPrzyciski[podpowiedzZnacznik.pole];
+  if (!komorka) return;
+  var k = komorka.getBoundingClientRect();
+  var o = wyjasnienieEl.getBoundingClientRect();
+  var p = polozenieSzybkiego(
+    { left: k.left, top: k.top, width: k.width, height: k.height },
+    { width: o.width, height: o.height },
+    widokDoDymka(),
+    8
+  );
+  wyjasnienieEl.style.left = Math.round(p.left) + "px";
+  wyjasnienieEl.style.top = Math.round(p.top) + "px";
+}
+
+function zamknijWyjasnienie() {
+  if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
+  wyjasnienieEl = null;
+  if (!podpowiedzZnacznik) return;
+  podpowiedzZnacznik = null;
+  if (polaPrzyciski.length) odswiezKlasy();
+}
+
 function sprawdzGre() {
+  zamknijWyjasnienie();
   if (!gra || !gra.rozwiazanie || gra.uklada) return;
   var opis = opisRozmiaru(gra.rozmiar);
   var sp = sprawdz(opis, gra.rozwiazanie, gra.dane, gra.wpisy);
@@ -564,6 +714,7 @@ function przesun(dr, dc) {
   wybrany = r * n + c;
   odswiezKlasy();
   odswiezPad();
+  zsynchronizujSzybkie();
 }
 
 function wartoscZKlawisza(key) {
@@ -574,6 +725,26 @@ function wartoscZKlawisza(key) {
 }
 
 function naKlawisz(e) {
+  if (pytanieOtwarte()) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      anulujPytanie();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      potwierdzPytanie();
+    }
+    return;
+  }
+  if (wyjasnienieEl && e.key === "Escape") {
+    e.preventDefault();
+    zamknijWyjasnienie();
+    return;
+  }
+  if (szybkieEl && e.key === "Escape") {
+    e.preventDefault();
+    zamknijSzybkie();
+    return;
+  }
   var tag = e.target && e.target.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA") return;
   if (ekran !== "gra" && ekran !== "edytor") return;
@@ -606,6 +777,11 @@ function naKlawisz(e) {
     przelaczNotatki();
     return;
   }
+  if ((e.key === "h" || e.key === "H") && wartoscZKlawisza(e.key) < 0 && ekran === "gra") {
+    e.preventDefault();
+    zapytajOPodpowiedz();
+    return;
+  }
   var v = wartoscZKlawisza(e.key);
   if (v >= 0) {
     e.preventDefault();
@@ -613,11 +789,324 @@ function naKlawisz(e) {
   }
 }
 
-function przelaczNotatki() {
-  trybNotatek = !trybNotatek;
+function ustawTrybNotatek(wlaczony) {
+  if (trybNotatek === wlaczony) {
+    odswiezSzybkie();
+    return;
+  }
+  trybNotatek = wlaczony;
   odswiezChipy();
   odswiezPad();
+  odswiezSzybkie();
   zapisz();
+}
+
+function przelaczNotatki() {
+  ustawTrybNotatek(!trybNotatek);
+}
+
+// ===== Szybkie wpisywanie =====
+// Długie przytrzymanie kratki (albo prawy przycisk myszy) otwiera małą kartkę obok.
+// Zwykłe stuknięcie tylko wybiera kratkę, tak jak wcześniej.
+
+function naWciskPola(e) {
+  if (e.button !== 0) return;
+  if (ekran !== "gra" || !gra || gra.uklada || !gra.rozwiazanie) return;
+  var i = Number(this.dataset.i);
+  if (gra.dane[i] >= 0) return;
+  rozpocznijPrzytrzymanie(e, i);
+}
+
+function naMenuPola(e) {
+  e.preventDefault();
+  if (ekran !== "gra" || !gra || gra.uklada || !gra.rozwiazanie) return;
+  var i = Number(this.dataset.i);
+  if (gra.dane[i] >= 0) return;
+  zatrzymajPrzytrzymanie();
+  otworzSzybkie(i);
+}
+
+function rozpocznijPrzytrzymanie(e, i) {
+  zatrzymajPrzytrzymanie();
+  var stan = {
+    id: e.pointerId,
+    x: e.clientX,
+    y: e.clientY,
+    i: i,
+    timer: 0
+  };
+  stan.timer = setTimeout(function () {
+    stan.timer = 0;
+    if (przytrzymanie !== stan) return;
+    otworzSzybkie(stan.i);
+  }, CZAS_PRZYTRZYMANIA);
+  przytrzymanie = stan;
+}
+
+function zatrzymajPrzytrzymanie() {
+  if (!przytrzymanie) return;
+  if (przytrzymanie.timer) clearTimeout(przytrzymanie.timer);
+  przytrzymanie = null;
+}
+
+function poleZCel(cel) {
+  var el = cel;
+  while (el && el !== document.body) {
+    if (el.classList && el.classList.contains("pole") && el.dataset && el.dataset.i !== undefined) {
+      return Number(el.dataset.i);
+    }
+    el = el.parentNode;
+  }
+  return -1;
+}
+
+function wciecieBezpieczne() {
+  var probe = document.getElementById("wciecieEkranu");
+  if (!probe) {
+    probe = document.createElement("div");
+    probe.id = "wciecieEkranu";
+    probe.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;overflow:hidden;border:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);";
+    document.body.appendChild(probe);
+  }
+  var cs = getComputedStyle(probe);
+  return {
+    top: parseFloat(cs.paddingTop) || 0,
+    right: parseFloat(cs.paddingRight) || 0,
+    bottom: parseFloat(cs.paddingBottom) || 0,
+    left: parseFloat(cs.paddingLeft) || 0
+  };
+}
+
+function widokDoDymka() {
+  var lewo = 0;
+  var gora = 0;
+  var prawo = window.innerWidth;
+  var dol = window.innerHeight;
+  if (window.visualViewport) {
+    lewo = window.visualViewport.offsetLeft;
+    gora = window.visualViewport.offsetTop;
+    prawo = lewo + window.visualViewport.width;
+    dol = gora + window.visualViewport.height;
+  }
+  var b = wciecieBezpieczne();
+  return {
+    left: lewo + b.left,
+    top: gora + b.top,
+    right: prawo - b.right,
+    bottom: dol - b.bottom
+  };
+}
+
+function zamknijSzybkie() {
+  if (szybkieEl && szybkieEl.parentNode) szybkieEl.parentNode.removeChild(szybkieEl);
+  szybkieEl = null;
+}
+
+function otworzSzybkie(i) {
+  if (ekran !== "gra" || !gra || gra.uklada || !gra.rozwiazanie) return;
+  if (i < 0 || gra.dane[i] >= 0) return;
+  wybrany = i;
+  zamknijWyjasnienie();
+  odswiezKlasy();
+  odswiezPad();
+  zapisz();
+  if (szybkieEl && Number(szybkieEl.dataset.i) === i) {
+    odswiezSzybkie();
+    return;
+  }
+  zbudujSzybkie(i);
+}
+
+function zbudujSzybkie(i) {
+  zamknijSzybkie();
+  var opis = opisRozmiaru(gra.rozmiar);
+  var widok = widokDoDymka();
+  var bok = rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, widok.right - widok.left, widok.bottom - widok.top);
+  var el = document.createElement("div");
+  el.id = "szybkie";
+  el.className = "szybkie";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Szybkie wpisywanie");
+  el.dataset.i = String(i);
+  el.style.left = "0px";
+  el.style.top = "0px";
+  el.style.visibility = "hidden";
+  el.style.setProperty("--znak", bok + "px");
+  el.style.setProperty("--kol", String(opis.szer));
+
+  var tryb = document.createElement("div");
+  tryb.className = "szybkieTryb";
+  tryb.setAttribute("role", "group");
+  tryb.setAttribute("aria-label", "Wpis albo notatka");
+  tryb.appendChild(przyciskTrybu("Wpis", false));
+  tryb.appendChild(przyciskTrybu("Notatka", true));
+  el.appendChild(tryb);
+
+  var siatka = document.createElement("div");
+  siatka.className = "szybkieSiatka";
+  var v;
+  for (v = 0; v < opis.n; v++) {
+    var znak = document.createElement("button");
+    znak.type = "button";
+    znak.className = "znak";
+    znak.dataset.v = String(v);
+    znak.textContent = opis.znaki.charAt(v);
+    znak.addEventListener("click", function () {
+      if (czyPolknacKlik()) return;
+      ustawWybraneZSzybkiego();
+      wpiszCyfre(Number(this.dataset.v));
+    });
+    siatka.appendChild(znak);
+  }
+  el.appendChild(siatka);
+
+  var gumka = document.createElement("button");
+  gumka.type = "button";
+  gumka.className = "szybkieGumka";
+  gumka.setAttribute("aria-label", "Wyczyść");
+  gumka.title = "Wyczyść";
+  gumka.innerHTML = SVG_GUMKI;
+  gumka.addEventListener("click", function () {
+    if (czyPolknacKlik()) return;
+    ustawWybraneZSzybkiego();
+    wyczyscWybrane();
+  });
+  el.appendChild(gumka);
+
+  el.addEventListener("contextmenu", function (zdarzenie) {
+    zdarzenie.preventDefault();
+  });
+  document.body.appendChild(el);
+  szybkieEl = el;
+  odswiezSzybkie();
+  el.style.visibility = "visible";
+}
+
+function przyciskTrybu(tekst, notatka) {
+  var b = document.createElement("button");
+  b.type = "button";
+  b.textContent = tekst;
+  b.dataset.notatka = notatka ? "1" : "0";
+  b.addEventListener("click", function () {
+    if (czyPolknacKlik()) return;
+    ustawTrybNotatek(this.dataset.notatka === "1");
+  });
+  return b;
+}
+
+function odswiezSzybkie() {
+  if (!szybkieEl || ekran !== "gra" || !gra) return;
+  szybkieEl.className = "szybkie" + (trybNotatek ? " notatkiWlaczone" : "");
+  var tryby = szybkieEl.querySelectorAll(".szybkieTryb button");
+  var t;
+  for (t = 0; t < tryby.length; t++) {
+    var wlaczony = (tryby[t].dataset.notatka === "1") === trybNotatek;
+    tryby[t].className = wlaczony ? "wcisniety" : "";
+    tryby[t].setAttribute("aria-pressed", wlaczony ? "true" : "false");
+  }
+  var wartosc = wartoscWidoczna(wybrany);
+  var maska = trybNotatek ? (gra.notatki[wybrany] || 0) : 0;
+  var przyciski = szybkieEl.querySelectorAll("button.znak");
+  var i;
+  for (i = 0; i < przyciski.length; i++) {
+    var wart = Number(przyciski[i].dataset.v);
+    var on = trybNotatek ? (maska & bit(wart)) !== 0 : wartosc === wart;
+    przyciski[i].className = "znak" + (on ? " wcisniety" : "");
+    przyciski[i].setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  ustawPozycjeSzybkiego();
+}
+
+function ustawPozycjeSzybkiego() {
+  if (!szybkieEl) return;
+  var komorka = polaPrzyciski[Number(szybkieEl.dataset.i)];
+  if (!komorka || !gra) {
+    zamknijSzybkie();
+    return;
+  }
+  var opis = opisRozmiaru(gra.rozmiar);
+  var widok = widokDoDymka();
+  var bok = rozmiarKlawiszaSzybkiego(
+    opis.szer,
+    opis.wys,
+    Math.max(1, widok.right - widok.left),
+    Math.max(1, widok.bottom - widok.top)
+  );
+  szybkieEl.style.setProperty("--znak", bok + "px");
+  var k = komorka.getBoundingClientRect();
+  var o = szybkieEl.getBoundingClientRect();
+  var p = polozenieSzybkiego(
+    { left: k.left, top: k.top, width: k.width, height: k.height },
+    { width: o.width, height: o.height },
+    widok,
+    8
+  );
+  szybkieEl.style.left = Math.round(p.left) + "px";
+  szybkieEl.style.top = Math.round(p.top) + "px";
+}
+
+function zsynchronizujSzybkie() {
+  if (!szybkieEl) return;
+  if (ekran !== "gra" || !gra || gra.uklada || czyWydrukowana(wybrany)) {
+    zamknijSzybkie();
+    return;
+  }
+  szybkieEl.dataset.i = String(wybrany);
+  odswiezSzybkie();
+}
+
+function ustawWybraneZSzybkiego() {
+  if (!szybkieEl) return;
+  var i = Number(szybkieEl.dataset.i);
+  if (!isNaN(i)) wybrany = i;
+}
+
+function poEdycjiPola() {
+  if (!szybkieEl) return;
+  if (trybNotatek) zsynchronizujSzybkie();
+  else zamknijSzybkie();
+}
+
+function naRuchPrzytrzymania(e) {
+  if (!przytrzymanie || e.pointerId !== przytrzymanie.id || !przytrzymanie.timer) return;
+  if (ruchAnulujePrzytrzymanie(e.clientX - przytrzymanie.x, e.clientY - przytrzymanie.y, PROG_RUCHU)) {
+    zatrzymajPrzytrzymanie();
+  }
+}
+
+function naKoniecPrzytrzymania(e) {
+  if (!przytrzymanie || e.pointerId !== przytrzymanie.id) return;
+  var poOtwarciu = przytrzymanie.timer === 0 && !!szybkieEl;
+  zatrzymajPrzytrzymanie();
+  if (poOtwarciu) ignorujNastepnyKlik = true;
+}
+
+function czyPolknacKlik() {
+  if (!ignorujNastepnyKlik) return false;
+  ignorujNastepnyKlik = false;
+  return true;
+}
+
+function naKlikPozaSzybkim(e) {
+  if (wyjasnienieEl && !wyjasnienieEl.contains(e.target)) zamknijWyjasnienie();
+  if (!szybkieEl) return;
+  if (szybkieEl.contains(e.target)) {
+    ignorujNastepnyKlik = false;
+    return;
+  }
+  if (e.button !== 0 && poleZCel(e.target) === Number(szybkieEl.dataset.i)) return;
+  zamknijSzybkie();
+}
+
+function naZaznaczenieTekstu(e) {
+  var el = e.target;
+  while (el && el !== document.body) {
+    if (el.classList && (el.classList.contains("pole") || el.classList.contains("szybkie") || el.id === "szybkie")) {
+      e.preventDefault();
+      return;
+    }
+    el = el.parentNode;
+  }
 }
 
 function dzwiek(rodzaj) {
@@ -1022,6 +1511,7 @@ function zbierzStan() {
     rozmiar: rozmiar,
     trudnosc: trudnosc,
     czyscNotatki: czyscNotatki,
+    pytajPrzedPodpowiedzia: pytajPrzedPodpowiedzia,
     trybNotatek: trybNotatek,
     ekran: ekranZapisu,
     wybrany: wybrany,
@@ -1070,6 +1560,7 @@ function wczytajZapis() {
     if (ROZMIARY[String(z.rozmiar)]) rozmiar = String(z.rozmiar);
     if (TRUDNOSCI[z.trudnosc]) trudnosc = z.trudnosc;
     if (typeof z.czyscNotatki === "boolean") czyscNotatki = z.czyscNotatki;
+    if (typeof z.pytajPrzedPodpowiedzia === "boolean") pytajPrzedPodpowiedzia = z.pytajPrzedPodpowiedzia;
     if (typeof z.trybNotatek === "boolean") trybNotatek = z.trybNotatek;
     if (typeof z.wybrany === "number") wybrany = z.wybrany;
     if (graWygladaDobrze(z.gra)) gra = z.gra;
@@ -1149,11 +1640,23 @@ document.getElementById("pobierzPaczke").addEventListener("click", pobierzPaczke
 document.getElementById("trybNotatek").addEventListener("click", przelaczNotatki);
 document.getElementById("cofnij").addEventListener("click", cofnijRuch);
 document.getElementById("ponow").addEventListener("click", ponowRuch);
-document.getElementById("podpowiedz").addEventListener("click", dajPodpowiedz);
+document.getElementById("podpowiedz").addEventListener("click", zapytajOPodpowiedz);
 document.getElementById("sprawdz").addEventListener("click", sprawdzGre);
 document.getElementById("czyscNotatki").addEventListener("change", function () {
   czyscNotatki = this.checked;
   zapisz();
+});
+document.getElementById("pytajPodpowiedz").addEventListener("change", function () {
+  pytajPrzedPodpowiedzia = this.checked;
+  zapisz();
+});
+document.getElementById("pytanieTak").addEventListener("click", potwierdzPytanie);
+document.getElementById("pytanieNie").addEventListener("click", anulujPytanie);
+document.getElementById("pytanie").addEventListener("click", function (e) {
+  if (e.target === this) anulujPytanie();
+});
+document.getElementById("pytanie").addEventListener("contextmenu", function (e) {
+  e.preventDefault();
 });
 document.getElementById("edytorSprawdz").addEventListener("click", sprawdzEdytor);
 document.getElementById("edytorGraj").addEventListener("click", grajEdytor);
@@ -1162,7 +1665,30 @@ document.getElementById("edytorCzysc").addEventListener("click", wyczyscEdytor);
 document.getElementById("kopiujKod").addEventListener("click", kopiujKod);
 document.getElementById("wczytajKod").addEventListener("click", wczytajKodZPola);
 document.addEventListener("keydown", naKlawisz);
-window.addEventListener("resize", dopasujCzcionke);
+document.addEventListener("pointermove", naRuchPrzytrzymania);
+document.addEventListener("pointerup", naKoniecPrzytrzymania);
+document.addEventListener("pointercancel", naKoniecPrzytrzymania);
+document.addEventListener("pointerdown", naKlikPozaSzybkim, true);
+document.addEventListener("selectstart", naZaznaczenieTekstu);
+window.addEventListener("resize", function () {
+  dopasujCzcionke();
+  ustawPozycjeSzybkiego();
+  ustawPozycjeWyjasnienia();
+});
+window.addEventListener("scroll", function () {
+  ustawPozycjeSzybkiego();
+  ustawPozycjeWyjasnienia();
+}, true);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", function () {
+    ustawPozycjeSzybkiego();
+    ustawPozycjeWyjasnienia();
+  });
+  window.visualViewport.addEventListener("scroll", function () {
+    ustawPozycjeSzybkiego();
+    ustawPozycjeWyjasnienia();
+  });
+}
 window.addEventListener("pagehide", zapiszTeraz);
 
 zbudujMenu();
