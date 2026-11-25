@@ -30,6 +30,7 @@ body {
   color: var(--atrament);
   font-family: Georgia, "Iowan Old Style", Palatino, "Palatino Linotype", "Times New Roman", serif;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 body {
@@ -154,6 +155,8 @@ button:focus-visible {
   border-top: 2px solid var(--atrament);
   border-left: 2px solid var(--atrament);
   background: var(--papier);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
 }
@@ -170,6 +173,16 @@ button:focus-visible {
   background: transparent;
   font-size: calc(var(--bok) * 0.62);
   line-height: 1;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.pole * {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .pole.gruboPrawo {
@@ -360,4 +373,94 @@ textarea {
   .dlaKlawiatury {
     display: none;
   }
+}
+
+/* Mała kartka obok komórki. Cyfry jak na planszy, notatki ołówkiem.
+   Rozmiar klawisza (--znak) liczy rozmiarKlawiszaSzybkiego. */
+.szybkie {
+  position: fixed;
+  z-index: 30;
+  margin: 0;
+  padding: 6px;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  background: var(--papier);
+  color: var(--atrament);
+  border: 1px solid var(--atrament);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.szybkie button {
+  margin: 0;
+  min-height: 0;
+  padding: 0;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.szybkieTryb {
+  display: flex;
+  border: 1px solid var(--atrament);
+}
+
+.szybkieTryb button {
+  flex: 1;
+  height: 32px;
+  min-width: 0;
+  border: none;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.szybkieTryb button + button {
+  border-left: 1px solid var(--atrament);
+}
+
+.szybkieSiatka {
+  display: grid;
+  grid-template-columns: repeat(var(--kol), var(--znak));
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.szybkie .znak {
+  width: var(--znak);
+  height: var(--znak);
+  min-width: var(--znak);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--znak) * 0.5);
+  line-height: 1;
+}
+
+.szybkie.notatkiWlaczone .znak {
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", "Chalkboard SE", cursive;
+  color: var(--olowek);
+  font-size: calc(var(--znak) * 0.62);
+}
+
+.szybkie .znak.wcisniety,
+.szybkie.notatkiWlaczone .znak.wcisniety {
+  background: var(--atrament);
+  color: var(--papier);
+}
+
+.szybkieGumka {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  margin-top: 4px;
+}
+
+.szybkieGumka svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }

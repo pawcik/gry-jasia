@@ -1183,6 +1183,103 @@ function dekoduj(tekst) {
   return { rozmiar: opis.n, trudnosc: trud, dane: dane };
 }
 
+// Małe okienko z cyframi (długie przytrzymanie na telefonie).
+// Te trzy funkcje tylko liczą: gdzie postawić okienko, kiedy palec się ruszył
+// i jak duże mają być cyfry, żeby weszły na ekran. Nie rysują.
+
+function przytnijDoEkranu(v, min, max, rozmiar) {
+  var limit = max - rozmiar;
+  if (limit < min) return min;
+  if (v < min) return min;
+  if (v > limit) return limit;
+  return v;
+}
+
+// Widok to prostokąt ekranu: left, top, right, bottom.
+// Najpierw z prawej komórki, potem z lewej, pod nią albo nad nią.
+function polozenieSzybkiego(komorka, okienko, widok, odstep) {
+  var m = typeof odstep === "number" ? odstep : 8;
+  var minX = widok.left + m;
+  var minY = widok.top + m;
+  var maxX = widok.right - m;
+  var maxY = widok.bottom - m;
+  var ow = okienko.width;
+  var oh = okienko.height;
+  var kL = komorka.left;
+  var kT = komorka.top;
+  var kR = komorka.left + komorka.width;
+  var kB = komorka.top + komorka.height;
+  var miejscePrawo = maxX - (kR + m);
+  var miejsceLewo = (kL - m) - minX;
+  var miejsceDol = maxY - (kB + m);
+  var miejsceGora = (kT - m) - minY;
+  var strona = "";
+  if (miejscePrawo >= ow) strona = "prawo";
+  else if (miejsceLewo >= ow) strona = "lewo";
+  else if (miejsceDol >= oh) strona = "dol";
+  else if (miejsceGora >= oh) strona = "gora";
+  else {
+    strona = "prawo";
+    var naj = miejscePrawo;
+    if (miejsceLewo > naj) {
+      strona = "lewo";
+      naj = miejsceLewo;
+    }
+    if (miejsceDol > naj) {
+      strona = "dol";
+      naj = miejsceDol;
+    }
+    if (miejsceGora > naj) {
+      strona = "gora";
+    }
+  }
+  var x;
+  var y;
+  if (strona === "prawo") {
+    x = kR + m;
+    y = przytnijDoEkranu(kT + komorka.height / 2 - oh / 2, minY, maxY, oh);
+  } else if (strona === "lewo") {
+    x = kL - ow - m;
+    y = przytnijDoEkranu(kT + komorka.height / 2 - oh / 2, minY, maxY, oh);
+  } else if (strona === "dol") {
+    x = przytnijDoEkranu(kL + komorka.width / 2 - ow / 2, minX, maxX, ow);
+    y = kB + m;
+  } else {
+    x = przytnijDoEkranu(kL + komorka.width / 2 - ow / 2, minX, maxX, ow);
+    y = kT - oh - m;
+  }
+  x = przytnijDoEkranu(x, minX, maxX, ow);
+  y = przytnijDoEkranu(y, minY, maxY, oh);
+  return { left: x, top: y, strona: strona };
+}
+
+// Palec drgnął trochę — to jeszcze przytrzymanie. Ruszył się dalej — odpuszczamy.
+function ruchAnulujePrzytrzymanie(dx, dy, prog) {
+  var p = typeof prog === "number" ? prog : 10;
+  return dx * dx + dy * dy > p * p;
+}
+
+// Bok jednego klawisza z cyfrą. Na 16×16 i na wąskim telefonie nadal da się trafić.
+// Liczby zgadzają się z odstępami w style.css (przełącznik, gumka, przerwy).
+function rozmiarKlawiszaSzybkiego(kolumny, wiersze, szerokosc, wysokosc) {
+  var margines = 16;
+  var padding = 12;
+  var odstep = 4;
+  var chrome = 32 + 32 + 8;
+  var maxBok = 46;
+  var minBok = 28;
+  var kol = kolumny > 0 ? kolumny : 1;
+  var wier = wiersze > 0 ? wiersze : 1;
+  var dostW = szerokosc - margines - padding - odstep * (kol - 1);
+  var dostH = wysokosc - margines - padding - chrome - odstep * (wier - 1);
+  var zSzer = Math.floor(dostW / kol);
+  var zWys = Math.floor(dostH / wier);
+  var z = zSzer < zWys ? zSzer : zWys;
+  if (z > maxBok) z = maxBok;
+  if (z < minBok) z = minBok;
+  return z;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ROZMIARY: ROZMIARY,
@@ -1206,6 +1303,9 @@ if (typeof module !== "undefined" && module.exports) {
     noweLosowanie: noweLosowanie,
     krokLosowania: krokLosowania,
     koduj: koduj,
-    dekoduj: dekoduj
+    dekoduj: dekoduj,
+    polozenieSzybkiego: polozenieSzybkiego,
+    ruchAnulujePrzytrzymanie: ruchAnulujePrzytrzymanie,
+    rozmiarKlawiszaSzybkiego: rozmiarKlawiszaSzybkiego
   };
 }

@@ -208,3 +208,105 @@ test("gotowy zestaw z pliku ma poprawne plansze", function () {
     assert.equal(ile.ile, 1, p.tytul);
   }
 });
+
+function widok(w, h) {
+  return { left: 0, top: 0, right: w, bottom: h };
+}
+
+test("okienko szybkiego wpisu zostaje na ekranie i przewraca się obok komórki", function () {
+  var obok = silnik.polozenieSzybkiego(
+    { left: 20, top: 100, width: 40, height: 40 },
+    { width: 120, height: 160 },
+    widok(400, 800),
+    8
+  );
+  assert.equal(obok.strona, "prawo");
+  assert.equal(obok.left, 68);
+  assert.equal(obok.top, 40);
+
+  var wLewo = silnik.polozenieSzybkiego(
+    { left: 300, top: 100, width: 40, height: 40 },
+    { width: 120, height: 160 },
+    widok(400, 800),
+    8
+  );
+  assert.equal(wLewo.strona, "lewo");
+  assert.equal(wLewo.left, 172);
+  assert.equal(wLewo.top, 40);
+
+  var pod = silnik.polozenieSzybkiego(
+    { left: 100, top: 40, width: 40, height: 40 },
+    { width: 200, height: 100 },
+    widok(320, 600),
+    8
+  );
+  assert.equal(pod.strona, "dol");
+  assert.equal(pod.left, 20);
+  assert.equal(pod.top, 88);
+
+  var nad = silnik.polozenieSzybkiego(
+    { left: 100, top: 480, width: 40, height: 40 },
+    { width: 200, height: 140 },
+    widok(320, 600),
+    8
+  );
+  assert.equal(nad.strona, "gora");
+  assert.equal(nad.left, 20);
+  assert.equal(nad.top, 332);
+
+  var zaDuze = silnik.polozenieSzybkiego(
+    { left: 10, top: 10, width: 20, height: 20 },
+    { width: 300, height: 500 },
+    widok(200, 400),
+    8
+  );
+  assert.equal(zaDuze.left, 8);
+  assert.equal(zaDuze.top, 8);
+
+  var dolEkranu = silnik.polozenieSzybkiego(
+    { left: 10, top: 760, width: 30, height: 30 },
+    { width: 100, height: 220 },
+    widok(390, 844),
+    8
+  );
+  assert.equal(dolEkranu.strona, "prawo");
+  assert.equal(dolEkranu.left, 48);
+  assert.equal(dolEkranu.top, 616);
+  assert.ok(dolEkranu.top + 220 <= 844 - 8);
+
+  var zWcieciem = silnik.polozenieSzybkiego(
+    { left: 0, top: 0, width: 40, height: 40 },
+    { width: 80, height: 80 },
+    { left: 20, top: 40, right: 300, bottom: 700 },
+    8
+  );
+  assert.equal(zWcieciem.strona, "prawo");
+  assert.equal(zWcieciem.left, 48);
+  assert.equal(zWcieciem.top, 48);
+});
+
+test("drgnięcie palca nie kasuje przytrzymania, wyraźny ruch tak", function () {
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(0, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(9, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(10, 0, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(-7, 7, 10), false);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(11, 0, 10), true);
+  assert.equal(silnik.ruchAnulujePrzytrzymanie(8, 8, 10), true);
+});
+
+test("cyfry w okienku da się stuknąć na telefonie, także przy 16×16", function () {
+  var i;
+  for (i = 0; i < ROZMIARY.length; i++) {
+    var opis = silnik.ROZMIARY[ROZMIARY[i]];
+    assert.equal(opis.szer * opis.wys, opis.n);
+    assert.equal(opis.znaki.length, opis.n);
+    var maly = silnik.rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, 320, 568);
+    var duzy = silnik.rozmiarKlawiszaSzybkiego(opis.szer, opis.wys, 390, 844);
+    assert.ok(maly >= 32, opis.nazwa);
+    assert.ok(duzy >= 36, opis.nazwa);
+    assert.ok(maly <= 46 && duzy <= 46);
+  }
+  var wPoziomie = silnik.rozmiarKlawiszaSzybkiego(4, 4, 568, 280);
+  assert.ok(wPoziomie >= 28);
+  assert.ok(wPoziomie <= 46);
+});
