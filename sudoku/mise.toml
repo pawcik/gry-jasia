@@ -11,8 +11,8 @@ description = "Uruchom sudoku z automatycznym odświeżaniem"
 run = "live-server --port=8082 --open=index.html"
 
 [tasks.test]
-description = "Sprawdź generator, solver, planszę i pasek nowej wersji"
-run = "node --check silnik.js && node --check game.js && node --check sw.js && node --test test.js"
+description = "Sprawdź generator, solver, planszę, pasek nowej wersji i numer wersji"
+run = "node --check silnik.js && node --check game.js && node --check sw.js && node --check wersja.js && node --check wstaw-wersje.js && node --test test.js"
 
 # Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
 # są w mise.local.toml, który nie trafia do gita.
@@ -27,8 +27,19 @@ if [ -z "$SERWER" ] || [ -z "$DOMENA" ] || [ -z "$PORT_SUDOKU" ]; then
 fi
 case "$PORT_SUDOKU" in *[!0-9]*) echo "❌ PORT_SUDOKU ma być liczbą"; exit 1;; esac
 
-# 1. Pliki gry. Caddy czyta je z /srv/sudoku. Testy i opis zostają, wdrozenie nie.
-COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/sudoku && tar -xzf - -C /srv/sudoku'
+# 1. Kopia plików i numer wersji. W gicie zostaje „dev” (mise run serwer).
+#    Data commita jest w strefie Asia/Bangkok, plus krótki sha.
+#    Ten sam krok ręcznie, przed tar, opisuje CLAUDE.md (GNU tar).
+WERSJA=$(node wstaw-wersje.js --wypisz)
+STAGE=$(mktemp -d)
+trap 'rm -rf "$STAGE"' EXIT
+mkdir -p "$STAGE/pliki"
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -cf "$STAGE/zrodlo.tar" .
+tar -xf "$STAGE/zrodlo.tar" -C "$STAGE/pliki"
+node wstaw-wersje.js "$STAGE/pliki" "$WERSJA"
+echo "Wersja: $WERSJA"
+COPYFILE_DISABLE=1 tar --no-mac-metadata -C "$STAGE/pliki" -czf "$STAGE/wysylka.tar.gz" .
+ssh "$SERWER" 'mkdir -p /srv/sudoku && tar -xzf - -C /srv/sudoku' < "$STAGE/wysylka.tar.gz"
 
 # 2. Blok strony. Dopisujemy go do wspólnego Caddyfile, nie kasujemy innych gier.
 ssh "$SERWER" "mkdir -p /srv/caddy && cat > /srv/caddy/sudoku.Caddyfile" < wdrozenie/Caddyfile

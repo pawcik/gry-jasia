@@ -1675,6 +1675,16 @@ function czyPrzeladowacStrone(mialKontroler, juzPrzeladowano) {
   return true;
 }
 
+// Mały napis na dole kartki. To nie jest zapis gry.
+function pokazWersje() {
+  var stopka = document.getElementById("stopkaWersji");
+  if (!stopka) return;
+  var numer = "dev";
+  if (typeof WERSJA_GRY === "string" && WERSJA_GRY) numer = WERSJA_GRY;
+  stopka.textContent = "wersja " + numer;
+  stopka.setAttribute("aria-label", "Wersja " + numer + ". Otwiera listę zmian.");
+}
+
 function zarejestrujPraceOffline() {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol === "file:") return;
@@ -1785,6 +1795,7 @@ if (window.visualViewport) {
 }
 window.addEventListener("pagehide", zapiszTeraz);
 
+pokazWersje();
 zbudujMenu();
 wczytajZapis();
 pokazEkran();
