@@ -1,0 +1,73 @@
+[tools]
+node = "24"
+"npm:live-server" = "1.2.2"
+
+[tasks.graj]
+description = "Otwórz sudoku w przeglądarce"
+run = "open index.html"
+
+[tasks.serwer]
+description = "Uruchom sudoku z automatycznym odświeżaniem"
+run = "live-server --port=8082 --open=index.html"
+
+[tasks.test]
+description = "Sprawdź generator, solver i sprawdzanie planszy"
+run = "node --check silnik.js && node --check game.js && node --check sw.js && node --test test.js"
+
+# Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
+# są w mise.local.toml, który nie trafia do gita.
+# PORT_SUDOKU jest opcjonalny (domyślnie 50082).
+[tasks.wdroz]
+description = "Wyślij sudoku na domowy serwer (https, pliki statyczne)"
+run = """
+set -e
+if [ -z "$SERWER" ] || [ -z "$DOMENA" ]; then
+  echo "❌ Brak SERWER albo DOMENA w mise.local.toml"
+  exit 1
+fi
+PORT_SUDOKU="${PORT_SUDOKU:-50082}"
+
+# 1. Pliki gry. Caddy czyta je z /srv/sudoku. Testy i opis zostają, wdrozenie nie.
+COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude=.git --exclude=.DS_Store --exclude=.claude --exclude=wdrozenie --exclude=CLAUDE.local.md --exclude=mise.local.toml -czf - . | ssh "$SERWER" 'mkdir -p /srv/sudoku && tar -xzf - -C /srv/sudoku'
+
+# 2. Blok strony. Dopisujemy go do wspólnego Caddyfile, nie kasujemy innych gier.
+ssh "$SERWER" "mkdir -p /srv/caddy && cat > /srv/caddy/sudoku.Caddyfile" < wdrozenie/Caddyfile
+ssh "$SERWER" 'sh -s' << 'EOF'
+set -e
+main=/srv/caddy/Caddyfile
+touch "$main"
+awk '
+  BEGIN { skip = 0 }
+  $0 == "# BEGIN sudoku" { skip = 1; next }
+  $0 == "# END sudoku" { skip = 0; next }
+  skip == 0 { print }
+' "$main" > "$main.tmp"
+{
+  cat "$main.tmp"
+  echo ""
+  echo "# BEGIN sudoku"
+  cat /srv/caddy/sudoku.Caddyfile
+  echo "# END sudoku"
+} > "$main"
+rm -f "$main.tmp"
+EOF
+
+# 3. Przeładuj Caddy, jeśli już działa. Nie twórz kontenera od nowa.
+if ssh "$SERWER" 'docker ps -q -f name=^caddy$ -f status=running | grep -q .'; then
+  if ssh "$SERWER" 'docker exec caddy caddy reload --config /etc/caddy/Caddyfile'; then
+    echo "✨ Caddy wczytał ustawienia sudoku"
+  else
+    echo "⚠️  Caddy nie przeładował ustawień. Stara konfiguracja została."
+    echo "    Najpewniej w kontenerze nie ma katalogu /srv/sudoku albo portu."
+  fi
+else
+  echo "⚠️  Kontener caddy nie działa. Pliki są na serwerze, strona jeszcze nie."
+fi
+
+echo "Sudoku: pliki w /srv/sudoku, blok na porcie ${PORT_SUDOKU}."
+echo "Jednorazowo kontener caddy potrzebuje:"
+echo "  -v /srv/sudoku:/srv/sudoku:ro"
+echo "  -p ${PORT_SUDOKU}:${PORT_SUDOKU}"
+echo "oraz -e PORT_SUDOKU=${PORT_SUDOKU}, jeśli port ma być inny niż 50082."
+echo "Nie uruchamiam kontenera od nowa, żeby nie przerywać innych gier."
+"""
