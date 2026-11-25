@@ -359,6 +359,12 @@ button.czas.schowany {
   box-shadow: inset 0 0 0 2px var(--atrament);
 }
 
+/* Pierwsze stuknięcie podpowiedzi: tylko ta kratka, bez cyfry. */
+.pole.podpowiedzSpojrzenie {
+  background: #f6e3b8;
+  box-shadow: inset 0 0 0 2px #b08948;
+}
+
 .pole:focus {
   outline: none;
 }
@@ -464,6 +470,10 @@ button.czas.schowany {
 .narzedzia button {
   font-size: 15px;
   padding: 8px 10px;
+}
+
+#podpowiedz {
+  white-space: nowrap;
 }
 
 .ustawienie,

@@ -318,6 +318,60 @@ test("drgnięcie palca nie kasuje przytrzymania, wyraźny ruch tak", function ()
   assert.equal(silnik.ruchAnulujePrzytrzymanie(8, 8, 10), true);
 });
 
+test("podpowiedź najpierw tylko podświetla kratkę, drugie stuknięcie pokazuje całość", function () {
+  assert.equal(silnik.nastepneStukniecie(null), "kratka");
+  assert.equal(silnik.etykietaPodpowiedzi(null), "Podpowiedź");
+  assert.equal(silnik.tytulPodpowiedzi(null), "Pokaż, na którą kratkę spojrzeć");
+
+  var stan = silnik.stanSpojzenia(6);
+  assert.equal(stan.krok, "kratka");
+  assert.equal(stan.pole, 6);
+  assert.equal(silnik.nastepneStukniecie(stan), "pelna");
+  assert.equal(silnik.etykietaPodpowiedzi(stan), "Pokaż więcej");
+  assert.equal(silnik.tytulPodpowiedzi(stan), "Pokaż cyfrę i skąd ona wynika");
+  assert.equal(silnik.podpowiedzPoWyborze(stan, 6), stan);
+  assert.equal(silnik.podpowiedzPoWyborze(stan, 0), null);
+  assert.equal(silnik.podpowiedzPoWyborze(null, 6), null);
+  assert.equal(silnik.nastepneStukniecie(silnik.podpowiedzPoWyborze(stan, 2)), "kratka");
+
+  var tekst = silnik.tekstSpojzenia(2, 3);
+  assert.equal(tekst, "Spójrz na kratkę: wiersz 2, kolumna 3.");
+  assert.equal(tekst.indexOf("Naga") < 0 && tekst.indexOf("cyfr") < 0, true);
+  assert.equal(silnik.tekstSpojzenia(0, 3), "Spójrz na tę kratkę.");
+
+  var opis4 = silnik.ROZMIARY["4"];
+  var pelne = silnik.wymieszaj(opis4, silnik.losujZSeed(8));
+  var dane = pelne.slice();
+  dane[6] = -1;
+  var h = silnik.podpowiedz(opis4, dane, silnik.pustePola(opis4), pelne, 6);
+  var spojrzenie = silnik.stanSpojzenia(h.pole);
+  spojrzenie.h = h;
+  assert.equal(spojrzenie.h.pole, h.pole);
+  assert.equal(silnik.nastepneStukniecie(spojrzenie), "pelna");
+  assert.equal(tekst.indexOf(h.nazwa), -1);
+  assert.notEqual(tekst, h.tekst);
+
+  var gra = fs.readFileSync(path.join(__dirname, "game.js"), "utf8");
+  var od = gra.indexOf("function pokazTylkoKratke");
+  var dok = gra.indexOf("function poWyborzeKomorki");
+  assert.ok(od >= 0 && dok > od);
+  var cialo = gra.slice(od, dok);
+  assert.equal(cialo.indexOf("gra.wpisy"), -1);
+  assert.ok(cialo.indexOf("tylkoKratka") >= 0);
+  assert.ok(gra.indexOf("nastepneStukniecie(podpowiedzKrok)") >= 0);
+  assert.ok(gra.indexOf("dajPodpowiedz(podpowiedzKrok.h)") >= 0);
+  assert.ok(gra.indexOf("podpowiedzPoWyborze(podpowiedzKrok, pole)") >= 0);
+  var pelna = gra.slice(gra.indexOf("function dajPodpowiedz"), gra.indexOf("function pokazWyjasnienie"));
+  assert.ok(pelna.indexOf("gra.wpisy[h.pole] = h.wartosc") >= 0);
+  var css = fs.readFileSync(path.join(__dirname, "style.css"), "utf8");
+  assert.ok(css.indexOf(".pole.podpowiedzSpojrzenie") >= 0);
+  assert.equal(css.indexOf(".pole.podpowiedzSpojrzenie") > css.indexOf(".pole.podpowiedzCel"), true);
+  var zmiany = fs.readFileSync(path.join(__dirname, "zmiany.html"), "utf8");
+  assert.ok(zmiany.indexOf("Podpowiedź w dwóch krokach") >= 0);
+  assert.ok(zmiany.indexOf("Pokaż więcej") >= 0);
+  assert.match(fs.readFileSync(path.join(__dirname, "sw.js"), "utf8"), /var CACHE = "sudoku-dev";/);
+});
+
 test("wyjaśnienie podpowiedzi mówi, skąd wzięła się cyfra", function () {
   var opis4 = silnik.ROZMIARY["4"];
   var pelne = silnik.wymieszaj(opis4, silnik.losujZSeed(8));
@@ -602,6 +656,7 @@ test("lista zmian jest po polsku, od najnowszej, i wraca do gry", function () {
   var m;
   while ((m = re.exec(html))) czasy.push(m[1]);
   assert.deepEqual(czasy, [
+    "2026-11-26T00:12+07:00",
     "2026-11-25T23:59+07:00",
     "2026-11-25T20:01+07:00",
     "2026-11-25T19:48+07:00",

@@ -37,6 +37,7 @@ var szybkieNotatki = false;
 var ignorujNastepnyKlik = false;
 var wyjasnienieEl = null;
 var podpowiedzZnacznik = null;
+var podpowiedzKrok = null;
 var SVG_GUMKI = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3.8l5 5-9.7 9.7H5.2l-1.4-1.4 9.3-9.3 2.1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 13.4l5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 21.2h17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
 var komunikatEl = document.getElementById("komunikat");
@@ -332,6 +333,7 @@ function zbudujPlansze() {
     btn.appendChild(notatki);
     btn.addEventListener("click", function () {
       wybrany = Number(this.dataset.i);
+      poWyborzeKomorki(wybrany);
       odswiezKlasy();
       odswiezPad();
       zapisz();
@@ -462,7 +464,9 @@ function odswiezKlasy() {
       if (znaczniki.konflikt[i]) klasy.push("konflikt");
     }
     if (podpowiedzZnacznik && ekran === "gra") {
-      if (i === podpowiedzZnacznik.pole) klasy.push("podpowiedzCel");
+      if (podpowiedzZnacznik.tylkoKratka) {
+        if (i === podpowiedzZnacznik.pole) klasy.push("podpowiedzSpojrzenie");
+      } else if (i === podpowiedzZnacznik.pole) klasy.push("podpowiedzCel");
       else if (podpowiedzZnacznik.dowody[i]) klasy.push("podpowiedzDowod");
       else if (podpowiedzZnacznik.obszar[i]) klasy.push("podpowiedzObszar");
     }
@@ -684,11 +688,21 @@ function zapytajOPodpowiedz() {
     ustawKomunikat(komunikatGotowe());
     return;
   }
-  if (!pytajPrzedPodpowiedzia) {
-    dajPodpowiedz();
+  if (nastepneStukniecie(podpowiedzKrok) === "pelna") {
+    if (!pytajPrzedPodpowiedzia) {
+      dajPodpowiedz(podpowiedzKrok.h);
+      return;
+    }
+    pokazPytanie();
     return;
   }
-  pokazPytanie();
+  var opis = opisRozmiaru(gra.rozmiar);
+  var h = podpowiedz(opis, gra.dane, gra.wpisy, gra.rozwiazanie, wybrany);
+  if (!h) {
+    ustawKomunikat(komunikatGotowe());
+    return;
+  }
+  pokazTylkoKratke(h);
 }
 
 function pytanieOtwarte() {
@@ -711,25 +725,61 @@ function ukryjPytanie() {
 function potwierdzPytanie() {
   if (!pytanieOtwarte()) return;
   var niePytaj = document.getElementById("niePytajPodpowiedzi").checked;
+  var h = podpowiedzKrok && podpowiedzKrok.h;
   ukryjPytanie();
   if (niePytaj) {
     pytajPrzedPodpowiedzia = false;
     odswiezChipy();
     zapisz();
   }
-  dajPodpowiedz();
+  dajPodpowiedz(h);
 }
 
 function anulujPytanie() {
   ukryjPytanie();
 }
 
-function dajPodpowiedz() {
+function odswiezPrzyciskPodpowiedzi() {
+  var btn = document.getElementById("podpowiedz");
+  if (!btn) return;
+  btn.textContent = etykietaPodpowiedzi(podpowiedzKrok);
+  btn.title = tytulPodpowiedzi(podpowiedzKrok);
+}
+
+// Pierwsze stuknięcie: tylko kratka. Bez cyfry i bez wyjaśnienia.
+function pokazTylkoKratke(h) {
+  if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
+  wyjasnienieEl = null;
+  var opis = opisRozmiaru(gra.rozmiar);
+  var wiersz = Math.floor(h.pole / opis.n) + 1;
+  var kolumna = (h.pole % opis.n) + 1;
+  podpowiedzKrok = stanSpojzenia(h.pole);
+  podpowiedzKrok.h = h;
+  podpowiedzZnacznik = { pole: h.pole, obszar: {}, dowody: {}, tylkoKratka: true };
+  odswiezKlasy();
+  odswiezPrzyciskPodpowiedzi();
+  ustawKomunikat(tekstSpojzenia(wiersz, kolumna));
+}
+
+// Inna kratka gasi pierwsze podświetlenie. Ta sama zostaje.
+function poWyborzeKomorki(pole) {
+  var dalej = podpowiedzPoWyborze(podpowiedzKrok, pole);
+  if (dalej === podpowiedzKrok) return;
+  if (!podpowiedzKrok) return;
+  zamknijWyjasnienie();
+}
+
+function dajPodpowiedz(gotowa) {
   if (ekran !== "gra" || !gra || !gra.rozwiazanie || gra.uklada) return;
   var opis = opisRozmiaru(gra.rozmiar);
-  var h = podpowiedz(opis, gra.dane, gra.wpisy, gra.rozwiazanie, wybrany);
+  var h = gotowa;
+  if (!h || typeof h.pole !== "number") h = podpowiedz(opis, gra.dane, gra.wpisy, gra.rozwiazanie, wybrany);
+  podpowiedzKrok = null;
+  if (podpowiedzZnacznik && podpowiedzZnacznik.tylkoKratka) podpowiedzZnacznik = null;
+  odswiezPrzyciskPodpowiedzi();
   if (!h) {
     ustawKomunikat(komunikatGotowe());
+    if (polaPrzyciski.length) odswiezKlasy();
     return;
   }
   zapamietaj();
@@ -809,9 +859,13 @@ function ustawPozycjeWyjasnienia() {
 function zamknijWyjasnienie() {
   if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
   wyjasnienieEl = null;
-  if (!podpowiedzZnacznik) return;
+  var tylko = !!(podpowiedzZnacznik && podpowiedzZnacznik.tylkoKratka);
+  var mialZnacznik = !!podpowiedzZnacznik;
+  podpowiedzKrok = null;
   podpowiedzZnacznik = null;
-  if (polaPrzyciski.length) odswiezKlasy();
+  if (tylko) ustawKomunikat("");
+  odswiezPrzyciskPodpowiedzi();
+  if (mialZnacznik && polaPrzyciski.length) odswiezKlasy();
 }
 
 function sprawdzGre() {
@@ -847,6 +901,7 @@ function przesun(dr, dc) {
   if (r >= n) r = n - 1;
   if (c >= n) c = n - 1;
   wybrany = r * n + c;
+  poWyborzeKomorki(wybrany);
   odswiezKlasy();
   odswiezPad();
   zsynchronizujSzybkie();
@@ -871,6 +926,11 @@ function naKlawisz(e) {
     return;
   }
   if (wyjasnienieEl && e.key === "Escape") {
+    e.preventDefault();
+    zamknijWyjasnienie();
+    return;
+  }
+  if (podpowiedzKrok && e.key === "Escape") {
     e.preventDefault();
     zamknijWyjasnienie();
     return;
@@ -1965,6 +2025,7 @@ window.addEventListener("pageshow", function () {
 });
 
 pokazWersje();
+odswiezPrzyciskPodpowiedzi();
 zbudujMenu();
 wczytajZapis();
 wczytajCzasZGry();
