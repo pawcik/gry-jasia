@@ -13,6 +13,7 @@ var edytor = null;
 var wybrany = 0;
 var trybNotatek = false;
 var czyscNotatki = true;
+var pytajPrzedPodpowiedzia = true;
 var cofanie = [];
 var ponawianie = [];
 var znaczniki = null;
@@ -29,6 +30,8 @@ var PROG_RUCHU = 10;
 var przytrzymanie = null;
 var szybkieEl = null;
 var ignorujNastepnyKlik = false;
+var wyjasnienieEl = null;
+var podpowiedzZnacznik = null;
 var SVG_GUMKI = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15.2 3.8l5 5-9.7 9.7H5.2l-1.4-1.4 9.3-9.3 2.1-4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8.6 13.4l5.2 5.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M3.5 21.2h17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
 
 var komunikatEl = document.getElementById("komunikat");
@@ -73,7 +76,11 @@ function pokazEkran() {
   edytorEl.className = "ekran" + (ekran === "edytor" ? " widoczne" : "");
   document.getElementById("doMenu").hidden = ekran === "menu";
   document.getElementById("wrocDoPlanszy").hidden = !(gra && gra.rozwiazanie);
-  if (ekran !== "gra") zamknijSzybkie();
+  if (ekran !== "gra") {
+    zamknijSzybkie();
+    zamknijWyjasnienie();
+    ukryjPytanie();
+  }
   odswiezChipy();
   if (ekran === "gra" || ekran === "edytor") upewnijPlansze();
   if (ekran === "gra") odswiezOpisGry();
@@ -97,6 +104,7 @@ function odswiezChipy() {
   notatki.className = trybNotatek ? "wcisniety" : "";
   notatki.setAttribute("aria-pressed", trybNotatek ? "true" : "false");
   document.getElementById("czyscNotatki").checked = czyscNotatki;
+  document.getElementById("pytajPodpowiedz").checked = pytajPrzedPodpowiedzia;
 }
 
 function zrobChip(tekst, atrybut, wartosc, klik) {
@@ -170,6 +178,7 @@ function ograniczWybor(opis) {
 
 function zbudujPlansze() {
   zamknijSzybkie();
+  zamknijWyjasnienie();
   var opis = aktualnyOpis();
   var siatka = siatkaEl();
   var pad = padEl();
@@ -327,6 +336,11 @@ function odswiezKlasy() {
       if (znaczniki.zle[i]) klasy.push("zle");
       if (znaczniki.konflikt[i]) klasy.push("konflikt");
     }
+    if (podpowiedzZnacznik && ekran === "gra") {
+      if (i === podpowiedzZnacznik.pole) klasy.push("podpowiedzCel");
+      else if (podpowiedzZnacznik.dowody[i]) klasy.push("podpowiedzDowod");
+      else if (podpowiedzZnacznik.obszar[i]) klasy.push("podpowiedzObszar");
+    }
     btn.className = klasy.join(" ");
   }
 }
@@ -372,6 +386,7 @@ function zrzut() {
 function przywroc(snap) {
   if (!snap) return;
   wybrany = snap.wybrany;
+  zamknijWyjasnienie();
   if (snap.rodzaj === "edytor" && edytor) {
     edytor.dane = snap.dane.slice();
     edytor.rozwiazanie = snap.rozwiazanie ? snap.rozwiazanie.slice() : null;
@@ -439,6 +454,7 @@ function wpiszCyfre(v) {
     wpiszWEdytorze(v);
     return;
   }
+  zamknijWyjasnienie();
   if (!gra || gra.uklada || !gra.rozwiazanie) return;
   if (v < 0 || v >= opisRozmiaru(gra.rozmiar).n) return;
   if (gra.dane[wybrany] >= 0) {
@@ -490,6 +506,7 @@ function wyczyscWybrane() {
     zapisz();
     return;
   }
+  zamknijWyjasnienie();
   if (!gra || gra.uklada) return;
   if (gra.dane[wybrany] >= 0) {
     ustawKomunikat("Ta cyfra jest wydrukowana.");
@@ -528,6 +545,53 @@ function wpiszWEdytorze(v) {
   zapisz();
 }
 
+function zapytajOPodpowiedz() {
+  if (ekran !== "gra" || !gra || !gra.rozwiazanie || gra.uklada) return;
+  if (pytanieOtwarte()) return;
+  if (planszaPelnaIDobra()) {
+    ustawKomunikat("Plansza jest już ułożona.");
+    return;
+  }
+  if (!pytajPrzedPodpowiedzia) {
+    dajPodpowiedz();
+    return;
+  }
+  pokazPytanie();
+}
+
+function pytanieOtwarte() {
+  var el = document.getElementById("pytanie");
+  return !!(el && !el.hidden);
+}
+
+function pokazPytanie() {
+  var el = document.getElementById("pytanie");
+  document.getElementById("niePytajPodpowiedzi").checked = false;
+  el.hidden = false;
+  document.getElementById("pytanieTak").focus();
+}
+
+function ukryjPytanie() {
+  var el = document.getElementById("pytanie");
+  if (el) el.hidden = true;
+}
+
+function potwierdzPytanie() {
+  if (!pytanieOtwarte()) return;
+  var niePytaj = document.getElementById("niePytajPodpowiedzi").checked;
+  ukryjPytanie();
+  if (niePytaj) {
+    pytajPrzedPodpowiedzia = false;
+    odswiezChipy();
+    zapisz();
+  }
+  dajPodpowiedz();
+}
+
+function anulujPytanie() {
+  ukryjPytanie();
+}
+
 function dajPodpowiedz() {
   if (ekran !== "gra" || !gra || !gra.rozwiazanie || gra.uklada) return;
   var opis = opisRozmiaru(gra.rozmiar);
@@ -546,11 +610,78 @@ function dajPodpowiedz() {
   odswiezKlasy();
   odswiezPad();
   ustawKomunikat(h.tekst);
+  pokazWyjasnienie(h);
   if (planszaPelnaIDobra()) dzwiek("koniec");
   zapisz();
 }
 
+function pokazWyjasnienie(h) {
+  zamknijSzybkie();
+  if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
+  wyjasnienieEl = null;
+  var obszar = {};
+  var dowody = {};
+  var i;
+  if (h.obszar) for (i = 0; i < h.obszar.length; i++) obszar[h.obszar[i]] = true;
+  if (h.dowody) for (i = 0; i < h.dowody.length; i++) dowody[h.dowody[i]] = true;
+  podpowiedzZnacznik = { pole: h.pole, obszar: obszar, dowody: dowody };
+  var el = document.createElement("div");
+  el.className = "wyjasnienie";
+  el.setAttribute("role", "dialog");
+  el.setAttribute("aria-label", "Wyjaśnienie podpowiedzi");
+  var nazwa = document.createElement("p");
+  nazwa.className = "wyjasnienieNazwa";
+  nazwa.textContent = h.nazwa || "Podpowiedź";
+  var def = document.createElement("p");
+  def.className = "wyjasnienieDef";
+  def.textContent = h.definicja || "";
+  var tekst = document.createElement("p");
+  tekst.className = "wyjasnienieTekst";
+  tekst.textContent = h.tekst || "";
+  var zamknij = document.createElement("button");
+  zamknij.type = "button";
+  zamknij.className = "tekstowy";
+  zamknij.textContent = "Zamknij";
+  zamknij.addEventListener("click", zamknijWyjasnienie);
+  el.appendChild(nazwa);
+  el.appendChild(def);
+  el.appendChild(tekst);
+  el.appendChild(zamknij);
+  el.addEventListener("contextmenu", function (zdarzenie) { zdarzenie.preventDefault(); });
+  el.style.visibility = "hidden";
+  document.body.appendChild(el);
+  wyjasnienieEl = el;
+  odswiezKlasy();
+  ustawPozycjeWyjasnienia();
+  el.style.visibility = "visible";
+}
+
+function ustawPozycjeWyjasnienia() {
+  if (!wyjasnienieEl || !podpowiedzZnacznik) return;
+  var komorka = polaPrzyciski[podpowiedzZnacznik.pole];
+  if (!komorka) return;
+  var k = komorka.getBoundingClientRect();
+  var o = wyjasnienieEl.getBoundingClientRect();
+  var p = polozenieSzybkiego(
+    { left: k.left, top: k.top, width: k.width, height: k.height },
+    { width: o.width, height: o.height },
+    widokDoDymka(),
+    8
+  );
+  wyjasnienieEl.style.left = Math.round(p.left) + "px";
+  wyjasnienieEl.style.top = Math.round(p.top) + "px";
+}
+
+function zamknijWyjasnienie() {
+  if (wyjasnienieEl && wyjasnienieEl.parentNode) wyjasnienieEl.parentNode.removeChild(wyjasnienieEl);
+  wyjasnienieEl = null;
+  if (!podpowiedzZnacznik) return;
+  podpowiedzZnacznik = null;
+  if (polaPrzyciski.length) odswiezKlasy();
+}
+
 function sprawdzGre() {
+  zamknijWyjasnienie();
   if (!gra || !gra.rozwiazanie || gra.uklada) return;
   var opis = opisRozmiaru(gra.rozmiar);
   var sp = sprawdz(opis, gra.rozwiazanie, gra.dane, gra.wpisy);
@@ -594,6 +725,21 @@ function wartoscZKlawisza(key) {
 }
 
 function naKlawisz(e) {
+  if (pytanieOtwarte()) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      anulujPytanie();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      potwierdzPytanie();
+    }
+    return;
+  }
+  if (wyjasnienieEl && e.key === "Escape") {
+    e.preventDefault();
+    zamknijWyjasnienie();
+    return;
+  }
   if (szybkieEl && e.key === "Escape") {
     e.preventDefault();
     zamknijSzybkie();
@@ -629,6 +775,11 @@ function naKlawisz(e) {
   if ((e.key === "n" || e.key === "N") && wartoscZKlawisza(e.key) < 0 && ekran === "gra") {
     e.preventDefault();
     przelaczNotatki();
+    return;
+  }
+  if ((e.key === "h" || e.key === "H") && wartoscZKlawisza(e.key) < 0 && ekran === "gra") {
+    e.preventDefault();
+    zapytajOPodpowiedz();
     return;
   }
   var v = wartoscZKlawisza(e.key);
@@ -755,6 +906,7 @@ function otworzSzybkie(i) {
   if (ekran !== "gra" || !gra || gra.uklada || !gra.rozwiazanie) return;
   if (i < 0 || gra.dane[i] >= 0) return;
   wybrany = i;
+  zamknijWyjasnienie();
   odswiezKlasy();
   odswiezPad();
   zapisz();
@@ -936,6 +1088,7 @@ function czyPolknacKlik() {
 }
 
 function naKlikPozaSzybkim(e) {
+  if (wyjasnienieEl && !wyjasnienieEl.contains(e.target)) zamknijWyjasnienie();
   if (!szybkieEl) return;
   if (szybkieEl.contains(e.target)) {
     ignorujNastepnyKlik = false;
@@ -1358,6 +1511,7 @@ function zbierzStan() {
     rozmiar: rozmiar,
     trudnosc: trudnosc,
     czyscNotatki: czyscNotatki,
+    pytajPrzedPodpowiedzia: pytajPrzedPodpowiedzia,
     trybNotatek: trybNotatek,
     ekran: ekranZapisu,
     wybrany: wybrany,
@@ -1406,6 +1560,7 @@ function wczytajZapis() {
     if (ROZMIARY[String(z.rozmiar)]) rozmiar = String(z.rozmiar);
     if (TRUDNOSCI[z.trudnosc]) trudnosc = z.trudnosc;
     if (typeof z.czyscNotatki === "boolean") czyscNotatki = z.czyscNotatki;
+    if (typeof z.pytajPrzedPodpowiedzia === "boolean") pytajPrzedPodpowiedzia = z.pytajPrzedPodpowiedzia;
     if (typeof z.trybNotatek === "boolean") trybNotatek = z.trybNotatek;
     if (typeof z.wybrany === "number") wybrany = z.wybrany;
     if (graWygladaDobrze(z.gra)) gra = z.gra;
@@ -1485,11 +1640,23 @@ document.getElementById("pobierzPaczke").addEventListener("click", pobierzPaczke
 document.getElementById("trybNotatek").addEventListener("click", przelaczNotatki);
 document.getElementById("cofnij").addEventListener("click", cofnijRuch);
 document.getElementById("ponow").addEventListener("click", ponowRuch);
-document.getElementById("podpowiedz").addEventListener("click", dajPodpowiedz);
+document.getElementById("podpowiedz").addEventListener("click", zapytajOPodpowiedz);
 document.getElementById("sprawdz").addEventListener("click", sprawdzGre);
 document.getElementById("czyscNotatki").addEventListener("change", function () {
   czyscNotatki = this.checked;
   zapisz();
+});
+document.getElementById("pytajPodpowiedz").addEventListener("change", function () {
+  pytajPrzedPodpowiedzia = this.checked;
+  zapisz();
+});
+document.getElementById("pytanieTak").addEventListener("click", potwierdzPytanie);
+document.getElementById("pytanieNie").addEventListener("click", anulujPytanie);
+document.getElementById("pytanie").addEventListener("click", function (e) {
+  if (e.target === this) anulujPytanie();
+});
+document.getElementById("pytanie").addEventListener("contextmenu", function (e) {
+  e.preventDefault();
 });
 document.getElementById("edytorSprawdz").addEventListener("click", sprawdzEdytor);
 document.getElementById("edytorGraj").addEventListener("click", grajEdytor);
@@ -1506,11 +1673,21 @@ document.addEventListener("selectstart", naZaznaczenieTekstu);
 window.addEventListener("resize", function () {
   dopasujCzcionke();
   ustawPozycjeSzybkiego();
+  ustawPozycjeWyjasnienia();
 });
-window.addEventListener("scroll", ustawPozycjeSzybkiego, true);
+window.addEventListener("scroll", function () {
+  ustawPozycjeSzybkiego();
+  ustawPozycjeWyjasnienia();
+}, true);
 if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", ustawPozycjeSzybkiego);
-  window.visualViewport.addEventListener("scroll", ustawPozycjeSzybkiego);
+  window.visualViewport.addEventListener("resize", function () {
+    ustawPozycjeSzybkiego();
+    ustawPozycjeWyjasnienia();
+  });
+  window.visualViewport.addEventListener("scroll", function () {
+    ustawPozycjeSzybkiego();
+    ustawPozycjeWyjasnienia();
+  });
 }
 window.addEventListener("pagehide", zapiszTeraz);
 

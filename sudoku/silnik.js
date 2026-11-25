@@ -356,7 +356,7 @@ function znajdzUkrytaJedynke(stan, preferowane) {
         }
       }
       if (ile !== 1) continue;
-      var znal = { pole: gdzie, wartosc: v, gdzie: gdzieJednostki(stan, u) };
+      var znal = { pole: gdzie, wartosc: v, gdzie: gdzieJednostki(stan, u), jednostka: jed.slice() };
       if (gdzie === preferowane) return znal;
       if (!pierwsza) pierwsza = znal;
     }
@@ -404,7 +404,18 @@ function nagaPara(stan) {
           if (k !== a && k !== b) inni.push(puste[k]);
         }
         var kasuj = zbierzKasowanie(stan, inni, ma);
-        if (kasuj.length) return { typ: "kasuj", poziom: 3, technika: "para", kasuj: kasuj };
+        if (kasuj.length) {
+          return {
+            typ: "kasuj",
+            poziom: 3,
+            technika: "para",
+            kasuj: kasuj,
+            pola: [puste[a], puste[b]],
+            maska: ma,
+            dom: gdzieJednostki(stan, u),
+            jednostka: jed.slice()
+          };
+        }
       }
     }
   }
@@ -444,6 +455,7 @@ function wskazanie(stan) {
         var maxC = -1;
         var ile = 0;
         var zajete = false;
+        var wskazane = [];
         var dr;
         var dc;
         for (dr = 0; dr < h && !zajete; dr++) {
@@ -457,6 +469,7 @@ function wskazanie(stan) {
             }
             if (stan.wartosc[p] < 0 && (stan.maska[p] & bit)) {
               ile++;
+              wskazane.push(p);
               if (minR < 0) {
                 minR = maxR = r;
                 minC = maxC = c;
@@ -472,11 +485,33 @@ function wskazanie(stan) {
         if (zajete || ile < 2) continue;
         if (minR === maxR) {
           var kasuj = kasujPoza(stan, minR, false, br, bc, bit);
-          if (kasuj.length) return { typ: "kasuj", poziom: 3, technika: "wskazanie", kasuj: kasuj };
+          if (kasuj.length) {
+            return {
+              typ: "kasuj",
+              poziom: 3,
+              technika: "wskazanie",
+              kasuj: kasuj,
+              wartosc: v,
+              dom: "wiersz",
+              pola: wskazane,
+              linia: polaLiniiStan(stan, minR, false)
+            };
+          }
         }
         if (minC === maxC) {
           var kasujK = kasujPoza(stan, minC, true, br, bc, bit);
-          if (kasujK.length) return { typ: "kasuj", poziom: 3, technika: "wskazanie", kasuj: kasujK };
+          if (kasujK.length) {
+            return {
+              typ: "kasuj",
+              poziom: 3,
+              technika: "wskazanie",
+              kasuj: kasujK,
+              wartosc: v,
+              dom: "kolumna",
+              pola: wskazane,
+              linia: polaLiniiStan(stan, minC, true)
+            };
+          }
         }
       }
     }
@@ -496,6 +531,7 @@ function liniaWKwadrat(stan) {
       var maxC = -1;
       var ile = 0;
       var zajete = false;
+      var miejsca = [];
       var c;
       for (c = 0; c < n; c++) {
         var p = r * n + c;
@@ -505,6 +541,7 @@ function liniaWKwadrat(stan) {
         }
         if (stan.wartosc[p] < 0 && (stan.maska[p] & bit)) {
           ile++;
+          miejsca.push(p);
           if (minC < 0) minC = maxC = c;
           else {
             if (c < minC) minC = c;
@@ -527,7 +564,18 @@ function liniaWKwadrat(stan) {
             if (stan.wartosc[p2] < 0 && (stan.maska[p2] & bit)) kasuj.push({ pole: p2, bit: bit });
           }
         }
-        if (kasuj.length) return { typ: "kasuj", poziom: 3, technika: "linia", kasuj: kasuj };
+        if (kasuj.length) {
+          return {
+            typ: "kasuj",
+            poziom: 3,
+            technika: "linia",
+            kasuj: kasuj,
+            wartosc: v,
+            dom: "wiersz",
+            pola: miejsca,
+            pudlo: polaPudlaStan(stan, br, bc)
+          };
+        }
       }
     }
   }
@@ -539,6 +587,7 @@ function liniaWKwadrat(stan) {
       var maxR = -1;
       var ile2 = 0;
       var zajete2 = false;
+      var miejsca2 = [];
       for (r = 0; r < n; r++) {
         var p3 = r * n + c2;
         if (stan.wartosc[p3] === v) {
@@ -547,6 +596,7 @@ function liniaWKwadrat(stan) {
         }
         if (stan.wartosc[p3] < 0 && (stan.maska[p3] & bit2)) {
           ile2++;
+          miejsca2.push(p3);
           if (minR < 0) minR = maxR = r;
           else {
             if (r < minR) minR = r;
@@ -569,7 +619,18 @@ function liniaWKwadrat(stan) {
             if (stan.wartosc[p4] < 0 && (stan.maska[p4] & bit2)) kasuj2.push({ pole: p4, bit: bit2 });
           }
         }
-        if (kasuj2.length) return { typ: "kasuj", poziom: 3, technika: "linia", kasuj: kasuj2 };
+        if (kasuj2.length) {
+          return {
+            typ: "kasuj",
+            poziom: 3,
+            technika: "linia",
+            kasuj: kasuj2,
+            wartosc: v,
+            dom: "kolumna",
+            pola: miejsca2,
+            pudlo: polaPudlaStan(stan, br2, bc2)
+          };
+        }
       }
     }
   }
@@ -614,7 +675,18 @@ function ukrytaPara(stan) {
         if (zaDuzo || gdzie.length !== 2 || c1 !== 2 || c2 !== 2) continue;
         var dozwolone = (b1 | b2) >>> 0;
         var kasuj = zbierzKasowanie(stan, gdzie, ~dozwolone >>> 0);
-        if (kasuj.length) return { typ: "kasuj", poziom: 4, technika: "ukrytaPara", kasuj: kasuj };
+        if (kasuj.length) {
+          return {
+            typ: "kasuj",
+            poziom: 4,
+            technika: "ukrytaPara",
+            kasuj: kasuj,
+            pola: gdzie.slice(),
+            wartosci: [v1, v2],
+            dom: gdzieJednostki(stan, u),
+            jednostka: jed.slice()
+          };
+        }
       }
     }
   }
@@ -649,7 +721,18 @@ function nagaTrojka(stan) {
             if (p !== puste[a] && p !== puste[b] && p !== puste[c]) inni.push(p);
           }
           var kasuj = zbierzKasowanie(stan, inni, uni);
-          if (kasuj.length) return { typ: "kasuj", poziom: 4, technika: "trojka", kasuj: kasuj };
+          if (kasuj.length) {
+            return {
+              typ: "kasuj",
+              poziom: 4,
+              technika: "trojka",
+              kasuj: kasuj,
+              pola: [puste[a], puste[b], puste[c]],
+              maska: uni,
+              dom: gdzieJednostki(stan, u),
+              jednostka: jed.slice()
+            };
+          }
         }
       }
     }
@@ -670,7 +753,8 @@ function nastepnyKrok(stan, maxPoziom, preferowane) {
       wartosc: ukryta.wartosc,
       poziom: 2,
       technika: "ukryta",
-      gdzie: ukryta.gdzie
+      gdzie: ukryta.gdzie,
+      jednostka: ukryta.jednostka
     };
   }
   if (maxPoziom < 3) return null;
@@ -884,21 +968,280 @@ function sprawdz(opis, rozwiazanie, dane, wpisy) {
   return { zle: zle, konflikty: konflikty, puste: puste, wszystkoDobrze: wszystkoDobrze, widok: widok };
 }
 
-function tekstPodpowiedzi(opis, technika, wartosc, gdzie) {
-  var z = opis.znaki.charAt(wartosc);
-  if (technika === "naga") return "W tym polu zostaje tylko " + z + " (naga jedynka).";
-  if (technika === "ukryta") {
-    var miejsce = "wierszu";
-    if (gdzie === "kolumna") miejsce = "kolumnie";
-    if (gdzie === "kwadrat") miejsce = "kwadracie";
-    return "W tym " + miejsce + " cyfra " + z + " pasuje tylko tutaj (ukryta jedynka).";
+function polaLiniiStan(stan, indeks, kolumna) {
+  var a = [];
+  var i;
+  for (i = 0; i < stan.n; i++) a.push(kolumna ? i * stan.n + indeks : indeks * stan.n + i);
+  return a;
+}
+
+function polaPudlaStan(stan, br, bc) {
+  var a = [];
+  var dr;
+  var dc;
+  for (dr = 0; dr < stan.h; dr++) {
+    for (dc = 0; dc < stan.w; dc++) a.push((br * stan.h + dr) * stan.n + (bc * stan.w + dc));
   }
-  if (technika === "para") return "Dwa pola zabierają sąsiadom dwie cyfry i zostaje " + z + " (naga para).";
-  if (technika === "wskazanie") return "W kwadracie cyfra " + z + " jest tylko w jednej linii, więc zostaje tutaj (wskazanie).";
-  if (technika === "linia") return "W linii cyfra " + z + " mieści się w jednym kwadracie, więc zostaje tutaj (linia kwadratu).";
-  if (technika === "ukrytaPara") return "Dwie cyfry mają tylko dwa pola. Zostaje " + z + " (ukryta para).";
-  if (technika === "trojka") return "Trzy pola dzielą trzy cyfry i zostaje " + z + " (naga trójka).";
-  return "Nie widać prostego kroku. Poprawna cyfra to " + z + ".";
+  return a;
+}
+
+function polaWierszaOpis(opis, pole) {
+  var a = [];
+  var n = opis.n;
+  var r = Math.floor(pole / n);
+  var c;
+  for (c = 0; c < n; c++) a.push(r * n + c);
+  return a;
+}
+
+function polaKolumnyOpis(opis, pole) {
+  var a = [];
+  var n = opis.n;
+  var c = pole % n;
+  var r;
+  for (r = 0; r < n; r++) a.push(r * n + c);
+  return a;
+}
+
+function polaKwadratuOpis(opis, pole) {
+  var n = opis.n;
+  var r = Math.floor(pole / n);
+  var c = pole % n;
+  var br = Math.floor(r / opis.wys) * opis.wys;
+  var bc = Math.floor(c / opis.szer) * opis.szer;
+  var a = [];
+  var dr;
+  var dc;
+  for (dr = 0; dr < opis.wys; dr++) {
+    for (dc = 0; dc < opis.szer; dc++) a.push((br + dr) * n + (bc + dc));
+  }
+  return a;
+}
+
+function poPolsku(znaki) {
+  if (!znaki || !znaki.length) return "";
+  if (znaki.length === 1) return znaki[0];
+  if (znaki.length === 2) return znaki[0] + " i " + znaki[1];
+  return znaki.slice(0, znaki.length - 1).join(", ") + " i " + znaki[znaki.length - 1];
+}
+
+function znakiZWartosci(opis, wartosci) {
+  var jest = {};
+  var i;
+  for (i = 0; i < wartosci.length; i++) jest[wartosci[i]] = true;
+  var out = [];
+  for (i = 0; i < opis.n; i++) if (jest[i]) out.push(opis.znaki.charAt(i));
+  return out;
+}
+
+function znakiZMaski(opis, maska) {
+  var a = [];
+  var v;
+  for (v = 0; v < opis.n; v++) if (maska & bitWartosci(v)) a.push(opis.znaki.charAt(v));
+  return a;
+}
+
+function bezPola(lista, pole) {
+  var a = [];
+  var i;
+  if (!lista) return a;
+  for (i = 0; i < lista.length; i++) if (lista[i] !== pole) a.push(lista[i]);
+  return a;
+}
+
+function unikalnePola(lista) {
+  var widziane = {};
+  var a = [];
+  var i;
+  for (i = 0; i < lista.length; i++) {
+    if (widziane[lista[i]]) continue;
+    widziane[lista[i]] = true;
+    a.push(lista[i]);
+  }
+  return a;
+}
+
+function miejsceDomu(dom) {
+  if (dom === "kolumna") return "kolumnie";
+  if (dom === "kwadrat") return "kwadracie";
+  return "wierszu";
+}
+
+function dopelniaczDomu(dom) {
+  if (dom === "kolumna") return "tej kolumny";
+  if (dom === "kwadrat") return "tego kwadratu";
+  return "tego wiersza";
+}
+
+function wyjasnijNaga(opis, widok, pole, z) {
+  var domy = [
+    { nazwa: "wierszu", pola: polaWierszaOpis(opis, pole) },
+    { nazwa: "kolumnie", pola: polaKolumnyOpis(opis, pole) },
+    { nazwa: "kwadracie", pola: polaKwadratuOpis(opis, pole) }
+  ];
+  var uzyte = {};
+  var czesci = [];
+  var d;
+  for (d = 0; d < domy.length; d++) {
+    var vals = [];
+    var i;
+    for (i = 0; i < domy[d].pola.length; i++) {
+      var v = widok[domy[d].pola[i]];
+      if (v >= 0 && !uzyte[v]) {
+        uzyte[v] = true;
+        vals.push(v);
+      }
+    }
+    var zn = znakiZWartosci(opis, vals);
+    if (!zn.length) continue;
+    if (!czesci.length) {
+      czesci.push("w " + domy[d].nazwa + " " + (zn.length === 1 ? "jest już " : "są już ") + poPolsku(zn));
+    } else {
+      czesci.push("w " + domy[d].nazwa + " " + poPolsku(zn));
+    }
+  }
+  var tekst = "W tej kratce pasuje tylko " + z;
+  if (czesci.length) tekst += ": " + czesci.join(", ") + ".";
+  else tekst += ".";
+  var obszar = unikalnePola(domy[0].pola.concat(domy[1].pola).concat(domy[2].pola));
+  var dowody = [];
+  var j;
+  for (j = 0; j < obszar.length; j++) {
+    if (obszar[j] !== pole && widok[obszar[j]] >= 0) dowody.push(obszar[j]);
+  }
+  return {
+    nazwa: "Naga pojedyncza",
+    definicja: "W kratce zostaje tylko jedna cyfra, bo każda inna jest już w jej wierszu, kolumnie albo kwadracie.",
+    tekst: tekst,
+    obszar: bezPola(obszar, pole),
+    dowody: dowody
+  };
+}
+
+function blokadaCyfry(opis, widok, pole, wartosc, wJednostce) {
+  var n = opis.n;
+  var r = Math.floor(pole / n);
+  var c = pole % n;
+  var i;
+  for (i = 0; i < n; i++) {
+    var p = r * n + i;
+    if (!wJednostce[p] && widok[p] === wartosc) return p;
+  }
+  for (i = 0; i < n; i++) {
+    var p2 = i * n + c;
+    if (!wJednostce[p2] && widok[p2] === wartosc) return p2;
+  }
+  var kw = polaKwadratuOpis(opis, pole);
+  for (i = 0; i < kw.length; i++) {
+    if (!wJednostce[kw[i]] && widok[kw[i]] === wartosc) return kw[i];
+  }
+  return -1;
+}
+
+function wyjasnijUkryta(opis, widok, pole, wartosc, z, slad) {
+  var gdzie = slad && slad.gdzie ? slad.gdzie : "kwadrat";
+  var jednostka = slad && slad.jednostka ? slad.jednostka : polaKwadratuOpis(opis, pole);
+  if (gdzie === "wiersz" && !(slad && slad.jednostka)) jednostka = polaWierszaOpis(opis, pole);
+  if (gdzie === "kolumna" && !(slad && slad.jednostka)) jednostka = polaKolumnyOpis(opis, pole);
+  var wJednostce = {};
+  var i;
+  for (i = 0; i < jednostka.length; i++) wJednostce[jednostka[i]] = true;
+  var dowody = [];
+  var widziane = {};
+  for (i = 0; i < jednostka.length; i++) {
+    var p = jednostka[i];
+    if (p === pole || widok[p] >= 0) continue;
+    var blok = blokadaCyfry(opis, widok, p, wartosc, wJednostce);
+    if (blok >= 0 && !widziane[blok]) {
+      widziane[blok] = true;
+      dowody.push(blok);
+    }
+  }
+  var tekst = "W tym " + miejsceDomu(gdzie) + " " + z + " może stanąć tylko tutaj";
+  if (dowody.length && gdzie === "wiersz") {
+    tekst += ", bo w innych kratkach tego wiersza " + z + " jest już w ich kolumnie albo kwadracie.";
+  } else if (dowody.length && gdzie === "kolumna") {
+    tekst += ", bo w innych kratkach tej kolumny " + z + " jest już w ich wierszu albo kwadracie.";
+  } else if (dowody.length) {
+    tekst += ", bo w innych kratkach tego kwadratu " + z + " jest już w ich wierszu albo kolumnie.";
+  } else {
+    tekst += ".";
+  }
+  return {
+    nazwa: "Ukryta pojedyncza",
+    definicja: "W wierszu, kolumnie albo kwadracie jakaś cyfra ma już tylko jedno wolne miejsce.",
+    tekst: tekst,
+    obszar: bezPola(jednostka, pole),
+    dowody: dowody
+  };
+}
+
+function wyjasnijKasowanie(opis, pole, z, slad) {
+  var technika = slad && slad.technika ? slad.technika : "";
+  var dom = slad && slad.dom ? slad.dom : "wiersz";
+  var obszar = slad && slad.jednostka ? slad.jednostka.slice() : [];
+  var dowody = slad && slad.pola ? slad.pola.slice() : [];
+  var nazwa = "Podpowiedź";
+  var definicja = "Ten krok porządkuje kratki obok, i dlatego da się wpisać cyfrę.";
+  var tekst = "Tutaj zostaje " + z + ".";
+  if (technika === "para") {
+    nazwa = "Naga para";
+    definicja = "Dwie kratki w jednym miejscu mają tylko te same dwie cyfry, więc reszta tego miejsca ich nie bierze.";
+    tekst = "W tym " + miejsceDomu(dom) + " dwie kratki mają tylko " + poPolsku(znakiZMaski(opis, slad.maska)) + ". Inne kratki " + dopelniaczDomu(dom) + " nie mogą ich mieć. Tutaj zostaje " + z + ".";
+  } else if (technika === "wskazanie") {
+    nazwa = "Wskazanie";
+    definicja = "W kwadracie cyfra stoi tylko w jednym wierszu albo jednej kolumnie, więc poza kwadratem w tej linii jej nie ma.";
+    var zz = opis.znaki.charAt(slad.wartosc);
+    var linia = slad.dom === "kolumna" ? "kolumnie" : "wierszu";
+    tekst = "W tym kwadracie " + zz + " jest tylko w jednej " + linia + ", więc poza kwadratem w tej linii jej nie ma. Tutaj zostaje " + z + ".";
+    obszar = slad.linia ? slad.linia.slice() : obszar;
+  } else if (technika === "linia") {
+    nazwa = "Linia kwadratu";
+    definicja = "W wierszu albo kolumnie cyfra mieści się w jednym kwadracie, więc w reszcie tego kwadratu jej nie ma.";
+    var zl = opis.znaki.charAt(slad.wartosc);
+    tekst = "W tym " + miejsceDomu(dom) + " " + zl + " mieści się tylko w jednym kwadracie, więc w reszcie tego kwadratu jej nie ma. Tutaj zostaje " + z + ".";
+    obszar = slad.pudlo ? slad.pudlo.slice() : obszar;
+  } else if (technika === "ukrytaPara") {
+    nazwa = "Ukryta para";
+    definicja = "Dwie cyfry mają w tym miejscu tylko dwie kratki, więc te kratki nie biorą innych cyfr.";
+    var para = [];
+    if (slad.wartosci) {
+      var t;
+      for (t = 0; t < slad.wartosci.length; t++) para.push(opis.znaki.charAt(slad.wartosci[t]));
+    }
+    tekst = "W tym " + miejsceDomu(dom) + " cyfry " + poPolsku(para) + " mają tylko dwie kratki. Te kratki nie biorą innych cyfr. Tutaj zostaje " + z + ".";
+  } else if (technika === "trojka") {
+    nazwa = "Naga trójka";
+    definicja = "Trzy kratki dzielą tylko trzy cyfry, więc reszta tego miejsca ich nie bierze.";
+    tekst = "W tym " + miejsceDomu(dom) + " trzy kratki dzielą tylko " + poPolsku(znakiZMaski(opis, slad.maska)) + ". Reszta " + dopelniaczDomu(dom) + " ich nie bierze. Tutaj zostaje " + z + ".";
+  }
+  return {
+    nazwa: nazwa,
+    definicja: definicja,
+    tekst: tekst,
+    obszar: bezPola(obszar, pole),
+    dowody: bezPola(dowody, pole)
+  };
+}
+
+// Nazwa sztuczki, jedno zdanie co to jest, i jak znaleźć właśnie ten krok.
+function wyjasnijPodpowiedz(opis, widok, info) {
+  var technika = info && info.technika ? info.technika : "odkrycie";
+  var pole = info.pole;
+  var wartosc = info.wartosc;
+  var z = opis.znaki.charAt(wartosc);
+  if (technika === "naga") return wyjasnijNaga(opis, widok, pole, z);
+  if (technika === "ukryta") return wyjasnijUkryta(opis, widok, pole, wartosc, z, info.slad);
+  if (technika === "odkrycie") {
+    return {
+      nazwa: "Bez prostego kroku",
+      definicja: "Żaden prosty sposób nie pokazuje następnej cyfry.",
+      tekst: "Nie ma tu prostego kroku, który wskaże następną cyfrę. Poprawna cyfra w tej kratce to " + z + ".",
+      obszar: [],
+      dowody: []
+    };
+  }
+  return wyjasnijKasowanie(opis, pole, z, info.slad);
 }
 
 function odkrycie(opis, widok, rozwiazanie, wybrane) {
@@ -917,12 +1260,17 @@ function odkrycie(opis, widok, rozwiazanie, wybrane) {
   }
   if (pole < 0) return null;
   var v = rozwiazanie[pole];
+  var w = wyjasnijPodpowiedz(opis, widok, { technika: "odkrycie", pole: pole, wartosc: v, slad: null });
   return {
     pole: pole,
     wartosc: v,
     technika: "odkrycie",
     poziom: 5,
-    tekst: tekstPodpowiedzi(opis, "odkrycie", v, "")
+    nazwa: w.nazwa,
+    definicja: w.definicja,
+    tekst: w.tekst,
+    obszar: w.obszar,
+    dowody: w.dowody
   };
 }
 
@@ -941,8 +1289,8 @@ function podpowiedz(opis, dane, wpisy, rozwiazanie, wybrane) {
   var preferowane = -1;
   if (typeof wybrane === "number" && wybrane >= 0 && widok[wybrane] < 0) preferowane = wybrane;
   var technika = "";
-  var gdzie = "";
   var poziom = 0;
+  var slad = null;
   var guard = stan.N * 4 + 8;
   while (guard-- > 0 && !kompletne(stan)) {
     var krok = nastepnyKrok(stan, 4, technika ? -1 : preferowane);
@@ -950,15 +1298,25 @@ function podpowiedz(opis, dane, wpisy, rozwiazanie, wybrane) {
     if (krok.poziom >= poziom) {
       poziom = krok.poziom;
       technika = krok.technika;
-      gdzie = krok.gdzie || "";
+      slad = krok;
     }
     if (krok.typ === "wpis" && widok[krok.pole] < 0) {
+      var w = wyjasnijPodpowiedz(opis, widok, {
+        technika: technika,
+        pole: krok.pole,
+        wartosc: krok.wartosc,
+        slad: slad
+      });
       return {
         pole: krok.pole,
         wartosc: krok.wartosc,
         technika: technika,
         poziom: poziom,
-        tekst: tekstPodpowiedzi(opis, technika, krok.wartosc, gdzie)
+        nazwa: w.nazwa,
+        definicja: w.definicja,
+        tekst: w.tekst,
+        obszar: w.obszar,
+        dowody: w.dowody
       };
     }
     if (!zastosuj(stan, krok)) return odkrycie(opis, widok, rozwiazanie, wybrane);
@@ -1297,6 +1655,7 @@ if (typeof module !== "undefined" && module.exports) {
     ocenUklad: ocenUklad,
     sprawdz: sprawdz,
     podpowiedz: podpowiedz,
+    wyjasnijPodpowiedz: wyjasnijPodpowiedz,
     polaObok: polaObok,
     PASMA: PASMA,
     generuj: generuj,
