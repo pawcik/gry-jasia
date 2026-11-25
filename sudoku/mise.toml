@@ -11,7 +11,7 @@ description = "Uruchom sudoku z automatycznym odświeżaniem"
 run = "live-server --port=8082 --open=index.html"
 
 [tasks.test]
-description = "Sprawdź generator, solver i sprawdzanie planszy"
+description = "Sprawdź generator, solver, planszę i pasek nowej wersji"
 run = "node --check silnik.js && node --check game.js && node --check sw.js && node --test test.js"
 
 # Wdrożenie na domowy serwer. SERWER (nazwa w ~/.ssh/config) i DOMENA
