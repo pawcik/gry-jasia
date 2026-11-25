@@ -8,8 +8,9 @@ var fs = require("fs");
 var path = require("path");
 var os = require("os");
 
-var PORT = 8080;
+var PORT = Number(process.env.PORT) || 8080;
 var FOLDER = __dirname;
+var MAX_OTWARTYCH = 100; // tyle przeglądarek naraz, żeby ktoś z internetu nie zalał małego komputera
 var RODZAJE_PLIKOW = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -23,8 +24,23 @@ var RODZAJE_PLIKOW = {
   ".wav": "audio/wav"
 };
 
-var gracze = {};     // id gracza -> gdzie jest i co robi
-var sluchacze = {};  // id gracza -> otwarte połączenie, przez które wysyłamy mu wiadomości
+var gracze = Object.create(null);     // id gracza -> gdzie jest i co robi
+var sluchacze = Object.create(null);  // id gracza -> otwarte połączenie, przez które wysyłamy mu wiadomości
+
+// Kto może otworzyć grę: ten komputer i telefony w domowym Wi-Fi.
+var DOZWOLONE_HOSTY = Object.create(null);
+function dodajHost(nazwa) {
+  if (!nazwa) return;
+  DOZWOLONE_HOSTY[String(nazwa).toLowerCase()] = 1;
+}
+dodajHost("localhost");
+dodajHost("127.0.0.1");
+dodajHost("::1");
+var sieci = os.networkInterfaces();
+for (var nazwaSieci in sieci) {
+  for (var h = 0; h < sieci[nazwaSieci].length; h++) dodajHost(sieci[nazwaSieci][h].address);
+}
+var KORZEN = fs.realpathSync(FOLDER);
 var zmiana = false;  // czy ktoś się ruszył od ostatniej wiadomości
 
 // Wiadomość do wszystkich przeglądarek naraz
@@ -39,7 +55,36 @@ function listaGraczy() {
   return lista;
 }
 
+function nazwaHosta(zadanie) {
+  var host = String(zadanie.headers.host || "").toLowerCase();
+  if (host.charAt(0) === "[") {
+    var koniec = host.indexOf("]");
+    return koniec === -1 ? "" : host.slice(1, koniec);
+  }
+  return host.replace(/:\d+$/, "");
+}
+
+function hostDozwolony(zadanie) {
+  return !!DOZWOLONE_HOSTY[nazwaHosta(zadanie)];
+}
+
+function odmow(odpowiedz) {
+  odpowiedz.writeHead(403, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+  odpowiedz.end("Zły adres");
+}
+
+function ileOtwartych() {
+  var ile = 0;
+  for (var id in sluchacze) ile++;
+  return ile;
+}
+
+function idDobre(id) {
+  return typeof id === "string" && /^[a-z0-9]+$/i.test(id) && id.length <= 40;
+}
+
 var serwer = http.createServer(function (zadanie, odpowiedz) {
+  if (!hostDozwolony(zadanie)) return odmow(odpowiedz);
   var adres = new URL(zadanie.url, "http://localhost");
   if (adres.pathname === "/wydarzenia") return polaczGracza(adres, zadanie, odpowiedz);
   if (adres.pathname === "/ruch" && zadanie.method === "POST") return odbierzRuch(zadanie, odpowiedz);
@@ -48,8 +93,12 @@ var serwer = http.createServer(function (zadanie, odpowiedz) {
 
 // Przeglądarka otwiera stałe połączenie i czeka na wiadomości od serwera
 function polaczGracza(adres, zadanie, odpowiedz) {
-  var id = adres.searchParams.get("id");
-  if (!id) {
+  if (ileOtwartych() >= MAX_OTWARTYCH) {
+    odpowiedz.writeHead(503, { "Content-Type": "text/plain; charset=utf-8" });
+    return odpowiedz.end("Za dużo graczy. Spróbuj za chwilę.");
+  }
+  var id = String(adres.searchParams.get("id") || "");
+  if (!idDobre(id)) {
     odpowiedz.writeHead(400);
     return odpowiedz.end();
   }
@@ -77,7 +126,7 @@ function odbierzRuch(zadanie, odpowiedz) {
   zadanie.on("end", function () {
     try {
       var s = JSON.parse(tresc);
-      if (typeof s.id === "string" && sluchacze[s.id]) {
+      if (idDobre(s.id) && sluchacze[s.id]) {
         if (!gracze[s.id]) console.log("🦊 " + s.imie + " dołączył do gry");
         gracze[s.id] = {
           id: s.id,
@@ -99,26 +148,45 @@ function odbierzRuch(zadanie, odpowiedz) {
   });
 }
 
-// Pliki gry: index.html, skrypty, obrazki
-function wyslijPlik(sciezka, odpowiedz) {
+// Plik gry albo null. Notatki, hasła i skróty poza folder zostają na dysku.
+function sciezkaPliku(sciezka) {
   if (sciezka === "/") sciezka = "/index.html";
   try {
     sciezka = decodeURIComponent(sciezka);
   } catch (blad) {
-    sciezka = "";
+    return null;
   }
+  if (sciezka.indexOf("\0") !== -1) return null;
   var czesci = sciezka.split("/");
   for (var i = 0; i < czesci.length; i++) {
+    var czesc = czesci[i];
+    if (!czesc) continue;
     // ukryte pliki (np. .git) i wychodzenie z folderu gry są zabronione
-    if (czesci[i].charAt(0) === ".") return nieMa(odpowiedz);
+    if (czesc.charAt(0) === ".") return null;
+    if (czesc.toLowerCase().indexOf(".local") !== -1) return null;
   }
-  var plik = path.join(FOLDER, sciezka);
-  if (plik.indexOf(FOLDER + path.sep) !== 0) return nieMa(odpowiedz);
-  fs.readFile(plik, function (blad, dane) {
-    if (blad) return nieMa(odpowiedz);
-    var rodzaj = RODZAJE_PLIKOW[path.extname(plik).toLowerCase()] || "application/octet-stream";
-    odpowiedz.writeHead(200, { "Content-Type": rodzaj, "Cache-Control": "no-store" });
-    odpowiedz.end(dane);
+  if (!RODZAJE_PLIKOW[path.extname(sciezka).toLowerCase()]) return null;
+  var plik = path.resolve(FOLDER, sciezka.replace(/^\/+/, ""));
+  if (plik !== KORZEN && plik.indexOf(KORZEN + path.sep) !== 0 && plik.indexOf(FOLDER + path.sep) !== 0) return null;
+  return plik;
+}
+
+function jestWFolderze(prawdziwy) {
+  return prawdziwy === KORZEN || prawdziwy.indexOf(KORZEN + path.sep) === 0;
+}
+
+// Pliki gry: index.html, skrypty, obrazki. Nic innego.
+function wyslijPlik(sciezka, odpowiedz) {
+  var plik = sciezkaPliku(sciezka);
+  if (!plik) return nieMa(odpowiedz);
+  fs.realpath(plik, function (bladSciezki, prawdziwy) {
+    if (bladSciezki || !jestWFolderze(prawdziwy)) return nieMa(odpowiedz);
+    fs.readFile(prawdziwy, function (blad, dane) {
+      if (blad) return nieMa(odpowiedz);
+      var rodzaj = RODZAJE_PLIKOW[path.extname(prawdziwy).toLowerCase()];
+      odpowiedz.writeHead(200, { "Content-Type": rodzaj, "Cache-Control": "no-store" });
+      odpowiedz.end(dane);
+    });
   });
 }
 
