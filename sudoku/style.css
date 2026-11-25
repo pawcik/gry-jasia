@@ -1,0 +1,348 @@
+/* Patrick Hand (Patrick Wagesreiter), licencja SIL OFL — plik w czcionki/.
+   Cyfry gracza wyglądają jak ołówek. Działa bez internetu. */
+@font-face {
+  font-family: "Patrick Hand";
+  src: url("czcionki/PatrickHand-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --papier: #f3efe4;
+  --atrament: #1c1c1c;
+  --olowek: #2a3b56;
+  --linia: #c9c3b4;
+  --notatka: #6f6a60;
+  --zaznaczenie: #e3d9c2;
+  --obok: #efe8d8;
+  --zle: #7c2f2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--papier);
+  color: var(--atrament);
+  font-family: Georgia, "Iowan Old Style", Palatino, "Palatino Linotype", "Times New Roman", serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left));
+}
+
+header h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+button {
+  font-family: inherit;
+  font-size: 16px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--atrament);
+  border-radius: 0;
+  padding: 8px 12px;
+  margin: 4px;
+  min-height: 44px;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+button.tekstowy {
+  border: none;
+  min-height: 0;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+button.glowny {
+  display: block;
+  width: min(96vw, 420px);
+  margin: 14px auto;
+  font-size: 20px;
+}
+
+button.wcisniety,
+.pad button.wcisniety {
+  background: var(--atrament);
+  color: var(--papier);
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--atrament);
+  outline-offset: 2px;
+}
+
+.ekran {
+  display: none;
+  padding: 8px calc(12px + env(safe-area-inset-right)) 28px calc(12px + env(safe-area-inset-left));
+  text-align: center;
+}
+
+.ekran.widoczne {
+  display: block;
+}
+
+#komunikat {
+  min-height: 2.6em;
+  margin: 8px auto 0;
+  width: min(96vw, 680px);
+  text-align: center;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.cicho {
+  color: #3f3c36;
+  font-size: 15px;
+  text-align: center;
+}
+
+.opis {
+  margin: 0 auto 8px;
+}
+
+.etykieta {
+  margin: 16px 0 4px;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rzad {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+
+.siatka {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--n), minmax(0, 1fr));
+  width: min(96vw, 640px, calc(100vh - 340px));
+  width: min(96vw, 640px, calc(100dvh - 340px));
+  aspect-ratio: 1;
+  margin: 0 auto;
+  border-top: 2px solid var(--atrament);
+  border-left: 2px solid var(--atrament);
+  background: var(--papier);
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.pole {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--linia);
+  border-bottom: 1px solid var(--linia);
+  background: transparent;
+  font-size: calc(var(--bok) * 0.62);
+  line-height: 1;
+}
+
+.pole.gruboPrawo {
+  border-right: 2px solid var(--atrament);
+}
+
+.pole.gruboDol {
+  border-bottom: 2px solid var(--atrament);
+}
+
+.pole.obok {
+  background: var(--obok);
+}
+
+.pole.wybrane {
+  background: var(--zaznaczenie);
+}
+
+.pole:focus {
+  outline: none;
+}
+
+.pole .cyfra {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.pole.dana .cyfra {
+  font-family: Georgia, "Iowan Old Style", Palatino, "Times New Roman", serif;
+  font-weight: 600;
+  color: var(--atrament);
+}
+
+.pole.wpis .cyfra {
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", "Chalkboard SE", cursive;
+  font-weight: 400;
+  color: var(--olowek);
+  font-size: 1.15em;
+}
+
+.pole.zle .cyfra {
+  color: var(--zle);
+}
+
+.pole.konflikt .cyfra {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.notatki {
+  display: none;
+  width: 100%;
+  height: 100%;
+  grid-template-columns: repeat(var(--kol-not), 1fr);
+  grid-template-rows: repeat(var(--wier-not), 1fr);
+  pointer-events: none;
+  color: var(--notatka);
+  font-family: "Patrick Hand", "Segoe Print", sans-serif;
+}
+
+.pole.zNotatkami .cyfra {
+  display: none;
+}
+
+.pole.zNotatkami .notatki {
+  display: grid;
+}
+
+.notatki i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  font-size: calc(var(--bok) / var(--kol-not) * 0.72);
+  line-height: 1;
+}
+
+.dol {
+  margin-top: 10px;
+  padding-top: 8px;
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  background: var(--papier);
+  border-top: 1px solid #ddd6c6;
+}
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 6px;
+  width: min(96vw, 680px);
+  margin: 0 auto 6px;
+}
+
+.pad button {
+  margin: 0;
+  min-height: 46px;
+  font-size: 20px;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.narzedzia button {
+  font-size: 15px;
+  padding: 8px 10px;
+}
+
+.ustawienie,
+.kodOpis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(96vw, 640px);
+  margin: 8px auto 0;
+  text-align: center;
+}
+
+.ustawienie input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+textarea {
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--atrament);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, "Courier New", monospace;
+  font-size: 16px;
+  resize: vertical;
+}
+
+.lista {
+  width: min(96vw, 420px);
+  margin: 8px auto;
+}
+
+.wierszListy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px solid #ddd6c6;
+}
+
+.wierszListy span {
+  flex: 1;
+  text-align: left;
+  padding-left: 4px;
+}
+
+.wierszListy button {
+  min-height: 40px;
+}
+
+.naglowekListy {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+@media (pointer: coarse) {
+  .dlaKlawiatury {
+    display: none;
+  }
+}

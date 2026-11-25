@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3efe4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Sudoku">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Sudoku</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="icon" href="ikona-32.png" type="image/png" sizes="32x32">
+  <link rel="icon" href="ikona.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="ikona-180.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Sudoku</h1>
+    <button type="button" id="doMenu" class="tekstowy">Menu</button>
+  </header>
+  <p id="komunikat" role="status"></p>
+
+  <section class="ekran" id="ekranMenu">
+    <p class="cicho">Plansza jak na papierze. Po otwarciu działa też bez sieci.</p>
+    <p class="etykieta">Rozmiar</p>
+    <div id="wyborRozmiaru" class="rzad"></div>
+    <p class="etykieta">Trudność</p>
+    <div id="wyborTrudnosci" class="rzad"></div>
+    <button type="button" id="nowaPlansza" class="glowny">Nowa plansza</button>
+    <button type="button" id="wrocDoPlanszy">Wróć do planszy</button>
+    <button type="button" id="doEdytora">Własna plansza</button>
+    <button type="button" id="pobierzPaczke">Gotowe plansze</button>
+    <div id="listaGotowych"></div>
+    <div id="listaWlasnych"></div>
+    <p class="cicho dlaKlawiatury">Klawiatura: strzałki, cyfry i litery, Backspace czyści, N przełącza notatki, Ctrl+Z cofa.</p>
+  </section>
+
+  <section class="ekran" id="ekranGra">
+    <p id="opisGry" class="cicho opis"></p>
+    <div id="plansza"></div>
+    <div class="dol">
+      <div id="pad" class="pad"></div>
+      <div class="rzad narzedzia">
+        <button type="button" id="trybNotatek">Notatki</button>
+        <button type="button" id="cofnij">Cofnij</button>
+        <button type="button" id="ponow">Ponów</button>
+        <button type="button" id="podpowiedz">Podpowiedź</button>
+        <button type="button" id="sprawdz">Sprawdź</button>
+        <button type="button" id="nowaZGry">Nowa</button>
+      </div>
+      <label class="cicho ustawienie">
+        <input type="checkbox" id="czyscNotatki">
+        Wymazuj tę cyfrę z notatek obok
+      </label>
+    </div>
+  </section>
+
+  <section class="ekran" id="ekranEdytor">
+    <p class="cicho">Wpisz cyfry zadania. Puste pola zostają dla grającego.</p>
+    <div id="wyborRozmiaruEdytora" class="rzad"></div>
+    <div id="planszaEdytora"></div>
+    <div class="dol">
+      <div id="padEdytora" class="pad"></div>
+      <div class="rzad narzedzia">
+        <button type="button" id="edytorSprawdz">Czy jest jedno rozwiązanie?</button>
+        <button type="button" id="edytorGraj">Graj</button>
+        <button type="button" id="edytorZapisz">Zapisz u mnie</button>
+        <button type="button" id="edytorCzysc">Wyczyść</button>
+      </div>
+      <label class="cicho kodOpis">Kod planszy
+        <textarea id="poleKodu" rows="3" spellcheck="false" autocapitalize="off" autocorrect="off" autocomplete="off"></textarea>
+      </label>
+      <div class="rzad">
+        <button type="button" id="kopiujKod">Kopiuj</button>
+        <button type="button" id="wczytajKod">Wczytaj kod</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="silnik.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
